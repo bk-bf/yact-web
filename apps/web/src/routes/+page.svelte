@@ -112,20 +112,23 @@
             <h1>Cryptocurrency Prices by Market Cap</h1>
             <p class="market-overview-subtitle">
                 The global crypto market cap today is
-                <strong
-                    >{formatDetailedUsd(data.global.totalMarketCapUsd)}</strong
-                >
-                a
-                <span
-                    class={data.global.marketCapChangePercentage24hUsd >= 0
-                        ? "positive"
-                        : "negative"}
-                >
-                    {signedPercent.format(
-                        data.global.marketCapChangePercentage24hUsd / 100,
-                    )}
+                <span class="market-overview-pill">
+                    <strong class="market-overview-pill-value"
+                        >{formatDetailedUsd(
+                            data.global.totalMarketCapUsd,
+                        )}</strong
+                    >
+                    <span
+                        class={data.global.marketCapChangePercentage24hUsd >= 0
+                            ? "positive market-overview-pill-change"
+                            : "negative market-overview-pill-change"}
+                    >
+                        {signedPercent.format(
+                            data.global.marketCapChangePercentage24hUsd / 100,
+                        )}
+                    </span>
                 </span>
-                change in the last 24 hours.
+                for the last 24 hours.
             </p>
         </div>
     </div>
