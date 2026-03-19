@@ -511,9 +511,12 @@
         }
 
         const requestId = ++chartFetchRequestId;
-        void fetch(`/api/coins/${coin.id}/chart?range=${range}&_ts=${Date.now()}`, {
-            cache: "no-store",
-        })
+        void fetch(
+            `/api/coins/${coin.id}/chart?range=${range}&_ts=${Date.now()}`,
+            {
+                cache: "no-store",
+            },
+        )
             .then(async (response) => {
                 if (!response.ok) {
                     throw new Error(
