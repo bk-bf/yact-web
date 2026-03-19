@@ -25,35 +25,29 @@
                 {/each}
             </nav>
 
-            <nav class="route-links" aria-label="Primary routes">
-                <a
-                    class="route-link"
-                    href="/"
-                    aria-current={$page.url.pathname === "/"
-                        ? "page"
-                        : undefined}>Markets</a
-                >
-                <a
-                    class="route-link"
-                    href="/watchlist"
-                    aria-current={$page.url.pathname === "/watchlist"
-                        ? "page"
-                        : undefined}>Watchlist</a
-                >
-            </nav>
+            <div class="top-nav-right">
+                <nav class="route-links" aria-label="Primary routes">
+                    <a
+                        class="route-link"
+                        href="/"
+                        aria-current={$page.url.pathname === "/"
+                            ? "page"
+                            : undefined}>Markets</a
+                    >
+                    <a
+                        class="route-link"
+                        href="/watchlist"
+                        aria-current={$page.url.pathname === "/watchlist"
+                            ? "page"
+                            : undefined}>Watchlist</a
+                    >
+                </nav>
 
-            <div class="menu-actions">
-                <button class="menu-action outlined" type="button"
-                    >Portfolio</button
-                >
-                <button class="menu-action outlined" type="button"
-                    >Alerts</button
-                >
-                <button class="menu-action outlined" type="button"
-                    >Customize</button
-                >
-                <button class="menu-action filled" type="button">Sign In</button
-                >
+                <div class="menu-actions">
+                    <button class="menu-action filled" type="button"
+                        >Sign In</button
+                    >
+                </div>
             </div>
         </div>
     </header>

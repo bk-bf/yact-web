@@ -239,7 +239,6 @@
 
 <section class="market-section">
   <h2 class="m3-surface-title">Top 100 Cryptocurrencies By Market Cap</h2>
-  <p class="m3-surface-subtitle">Live source: {data.source}</p>
   {#if data.warning}
     <p class="warning-text">{data.warning}</p>
   {/if}
@@ -254,7 +253,9 @@
         <button class="table-filter-item" type="button">New Listings</button>
         <button class="table-filter-item" type="button">Layer 1</button>
         <button class="table-filter-item" type="button">DeFi</button>
-        <button class="table-filter-item" type="button">AI Tokens</button>
+        <button class="table-filter-item no-right-border" type="button"
+          >AI Tokens</button
+        >
         <span class="table-filter-divider" aria-hidden="true"></span>
         <button class="table-filter-item" type="button">All</button>
         <button class="table-filter-item" type="button">Highlights</button>
@@ -266,14 +267,6 @@
         <button class="table-filter-item" type="button">Perpetuals</button>
         <button class="table-filter-item" type="button">DEX</button>
       </div>
-    </div>
-
-    <div class="market-headline-row">
-      <span class="market-meta-item">Live Market Table</span>
-      <span class="market-meta-item">Rows: {data.coins.length}</span>
-      {#if data.stale}
-        <span class="market-meta-item warning">Stale Snapshot</span>
-      {/if}
     </div>
 
     <div class="market-table-wrap">
@@ -341,4 +334,6 @@
     <M3Button href="/watchlist" tone="tonal">Open Watchlist Workspace</M3Button>
     <M3Button href="/" tone="outlined">Refresh Top 100</M3Button>
   </div>
+
+  <p class="market-footnote">Live source: {data.source}</p>
 </section>
