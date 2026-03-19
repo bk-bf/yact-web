@@ -577,15 +577,13 @@
                                 lastCycleFinishedAt: number | null;
                                 lastCycleOk: boolean | null;
                                 lastCycleError: string | null;
-                                lastAdHocCoin:
-                                    | {
-                                          coinId: string;
-                                          startedAt: number;
-                                          finishedAt: number | null;
-                                          ok: boolean | null;
-                                          error: string | null;
-                                      }
-                                    | null;
+                                lastAdHocCoin: {
+                                    coinId: string;
+                                    startedAt: number;
+                                    finishedAt: number | null;
+                                    ok: boolean | null;
+                                    error: string | null;
+                                } | null;
                             };
                         };
                         if (payload.error) {
@@ -622,15 +620,13 @@
                         lastCycleFinishedAt: number | null;
                         lastCycleOk: boolean | null;
                         lastCycleError: string | null;
-                        lastAdHocCoin:
-                            | {
-                                  coinId: string;
-                                  startedAt: number;
-                                  finishedAt: number | null;
-                                  ok: boolean | null;
-                                  error: string | null;
-                              }
-                            | null;
+                        lastAdHocCoin: {
+                            coinId: string;
+                            startedAt: number;
+                            finishedAt: number | null;
+                            ok: boolean | null;
+                            error: string | null;
+                        } | null;
                     };
                 };
 
@@ -744,9 +740,12 @@
 
         const poll = async () => {
             try {
-                const response = await fetch(`/api/debug/auto-refresh?limit=6&_ts=${Date.now()}`, {
-                    cache: "no-store",
-                });
+                const response = await fetch(
+                    `/api/debug/auto-refresh?limit=6&_ts=${Date.now()}`,
+                    {
+                        cache: "no-store",
+                    },
+                );
                 if (!response.ok) {
                     return;
                 }
@@ -771,24 +770,41 @@
                     return;
                 }
 
-                const latestEvent = payload.events?.[payload.events.length - 1] ?? null;
-                const failedByEvent = latestEvent?.type === "cycle-failed" || latestEvent?.type === "ad-hoc-coin-failed";
-                const successByEvent = latestEvent?.type === "cycle-success" || latestEvent?.type === "ad-hoc-coin-success";
+                const latestEvent =
+                    payload.events?.[payload.events.length - 1] ?? null;
+                const failedByEvent =
+                    latestEvent?.type === "cycle-failed" ||
+                    latestEvent?.type === "ad-hoc-coin-failed";
+                const successByEvent =
+                    latestEvent?.type === "cycle-success" ||
+                    latestEvent?.type === "ad-hoc-coin-success";
+                const lastOutcome =
+                    failedByEvent || payload.status.lastCycleOk === false
+                        ? "failure"
+                        : successByEvent || payload.status.lastCycleOk === true
+                          ? "success"
+                          : "unknown";
                 const outcome = payload.status.running
-                    ? "running"
-                    : failedByEvent || payload.status.lastCycleOk === false
-                      ? "failure"
-                      : successByEvent || payload.status.lastCycleOk === true
-                        ? "success"
-                        : "unknown";
+                    ? `running-${lastOutcome}`
+                    : lastOutcome;
                 const nextCycleInSec = payload.status.nextCycleAt
-                    ? Math.max(0, Math.round((payload.status.nextCycleAt - Date.now()) / 1000))
+                    ? Math.max(
+                          0,
+                          Math.round(
+                              (payload.status.nextCycleAt - Date.now()) / 1000,
+                          ),
+                      )
                     : null;
-                const logger = outcome === "failure" ? console.warn : console.info;
+                const logger =
+                    outcome === "failure" ? console.warn : console.info;
 
                 logger(CHART_CLIENT_DEBUG_PREFIX, {
                     phase: "auto-refresh-poll",
                     outcome,
+                    currentState: payload.status.running
+                        ? "running"
+                        : "idle",
+                    lastOutcome,
                     cycleCount: payload.status.cycleCount,
                     nextCycleInSec,
                     lastCycleOk: payload.status.lastCycleOk,
@@ -800,7 +816,10 @@
                 if (!cancelled) {
                     console.warn(CHART_CLIENT_DEBUG_PREFIX, {
                         phase: "auto-refresh-poll-error",
-                        error: error instanceof Error ? error.message : String(error),
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
                     });
                 }
             }

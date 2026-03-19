@@ -9,6 +9,8 @@ interface CoinBreakdown {
     marketCap: number;
     marketCapRank: number;
     totalVolume24h: number;
+    low24h: number | null;
+    high24h: number | null;
     circulatingSupply: number;
     maxSupply: number | null;
     priceChangePercentage24h: number;
@@ -25,7 +27,7 @@ interface CoinBreakdown {
     sparkline7d: number[];
     chartPrices7d: number[];
     chartVolumes7d: number[];
-    source: 'coingecko' | 'coingecko-cache';
+    source: 'coingecko' | 'coingecko-cache' | 'coinpaprika';
 }
 
 interface CoinBreakdownResponse {

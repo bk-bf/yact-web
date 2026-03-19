@@ -1,11 +1,13 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { CoinBreakdown, CoinChartRange, CoinChartSeries } from './coingecko';
 
 const SNAPSHOT_VERSION = 1;
+const DESCRIPTION_REVALIDATE_MS = 14 * 24 * 60 * 60_000;
 const SNAPSHOT_DIR = path.join(process.cwd(), '.cache');
 const SNAPSHOT_FILE = path.join(SNAPSHOT_DIR, 'coin-snapshot.json');
+const SNAPSHOT_BACKUP_FILE = path.join(SNAPSHOT_DIR, 'coin-snapshot.backup.json');
 const SNAPSHOT_LOG_PREFIX = '[coin-snapshot]';
 
 interface StoredCoinBreakdown {
@@ -51,10 +53,29 @@ function pickNonEmptyNullableString(primary: string | null, fallback: string | n
     return fallback;
 }
 
-function mergeCoinBreakdownPreservingDetails(existing: CoinBreakdown | undefined, incoming: CoinBreakdown): CoinBreakdown {
+function mergeCoinBreakdownPreservingDetails(
+    existing: CoinBreakdown | undefined,
+    existingTs: number | undefined,
+    incoming: CoinBreakdown
+): CoinBreakdown {
     if (!existing) {
         return incoming;
     }
+
+    const existingDescription = existing.description.trim();
+    const incomingDescription = incoming.description.trim();
+    const existingDescriptionIsFresh =
+        typeof existingTs === 'number' &&
+        Date.now() - existingTs < DESCRIPTION_REVALIDATE_MS;
+
+    // Keep description stable: prefer existing text unless a scheduled CoinGecko revalidation window has passed.
+    const description = existingDescription.length > 0 && (
+        incoming.source !== 'coingecko' ||
+        existingDescriptionIsFresh ||
+        incomingDescription.length === 0
+    )
+        ? existing.description
+        : pickNonEmptyString(incoming.description, existing.description);
 
     const merged: CoinBreakdown = {
         ...incoming,
@@ -63,8 +84,10 @@ function mergeCoinBreakdownPreservingDetails(existing: CoinBreakdown | undefined
         allTimeHighDate: pickNonEmptyNullableString(incoming.allTimeHighDate, existing.allTimeHighDate),
         allTimeLow: incoming.allTimeLow > 0 ? incoming.allTimeLow : existing.allTimeLow,
         allTimeLowDate: pickNonEmptyNullableString(incoming.allTimeLowDate, existing.allTimeLowDate),
+        low24h: incoming.low24h ?? existing.low24h,
+        high24h: incoming.high24h ?? existing.high24h,
         categories: incoming.categories.length > 0 ? incoming.categories : existing.categories,
-        description: pickNonEmptyString(incoming.description, existing.description),
+        description,
         homepage: pickNonEmptyNullableString(incoming.homepage, existing.homepage),
         blockchainSite: pickNonEmptyNullableString(incoming.blockchainSite, existing.blockchainSite),
         sparkline7d: incoming.sparkline7d.length > 1 ? incoming.sparkline7d : existing.sparkline7d,
@@ -91,41 +114,115 @@ function isValidSnapshot(value: unknown): value is PersistentCoinSnapshot {
     return true;
 }
 
-async function readSnapshot(): Promise<PersistentCoinSnapshot> {
+function normalizeSnapshotLike(value: unknown): PersistentCoinSnapshot | null {
+    if (!isObject(value)) {
+        return null;
+    }
+
+    const coinsRaw = value.coins;
+    if (!isObject(coinsRaw)) {
+        return null;
+    }
+
+    const updatedAt = typeof value.updatedAt === 'number' ? value.updatedAt : Date.now();
+    const normalized: PersistentCoinSnapshot = {
+        v: SNAPSHOT_VERSION,
+        updatedAt,
+        coins: {}
+    };
+
+    for (const [coinId, entryRaw] of Object.entries(coinsRaw)) {
+        if (!isObject(entryRaw)) {
+            continue;
+        }
+
+        const entry: StoredCoinEntry = {};
+
+        if (isObject(entryRaw.breakdown) && typeof entryRaw.breakdown.ts === 'number' && entryRaw.breakdown.value) {
+            entry.breakdown = {
+                ts: entryRaw.breakdown.ts,
+                value: entryRaw.breakdown.value as CoinBreakdown
+            };
+        }
+
+        if (isObject(entryRaw.charts)) {
+            const charts: Partial<Record<CoinChartRange, StoredCoinChartSeries>> = {};
+            for (const [range, seriesRaw] of Object.entries(entryRaw.charts)) {
+                if (!isObject(seriesRaw) || typeof seriesRaw.ts !== 'number' || !seriesRaw.value) {
+                    continue;
+                }
+
+                charts[range as CoinChartRange] = {
+                    ts: seriesRaw.ts,
+                    value: seriesRaw.value as CoinChartSeries
+                };
+            }
+
+            if (Object.keys(charts).length > 0) {
+                entry.charts = charts;
+            }
+        }
+
+        if (entry.breakdown || entry.charts) {
+            normalized.coins[coinId] = entry;
+        }
+    }
+
+    return normalized;
+}
+
+async function tryReadSnapshotFile(filePath: string): Promise<PersistentCoinSnapshot | null> {
     try {
-        const raw = await readFile(SNAPSHOT_FILE, 'utf-8');
+        const raw = await readFile(filePath, 'utf-8');
         const parsed = JSON.parse(raw);
+
         if (isValidSnapshot(parsed)) {
             return parsed;
         }
 
-        console.warn(`${SNAPSHOT_LOG_PREFIX} invalid snapshot payload, reinitializing store`);
-        return {
-            v: SNAPSHOT_VERSION,
-            updatedAt: Date.now(),
-            coins: {}
-        };
-    } catch (error) {
-        if (isObject(error) && error.code === 'ENOENT') {
-            return {
-                v: SNAPSHOT_VERSION,
-                updatedAt: Date.now(),
-                coins: {}
-            };
+        const migrated = normalizeSnapshotLike(parsed);
+        if (migrated) {
+            console.warn(`${SNAPSHOT_LOG_PREFIX} migrated snapshot payload from ${filePath}`);
+            return migrated;
         }
 
-        console.error(`${SNAPSHOT_LOG_PREFIX} failed to read snapshot:`, error);
-        return {
-            v: SNAPSHOT_VERSION,
-            updatedAt: Date.now(),
-            coins: {}
-        };
+        return null;
+    } catch (error) {
+        if (isObject(error) && error.code === 'ENOENT') {
+            return null;
+        }
+
+        console.error(`${SNAPSHOT_LOG_PREFIX} failed to read ${filePath}:`, error);
+        return null;
     }
+}
+
+async function readSnapshot(): Promise<PersistentCoinSnapshot> {
+    const primary = await tryReadSnapshotFile(SNAPSHOT_FILE);
+    if (primary) {
+        return primary;
+    }
+
+    const backup = await tryReadSnapshotFile(SNAPSHOT_BACKUP_FILE);
+    if (backup) {
+        console.warn(`${SNAPSHOT_LOG_PREFIX} recovered snapshot from backup file`);
+        return backup;
+    }
+
+    return {
+        v: SNAPSHOT_VERSION,
+        updatedAt: Date.now(),
+        coins: {}
+    };
 }
 
 async function writeSnapshot(snapshot: PersistentCoinSnapshot): Promise<void> {
     await mkdir(SNAPSHOT_DIR, { recursive: true });
-    await writeFile(SNAPSHOT_FILE, JSON.stringify(snapshot), 'utf-8');
+    const serialized = JSON.stringify(snapshot);
+    const tempFile = `${SNAPSHOT_FILE}.tmp`;
+    await writeFile(tempFile, serialized, 'utf-8');
+    await rename(tempFile, SNAPSHOT_FILE);
+    await writeFile(SNAPSHOT_BACKUP_FILE, serialized, 'utf-8');
 }
 
 export async function readCoinBreakdownSnapshot(coinId: string): Promise<PersistedCoinBreakdown | null> {
@@ -141,7 +238,11 @@ export async function readCoinBreakdownSnapshot(coinId: string): Promise<Persist
 export async function writeCoinBreakdownSnapshot(coinId: string, breakdown: CoinBreakdown): Promise<void> {
     const snapshot = await readSnapshot();
     const existing = snapshot.coins[coinId] ?? {};
-    const mergedBreakdown = mergeCoinBreakdownPreservingDetails(existing.breakdown?.value, breakdown);
+    const mergedBreakdown = mergeCoinBreakdownPreservingDetails(
+        existing.breakdown?.value,
+        existing.breakdown?.ts,
+        breakdown
+    );
 
     snapshot.coins[coinId] = {
         ...existing,
@@ -202,4 +303,24 @@ export async function writeCoinChartSnapshot(
 export async function listTrackedCoinIds(): Promise<string[]> {
     const snapshot = await readSnapshot();
     return Object.keys(snapshot.coins);
+}
+
+export async function readCoinLatestSnapshotTs(coinId: string): Promise<number | null> {
+    const snapshot = await readSnapshot();
+    const entry = snapshot.coins[coinId];
+    if (!entry) {
+        return null;
+    }
+
+    let latestTs = entry.breakdown?.ts ?? null;
+    const charts = entry.charts ? Object.values(entry.charts) : [];
+    for (const chart of charts) {
+        if (!chart) {
+            continue;
+        }
+
+        latestTs = latestTs === null ? chart.ts : Math.max(latestTs, chart.ts);
+    }
+
+    return latestTs;
 }

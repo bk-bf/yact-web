@@ -1,4 +1,4 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { MarketCoin } from '../types/market';
@@ -7,6 +7,7 @@ import type { GlobalMarketSummary } from './coingecko';
 const SNAPSHOT_VERSION = 1;
 const SNAPSHOT_DIR = path.join(process.cwd(), '.cache');
 const SNAPSHOT_FILE = path.join(SNAPSHOT_DIR, 'markets-snapshot.json');
+const SNAPSHOT_BACKUP_FILE = path.join(SNAPSHOT_DIR, 'markets-snapshot.backup.json');
 const SNAPSHOT_LOG_PREFIX = '[market-snapshot]';
 
 export interface PersistentMarketSnapshot {
@@ -34,31 +35,68 @@ function isValidSnapshot(value: unknown): value is PersistentMarketSnapshot {
     );
 }
 
-export async function readPersistentMarketSnapshot(): Promise<PersistentMarketSnapshot | null> {
-    try {
-        const raw = await readFile(SNAPSHOT_FILE, 'utf-8');
-        const parsed = JSON.parse(raw);
-        if (!isValidSnapshot(parsed)) {
-            console.warn(`${SNAPSHOT_LOG_PREFIX} invalid snapshot payload at ${SNAPSHOT_FILE}`);
-            return null;
-        }
-
-        const ageSeconds = Math.max(0, Math.floor((Date.now() - parsed.ts) / 1000));
-        console.info(
-            `${SNAPSHOT_LOG_PREFIX} loaded snapshot from ${SNAPSHOT_FILE} ` +
-            `(source=${parsed.source}, count=${parsed.count}, age_s=${ageSeconds})`
-        );
-
-        return parsed;
-    } catch (error) {
-        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
-            console.info(`${SNAPSHOT_LOG_PREFIX} no snapshot file found at ${SNAPSHOT_FILE}`);
-            return null;
-        }
-
-        console.error(`${SNAPSHOT_LOG_PREFIX} failed to read snapshot from ${SNAPSHOT_FILE}:`, error);
+function normalizeSnapshotLike(value: unknown): PersistentMarketSnapshot | null {
+    if (!value || typeof value !== 'object') {
         return null;
     }
+
+    const snapshot = value as Partial<PersistentMarketSnapshot>;
+    if (typeof snapshot.source !== 'string' || typeof snapshot.count !== 'number' || !Array.isArray(snapshot.coins) || snapshot.global === undefined) {
+        return null;
+    }
+
+    return {
+        v: SNAPSHOT_VERSION,
+        ts: typeof snapshot.ts === 'number' ? snapshot.ts : Date.now(),
+        source: snapshot.source,
+        count: snapshot.count,
+        coins: snapshot.coins,
+        global: snapshot.global
+    };
+}
+
+async function tryReadSnapshotFile(filePath: string): Promise<PersistentMarketSnapshot | null> {
+    try {
+        const raw = await readFile(filePath, 'utf-8');
+        const parsed = JSON.parse(raw);
+        if (isValidSnapshot(parsed)) {
+            return parsed;
+        }
+
+        const migrated = normalizeSnapshotLike(parsed);
+        if (migrated) {
+            console.warn(`${SNAPSHOT_LOG_PREFIX} migrated snapshot payload from ${filePath}`);
+            return migrated;
+        }
+
+        return null;
+    } catch (error) {
+        if (typeof error === 'object' && error !== null && 'code' in error && error.code === 'ENOENT') {
+            return null;
+        }
+
+        console.error(`${SNAPSHOT_LOG_PREFIX} failed to read snapshot from ${filePath}:`, error);
+        return null;
+    }
+}
+
+export async function readPersistentMarketSnapshot(): Promise<PersistentMarketSnapshot | null> {
+    const primary = await tryReadSnapshotFile(SNAPSHOT_FILE);
+    const snapshot = primary ?? await tryReadSnapshotFile(SNAPSHOT_BACKUP_FILE);
+
+    if (!snapshot) {
+        console.info(`${SNAPSHOT_LOG_PREFIX} no readable snapshot file found`);
+        return null;
+    }
+
+    const sourceFile = primary ? SNAPSHOT_FILE : SNAPSHOT_BACKUP_FILE;
+    const ageSeconds = Math.max(0, Math.floor((Date.now() - snapshot.ts) / 1000));
+    console.info(
+        `${SNAPSHOT_LOG_PREFIX} loaded snapshot from ${sourceFile} ` +
+        `(source=${snapshot.source}, count=${snapshot.count}, age_s=${ageSeconds})`
+    );
+
+    return snapshot;
 }
 
 export async function writePersistentMarketSnapshot(
@@ -77,7 +115,11 @@ export async function writePersistentMarketSnapshot(
 
     try {
         await mkdir(SNAPSHOT_DIR, { recursive: true });
-        await writeFile(SNAPSHOT_FILE, JSON.stringify(snapshot), 'utf-8');
+        const serialized = JSON.stringify(snapshot);
+        const tempFile = `${SNAPSHOT_FILE}.tmp`;
+        await writeFile(tempFile, serialized, 'utf-8');
+        await rename(tempFile, SNAPSHOT_FILE);
+        await writeFile(SNAPSHOT_BACKUP_FILE, serialized, 'utf-8');
         console.info(
             `${SNAPSHOT_LOG_PREFIX} wrote snapshot to ${SNAPSHOT_FILE} ` +
             `(source=${source}, count=${coins.length}, ts=${snapshot.ts})`

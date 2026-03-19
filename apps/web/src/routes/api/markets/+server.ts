@@ -9,18 +9,32 @@ import {
 } from '../../../lib/server/coingecko';
 import { getFallbackCryptoHeadlines, getTopCryptoHeadlines } from '../../../lib/server/headlines';
 import { ensureAutoRefreshStarted, refreshMarketsNow } from '../../../lib/server/autoRefreshService';
+import {
+    readPersistentHeadlinesSnapshot,
+    writePersistentHeadlinesSnapshot
+} from '../../../lib/server/persistentHeadlinesSnapshot';
 import { readPersistentMarketSnapshot } from '../../../lib/server/persistentMarketSnapshot';
 
 export async function GET({ fetch }) {
     ensureAutoRefreshStarted();
 
+    const headlinesSnapshotPromise = readPersistentHeadlinesSnapshot();
     const headlinesPromise = getTopCryptoHeadlines(fetch, 5).catch(() => getFallbackCryptoHeadlines());
     const gasPromise = getLatestGasGwei().catch(() => getCachedGasGwei());
-    const [persistentSnapshot, headlines, gasGwei] = await Promise.all([
+    const [persistentSnapshot, headlinesFromSource, headlinesSnapshot, gasGwei] = await Promise.all([
         readPersistentMarketSnapshot(),
         headlinesPromise,
+        headlinesSnapshotPromise,
         gasPromise
     ]);
+
+    const headlines = headlinesFromSource.length > 0
+        ? headlinesFromSource
+        : (headlinesSnapshot?.headlines ?? []);
+
+    if (headlinesFromSource.length > 0) {
+        void writePersistentHeadlinesSnapshot('reddit-direct', headlinesFromSource);
+    }
 
     if (persistentSnapshot) {
         // Serve DB snapshot immediately and refresh upstream asynchronously.

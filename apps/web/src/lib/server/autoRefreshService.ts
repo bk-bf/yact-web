@@ -41,14 +41,14 @@ interface AutoRefreshStatus {
 interface AutoRefreshEvent {
     ts: number;
     type:
-        | 'scheduler-started'
-        | 'cycle-start'
-        | 'cycle-success'
-        | 'cycle-failed'
-        | 'cycle-skipped'
-        | 'ad-hoc-coin-start'
-        | 'ad-hoc-coin-success'
-        | 'ad-hoc-coin-failed';
+    | 'scheduler-started'
+    | 'cycle-start'
+    | 'cycle-success'
+    | 'cycle-failed'
+    | 'cycle-skipped'
+    | 'ad-hoc-coin-start'
+    | 'ad-hoc-coin-success'
+    | 'ad-hoc-coin-failed';
     detail?: Record<string, unknown>;
 }
 
@@ -226,8 +226,6 @@ async function runAutoRefresh(): Promise<void> {
     autoRefreshStatus.cycleCount += 1;
     autoRefreshStatus.lastCycleStartedAt = startedAt;
     autoRefreshStatus.lastCycleFinishedAt = null;
-    autoRefreshStatus.lastCycleOk = null;
-    autoRefreshStatus.lastCycleError = null;
     autoRefreshStatus.nextCycleAt = startedAt + AUTO_REFRESH_INTERVAL_MS;
     pushAutoRefreshEvent({
         ts: startedAt,

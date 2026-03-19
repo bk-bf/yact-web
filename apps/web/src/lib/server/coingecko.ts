@@ -6,6 +6,7 @@ const COINGECKO_MARKETS_ENDPOINT =
 const COINGECKO_GLOBAL_ENDPOINT = 'https://api.coingecko.com/api/v3/global';
 const COINGECKO_COIN_ENDPOINT_BASE = 'https://api.coingecko.com/api/v3/coins';
 const CRYPTOCOMPARE_API_BASE = 'https://min-api.cryptocompare.com/data/v2';
+const COINPAPRIKA_API_BASE = 'https://api.coinpaprika.com/v1';
 
 const MARKET_CACHE_TTL_MS = 60_000;
 const CHART_DEBUG_PREFIX = '[chart-debug]';
@@ -36,6 +37,8 @@ export interface CoinBreakdown {
     marketCap: number;
     marketCapRank: number;
     totalVolume24h: number;
+    low24h: number | null;
+    high24h: number | null;
     circulatingSupply: number;
     maxSupply: number | null;
     priceChangePercentage24h: number;
@@ -52,7 +55,7 @@ export interface CoinBreakdown {
     sparkline7d: number[];
     chartPrices7d: number[];
     chartVolumes7d: number[];
-    source: 'coingecko' | 'coingecko-cache';
+    source: 'coingecko' | 'coingecko-cache' | 'coinpaprika';
 }
 
 type GlobalCache = {
@@ -129,6 +132,12 @@ interface CoinGeckoCoinDetailResponse {
         total_volume?: {
             usd?: number;
         };
+        low_24h?: {
+            usd?: number;
+        };
+        high_24h?: {
+            usd?: number;
+        };
         circulating_supply?: number | null;
         max_supply?: number | null;
         price_change_percentage_24h?: number | null;
@@ -181,6 +190,45 @@ interface JsonRpcGasResponse {
     jsonrpc?: string;
     id?: number;
     result?: string;
+}
+
+interface CoinPaprikaSearchResponse {
+    id: string;
+    name: string;
+    symbol: string;
+    rank: number;
+    is_active: boolean;
+    type: string;
+}
+
+interface CoinPaprikaCoinResponse {
+    id: string;
+    name: string;
+    symbol: string;
+    rank: number;
+    description?: string;
+    links?: {
+        website?: string[];
+        explorer?: string[];
+    };
+    max_supply?: number | null;
+}
+
+interface CoinPaprikaTickerResponse {
+    id: string;
+    rank?: number;
+    circulating_supply?: number;
+    max_supply?: number | null;
+    quotes?: {
+        USD?: {
+            price?: number;
+            market_cap?: number;
+            volume_24h?: number;
+            percent_change_24h?: number;
+            ath_price?: number;
+            ath_date?: string;
+        };
+    };
 }
 
 const ETH_RPC_GAS_ENDPOINTS = [
@@ -311,6 +359,109 @@ async function fetchCoinByIdWithRetry(fetchFn: typeof fetch, coinId: string): Pr
             accept: 'application/json'
         }
     });
+}
+
+async function resolveCoinPaprikaId(fetchFn: typeof fetch, coinId: string, cachedCoin: MarketCoin | null): Promise<string | null> {
+    const query = encodeURIComponent(cachedCoin?.name ?? coinId);
+    const endpoint = `${COINPAPRIKA_API_BASE}/search?q=${query}&c=currencies`;
+
+    const response = await fetchFn(endpoint, {
+        headers: {
+            accept: 'application/json'
+        }
+    });
+    if (!response.ok) {
+        return null;
+    }
+
+    const payload = (await response.json()) as { currencies?: CoinPaprikaSearchResponse[] };
+    const currencies = payload.currencies ?? [];
+    if (!currencies.length) {
+        return null;
+    }
+
+    const byExactId = currencies.find((entry) => entry.id.endsWith(`-${coinId}`));
+    if (byExactId) {
+        return byExactId.id;
+    }
+
+    const targetSymbol = cachedCoin?.symbol?.toUpperCase();
+    if (targetSymbol) {
+        const bySymbol = currencies.find((entry) => entry.symbol.toUpperCase() === targetSymbol);
+        if (bySymbol) {
+            return bySymbol.id;
+        }
+    }
+
+    const targetName = (cachedCoin?.name ?? coinId).toLowerCase();
+    const byName = currencies.find((entry) => entry.name.toLowerCase() === targetName);
+    if (byName) {
+        return byName.id;
+    }
+
+    return currencies[0]?.id ?? null;
+}
+
+async function getCoinPaprikaBreakdown(fetchFn: typeof fetch, coinId: string, cachedCoin: MarketCoin | null): Promise<CoinBreakdown | null> {
+    const paprikaId = await resolveCoinPaprikaId(fetchFn, coinId, cachedCoin);
+    if (!paprikaId) {
+        return null;
+    }
+
+    const [coinResponse, tickerResponse] = await Promise.all([
+        fetchFn(`${COINPAPRIKA_API_BASE}/coins/${encodeURIComponent(paprikaId)}`, {
+            headers: { accept: 'application/json' }
+        }),
+        fetchFn(`${COINPAPRIKA_API_BASE}/tickers/${encodeURIComponent(paprikaId)}`, {
+            headers: { accept: 'application/json' }
+        })
+    ]);
+
+    if (!coinResponse.ok || !tickerResponse.ok) {
+        return null;
+    }
+
+    const coinPayload = (await coinResponse.json()) as CoinPaprikaCoinResponse;
+    const tickerPayload = (await tickerResponse.json()) as CoinPaprikaTickerResponse;
+    const usdQuote = tickerPayload.quotes?.USD;
+
+    const currentPrice = usdQuote?.price ?? cachedCoin?.currentPrice ?? 0;
+    const sparkline7d = cachedCoin?.sparkline7d?.length && cachedCoin.sparkline7d.length > 1
+        ? cachedCoin.sparkline7d
+        : [currentPrice, currentPrice];
+    const range24h = derive24hRangeFromSparkline(sparkline7d, currentPrice);
+    const chartPrices7d = sparkline7d;
+    const chartVolumes7d = syntheticVolumesFromPrices(chartPrices7d, usdQuote?.volume_24h ?? cachedCoin?.totalVolume24h ?? 0);
+
+    return {
+        id: coinId,
+        symbol: (coinPayload.symbol ?? cachedCoin?.symbol ?? coinId).toLowerCase(),
+        name: coinPayload.name ?? cachedCoin?.name ?? coinId,
+        image: cachedCoin?.image ?? '',
+        currentPrice,
+        marketCap: usdQuote?.market_cap ?? cachedCoin?.marketCap ?? 0,
+        marketCapRank: tickerPayload.rank ?? coinPayload.rank ?? cachedCoin?.marketCapRank ?? 0,
+        totalVolume24h: usdQuote?.volume_24h ?? cachedCoin?.totalVolume24h ?? 0,
+        low24h: range24h.low24h,
+        high24h: range24h.high24h,
+        circulatingSupply: tickerPayload.circulating_supply ?? cachedCoin?.circulatingSupply ?? 0,
+        maxSupply: tickerPayload.max_supply ?? coinPayload.max_supply ?? null,
+        priceChangePercentage24h: usdQuote?.percent_change_24h ?? cachedCoin?.priceChangePercentage24h ?? 0,
+        allTimeHigh: usdQuote?.ath_price ?? 0,
+        allTimeHighDate: usdQuote?.ath_date ?? null,
+        allTimeLow: 0,
+        allTimeLowDate: null,
+        categories: [],
+        description: '',
+        homepage: firstNonEmpty(coinPayload.links?.website),
+        blockchainSite: firstNonEmpty(coinPayload.links?.explorer),
+        coingeckoUrl: `https://www.coingecko.com/en/coins/${coinId}`,
+        coinmarketcapUrl: `https://coinmarketcap.com/currencies/${coinId}/`,
+        sparkline7d,
+        chartPrices7d,
+        chartVolumes7d,
+        source: 'coinpaprika'
+    };
 }
 
 async function fetchCoinChartWithRetry(
@@ -492,6 +643,22 @@ function syntheticVolumesFromPrices(prices: number[], totalVolume24h: number): n
     });
 }
 
+function derive24hRangeFromSparkline(sparkline: number[], currentPrice: number): { low24h: number; high24h: number } {
+    const tail = sparkline.length > 24 ? sparkline.slice(-24) : sparkline;
+    const values = tail.filter((value) => Number.isFinite(value));
+    if (!values.length) {
+        return {
+            low24h: currentPrice,
+            high24h: currentPrice
+        };
+    }
+
+    return {
+        low24h: Math.min(...values),
+        high24h: Math.max(...values)
+    };
+}
+
 function buildSyntheticTimestamps(count: number, durationHours: number): number[] {
     if (count <= 0) {
         return [];
@@ -546,6 +713,7 @@ function toPlainText(html: string | undefined): string {
 }
 
 function toCoinBreakdownFromCache(coin: MarketCoin): CoinBreakdown {
+    const range24h = derive24hRangeFromSparkline(coin.sparkline7d, coin.currentPrice);
     const syntheticVolumes = coin.sparkline7d.map((price, index, arr) => {
         if (index === 0) {
             return coin.totalVolume24h / 24;
@@ -565,6 +733,8 @@ function toCoinBreakdownFromCache(coin: MarketCoin): CoinBreakdown {
         marketCap: coin.marketCap,
         marketCapRank: coin.marketCapRank,
         totalVolume24h: coin.totalVolume24h,
+        low24h: range24h.low24h,
+        high24h: range24h.high24h,
         circulatingSupply: coin.circulatingSupply,
         maxSupply: null,
         priceChangePercentage24h: coin.priceChangePercentage24h,
@@ -845,6 +1015,8 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
             marketCap: marketData?.market_cap?.usd ?? cachedCoin?.marketCap ?? 0,
             marketCapRank: payload.market_cap_rank ?? cachedCoin?.marketCapRank ?? 0,
             totalVolume24h: marketData?.total_volume?.usd ?? cachedCoin?.totalVolume24h ?? 0,
+            low24h: marketData?.low_24h?.usd ?? null,
+            high24h: marketData?.high_24h?.usd ?? null,
             circulatingSupply: marketData?.circulating_supply ?? cachedCoin?.circulatingSupply ?? 0,
             maxSupply: marketData?.max_supply ?? null,
             priceChangePercentage24h: marketData?.price_change_percentage_24h ?? cachedCoin?.priceChangePercentage24h ?? 0,
@@ -864,6 +1036,15 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
             source: 'coingecko'
         };
     } catch {
+        try {
+            const paprikaBreakdown = await withTimeout(getCoinPaprikaBreakdown(fetchFn, coinId, cachedCoin), 6_000);
+            if (paprikaBreakdown) {
+                return paprikaBreakdown;
+            }
+        } catch {
+            // Keep fallback flow below.
+        }
+
         if (cachedCoin) {
             return toCoinBreakdownFromCache(cachedCoin);
         }

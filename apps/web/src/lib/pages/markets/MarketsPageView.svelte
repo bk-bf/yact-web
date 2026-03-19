@@ -125,9 +125,12 @@
 
         const pollSnapshotMeta = async () => {
             try {
-                const response = await fetch(`/api/debug/snapshot-meta?_ts=${Date.now()}`, {
-                    cache: "no-store",
-                });
+                const response = await fetch(
+                    `/api/debug/snapshot-meta?_ts=${Date.now()}`,
+                    {
+                        cache: "no-store",
+                    },
+                );
                 if (!response.ok) {
                     return;
                 }
@@ -156,7 +159,10 @@
                     console.warn("[auto-ui-refresh]", {
                         page: "markets",
                         phase: "poll-error",
-                        error: error instanceof Error ? error.message : String(error),
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
                     });
                 }
             }
