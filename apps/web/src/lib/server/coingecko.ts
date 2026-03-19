@@ -48,6 +48,7 @@ export interface CoinBreakdown {
     coinmarketcapUrl: string;
     sparkline7d: number[];
     chartPrices7d: number[];
+    chartVolumes7d: number[];
     source: 'coingecko' | 'coingecko-cache';
 }
 
@@ -148,6 +149,7 @@ interface CoinGeckoCoinDetailResponse {
 
 interface CoinGeckoMarketChartResponse {
     prices?: Array<[number, number]>;
+    total_volumes?: Array<[number, number]>;
 }
 
 interface JsonRpcGasResponse {
@@ -331,6 +333,16 @@ function toPlainText(html: string | undefined): string {
 }
 
 function toCoinBreakdownFromCache(coin: MarketCoin): CoinBreakdown {
+    const syntheticVolumes = coin.sparkline7d.map((price, index, arr) => {
+        if (index === 0) {
+            return coin.totalVolume24h / 24;
+        }
+
+        const prev = arr[index - 1] || price;
+        const relativeMove = Math.abs((price - prev) / (prev || 1));
+        return (coin.totalVolume24h / 24) * (1 + relativeMove * 4);
+    });
+
     return {
         id: coin.id,
         symbol: coin.symbol,
@@ -355,6 +367,7 @@ function toCoinBreakdownFromCache(coin: MarketCoin): CoinBreakdown {
         coinmarketcapUrl: `https://coinmarketcap.com/currencies/${coin.id}/`,
         sparkline7d: coin.sparkline7d,
         chartPrices7d: coin.sparkline7d,
+        chartVolumes7d: syntheticVolumes,
         source: 'coingecko-cache'
     };
 }
@@ -566,6 +579,7 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
         const marketData = payload.market_data;
         const sparkline = marketData?.sparkline_7d?.price ?? cachedCoin?.sparkline7d ?? [];
         let chartPrices7d = sparkline;
+        let chartVolumes7d: number[] = [];
 
         if (chartResponse.ok) {
             const chartPayload = (await chartResponse.json()) as CoinGeckoMarketChartResponse;
@@ -573,6 +587,26 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
             if (prices && prices.length > 1) {
                 chartPrices7d = prices;
             }
+
+            const volumes = chartPayload.total_volumes
+                ?.map(([, volume]) => volume)
+                .filter((volume) => Number.isFinite(volume));
+            if (volumes && volumes.length > 1) {
+                chartVolumes7d = volumes;
+            }
+        }
+
+        if (chartVolumes7d.length < 2) {
+            const fallbackBase = (marketData?.total_volume?.usd ?? cachedCoin?.totalVolume24h ?? 0) / 24;
+            chartVolumes7d = chartPrices7d.map((price, index, arr) => {
+                if (index === 0) {
+                    return fallbackBase;
+                }
+
+                const prev = arr[index - 1] || price;
+                const relativeMove = Math.abs((price - prev) / (prev || 1));
+                return fallbackBase * (1 + relativeMove * 4);
+            });
         }
 
         return {
@@ -599,6 +633,7 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
             coinmarketcapUrl: `https://coinmarketcap.com/currencies/${payload.id}/`,
             sparkline7d: sparkline.length > 1 ? sparkline : [marketData?.current_price?.usd ?? 0, marketData?.current_price?.usd ?? 0],
             chartPrices7d: chartPrices7d.length > 1 ? chartPrices7d : [marketData?.current_price?.usd ?? 0, marketData?.current_price?.usd ?? 0],
+            chartVolumes7d,
             source: 'coingecko'
         };
     } catch {

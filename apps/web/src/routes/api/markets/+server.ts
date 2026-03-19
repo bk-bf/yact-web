@@ -12,10 +12,27 @@ import {
     getTopMarketCoins
 } from '../../../lib/server/coingecko';
 import { getFallbackCryptoHeadlines, getTopCryptoHeadlines } from '../../../lib/server/headlines';
+import {
+    readPersistentMarketSnapshot,
+    writePersistentMarketSnapshot
+} from '../../../lib/server/persistentMarketSnapshot';
+
+async function persistSnapshotSafely(
+    source: string,
+    coins: Awaited<ReturnType<typeof getTopMarketCoins>>,
+    global: Awaited<ReturnType<typeof getGlobalMarketSummary>>
+): Promise<void> {
+    try {
+        await writePersistentMarketSnapshot(source, coins, global);
+    } catch (error) {
+        console.error('Failed to persist market snapshot:', error);
+    }
+}
 
 export async function GET({ fetch }) {
     const headlinesPromise = getTopCryptoHeadlines(fetch, 5).catch(() => getFallbackCryptoHeadlines());
     const gasPromise = getLatestGasGwei().catch(() => getCachedGasGwei());
+    const persistentSnapshot = await readPersistentMarketSnapshot();
 
     try {
         const coins = await getTopMarketCoins(fetch);
@@ -25,14 +42,18 @@ export async function GET({ fetch }) {
             gasPromise
         ]);
 
+        const globalResolved = {
+            ...global,
+            gasGwei: gasGwei ?? global.gasGwei
+        };
+
+        await persistSnapshotSafely('coingecko', coins, globalResolved);
+
         return json({
             source: 'coingecko',
             count: coins.length,
             coins,
-            global: {
-                ...global,
-                gasGwei: gasGwei ?? global.gasGwei
-            },
+            global: globalResolved,
             headlines,
             highlights: {
                 trending: getTrendingByVolume(coins, 3),
@@ -50,14 +71,18 @@ export async function GET({ fetch }) {
             const globalCached = getCachedGlobalMarketSummary();
             if (cached) {
                 const cachedGlobal = globalCached?.summary ?? getFallbackGlobalMarketSummary(cached.coins);
+                const globalResolved = {
+                    ...cachedGlobal,
+                    gasGwei: gasGwei ?? cachedGlobal.gasGwei
+                };
+
+                await persistSnapshotSafely('coingecko-cache', cached.coins, globalResolved);
+
                 return json({
                     source: 'coingecko-cache',
                     count: cached.coins.length,
                     coins: cached.coins,
-                    global: {
-                        ...cachedGlobal,
-                        gasGwei: gasGwei ?? cachedGlobal.gasGwei
-                    },
+                    global: globalResolved,
                     headlines,
                     highlights: {
                         trending: getTrendingByVolume(cached.coins, 3),
@@ -65,6 +90,28 @@ export async function GET({ fetch }) {
                     },
                     stale: true,
                     warning: 'CoinGecko rate-limited requests (429). Showing cached market snapshot.'
+                });
+            }
+
+            if (persistentSnapshot) {
+                const diskGlobalResolved = {
+                    ...persistentSnapshot.global,
+                    gasGwei: gasGwei ?? persistentSnapshot.global.gasGwei
+                };
+
+                return json({
+                    source: 'coingecko-disk-cache',
+                    count: persistentSnapshot.count,
+                    coins: persistentSnapshot.coins,
+                    global: diskGlobalResolved,
+                    headlines,
+                    highlights: {
+                        trending: getTrendingByVolume(persistentSnapshot.coins, 3),
+                        topGainers: getTopGainers(persistentSnapshot.coins, 3)
+                    },
+                    stale: true,
+                    warning:
+                        'CoinGecko rate-limited and memory cache was empty. Showing persisted disk snapshot fallback.'
                 });
             }
 

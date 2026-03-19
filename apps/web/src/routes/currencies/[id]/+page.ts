@@ -25,6 +25,7 @@ interface CoinBreakdown {
     coinmarketcapUrl: string;
     sparkline7d: number[];
     chartPrices7d: number[];
+    chartVolumes7d: number[];
     source: 'coingecko' | 'coingecko-cache';
 }
 
