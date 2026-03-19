@@ -888,6 +888,21 @@ a {
     font-variant-numeric: tabular-nums;
 }
 
+.coin-converter-input {
+    width: min(70%, 11rem);
+    border: 0;
+    background: transparent;
+    color: var(--tv-text-primary);
+    text-align: right;
+    font-size: 1.2rem;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+}
+
+.coin-converter-input:focus {
+    outline: none;
+}
+
 .coin-range-head {
     display: flex;
     justify-content: space-between;

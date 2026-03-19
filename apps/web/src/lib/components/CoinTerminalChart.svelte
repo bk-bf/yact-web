@@ -801,9 +801,7 @@
                 logger(CHART_CLIENT_DEBUG_PREFIX, {
                     phase: "auto-refresh-poll",
                     outcome,
-                    currentState: payload.status.running
-                        ? "running"
-                        : "idle",
+                    currentState: payload.status.running ? "running" : "idle",
                     lastOutcome,
                     cycleCount: payload.status.cycleCount,
                     nextCycleInSec,

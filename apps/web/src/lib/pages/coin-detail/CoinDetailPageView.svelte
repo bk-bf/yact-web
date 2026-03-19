@@ -88,7 +88,11 @@
     const dayRangeSpread = $derived(Math.max(0, high24h - low24h));
     const dayRangeProgress = $derived(
         dayRangeSpread > 0
-            ? clamp(((coin.currentPrice - low24h) / dayRangeSpread) * 100, 0, 100)
+            ? clamp(
+                  ((coin.currentPrice - low24h) / dayRangeSpread) * 100,
+                  0,
+                  100,
+              )
             : 50,
     );
     const athDistancePct = $derived(
@@ -101,6 +105,65 @@
             ? ((coin.currentPrice - coin.allTimeLow) / coin.allTimeLow) * 100
             : null,
     );
+
+    let converterBtcInput = $state("1");
+    let converterUsdInput = $state("");
+    let converterLastEdited = $state<"btc" | "usd">("btc");
+
+    function normalizeNumericInput(value: string): string {
+        const cleaned = value.replace(/,/g, "").replace(/[^0-9.]/g, "");
+        const parts = cleaned.split(".");
+        if (parts.length <= 1) {
+            return cleaned;
+        }
+
+        return `${parts[0]}.${parts.slice(1).join("")}`;
+    }
+
+    function parseNumericInput(value: string): number | null {
+        const normalized = normalizeNumericInput(value);
+        if (!normalized || normalized === ".") {
+            return null;
+        }
+
+        const parsed = Number(normalized);
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+
+    function formatInputNumber(value: number, decimals: number): string {
+        const fixed = value.toFixed(decimals);
+        return fixed.replace(/\.0+$/, "").replace(/(\.\d*?)0+$/, "$1");
+    }
+
+    function handleConverterBtcInput(event: Event): void {
+        const target = event.currentTarget as HTMLInputElement;
+        converterLastEdited = "btc";
+        converterBtcInput = normalizeNumericInput(target.value);
+    }
+
+    function handleConverterUsdInput(event: Event): void {
+        const target = event.currentTarget as HTMLInputElement;
+        converterLastEdited = "usd";
+        converterUsdInput = normalizeNumericInput(target.value);
+    }
+
+    $effect(() => {
+        const price = coin.currentPrice;
+        if (!Number.isFinite(price) || price <= 0) {
+            return;
+        }
+
+        if (converterLastEdited === "btc") {
+            const btcValue = parseNumericInput(converterBtcInput);
+            converterUsdInput =
+                btcValue !== null ? formatInputNumber(btcValue * price, 2) : "";
+            return;
+        }
+
+        const usdValue = parseNumericInput(converterUsdInput);
+        converterBtcInput =
+            usdValue !== null ? formatInputNumber(usdValue / price, 8) : "";
+    });
 
     function formatDateShort(value: string | null): string {
         if (!value) return "--";
@@ -241,11 +304,25 @@
                 <div class="coin-converter-box" aria-label="Coin converter">
                     <div class="coin-converter-row">
                         <span>{coin.symbol.toUpperCase()}</span>
-                        <strong>1</strong>
+                        <input
+                            class="coin-converter-input"
+                            type="text"
+                            inputmode="decimal"
+                            value={converterBtcInput}
+                            oninput={handleConverterBtcInput}
+                            aria-label={`${coin.symbol.toUpperCase()} amount`}
+                        />
                     </div>
                     <div class="coin-converter-row">
                         <span>USD</span>
-                        <strong>{usd.format(coin.currentPrice)}</strong>
+                        <input
+                            class="coin-converter-input"
+                            type="text"
+                            inputmode="decimal"
+                            value={converterUsdInput}
+                            oninput={handleConverterUsdInput}
+                            aria-label="USD amount"
+                        />
                     </div>
                 </div>
             </article>
@@ -272,7 +349,9 @@
                     <li>
                         <span>All-time high</span>
                         <strong>
-                            {coin.allTimeHigh > 0 ? usd.format(coin.allTimeHigh) : "--"}
+                            {coin.allTimeHigh > 0
+                                ? usd.format(coin.allTimeHigh)
+                                : "--"}
                         </strong>
                     </li>
                     <li>
@@ -292,7 +371,9 @@
                     <li>
                         <span>All-time low</span>
                         <strong>
-                            {coin.allTimeLow > 0 ? usd.format(coin.allTimeLow) : "--"}
+                            {coin.allTimeLow > 0
+                                ? usd.format(coin.allTimeLow)
+                                : "--"}
                         </strong>
                     </li>
                     <li>
