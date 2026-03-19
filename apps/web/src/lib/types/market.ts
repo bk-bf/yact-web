@@ -7,4 +7,7 @@ export interface MarketCoin {
     marketCap: number;
     marketCapRank: number;
     priceChangePercentage24h: number;
+    totalVolume24h: number;
+    circulatingSupply: number;
+    sparkline7d: number[];
 }
