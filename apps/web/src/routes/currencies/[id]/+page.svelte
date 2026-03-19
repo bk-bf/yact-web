@@ -1,5 +1,5 @@
 <script lang="ts">
-    import CoinTerminalChart from '../../../lib/components/CoinTerminalChart.svelte';
+    import CoinTerminalChart from "../../../lib/components/CoinTerminalChart.svelte";
 
     let { data } = $props();
 
@@ -39,7 +39,6 @@
         minute: "2-digit",
     });
 
-
     function formatOptionalDate(value: string | null): string {
         if (!value) return "--";
         const date = new Date(value);
@@ -63,7 +62,6 @@
         return Math.min(Math.max(value, min), max);
     }
 
-
     const coin = $derived(data.coin);
     const primaryHeadline = $derived(data.headlines[0] ?? null);
     const extraHeadlines = $derived((data.headlines ?? []).slice(1, 4));
@@ -77,7 +75,6 @@
     const fdv = $derived(
         coin.maxSupply ? coin.maxSupply * coin.currentPrice : null,
     );
-
 </script>
 
 <svelte:head>

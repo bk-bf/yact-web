@@ -1,8 +1,8 @@
 <script lang="ts">
-    import { browser } from '$app/environment';
+    import { browser } from "$app/environment";
 
-    type ChartMode = 'line' | 'candles';
-    type ChartRange = '24h' | '7d' | '1m' | '3m' | 'ytd' | '1y' | 'max';
+    type ChartMode = "line" | "candles";
+    type ChartRange = "24h" | "7d" | "1m" | "3m" | "ytd" | "1y" | "max";
 
     interface CoinChartData {
         id: string;
@@ -25,46 +25,48 @@
             candleBuckets: number;
         }
     > = {
-        '24h': {
-            label: '24H',
+        "24h": {
+            label: "24H",
             durationHours: 24,
-            candleBuckets: 24
+            candleBuckets: 24,
         },
-        '7d': {
-            label: '7D',
+        "7d": {
+            label: "7D",
             durationHours: 24 * 7,
-            candleBuckets: 28
+            candleBuckets: 28,
         },
-        '1m': {
-            label: '1M',
+        "1m": {
+            label: "1M",
             durationHours: 24 * 30,
-            candleBuckets: 32
+            candleBuckets: 32,
         },
-        '3m': {
-            label: '3M',
+        "3m": {
+            label: "3M",
             durationHours: 24 * 90,
-            candleBuckets: 36
+            candleBuckets: 36,
         },
         ytd: {
-            label: 'YTD',
+            label: "YTD",
             durationHours: 24 * 180,
-            candleBuckets: 40
+            candleBuckets: 40,
         },
-        '1y': {
-            label: '1Y',
+        "1y": {
+            label: "1Y",
             durationHours: 24 * 365,
-            candleBuckets: 44
+            candleBuckets: 44,
         },
         max: {
-            label: 'MAX',
+            label: "MAX",
             durationHours: 24 * 730,
-            candleBuckets: 48
-        }
+            candleBuckets: 48,
+        },
     };
 
-    let chartMode = $state<ChartMode>('line');
-    let chartRange = $state<ChartRange>('24h');
-    let chartSeriesByRange = $state<Partial<Record<ChartRange, { prices: number[]; volumes: number[] }>>>({});
+    let chartMode = $state<ChartMode>("line");
+    let chartRange = $state<ChartRange>("24h");
+    let chartSeriesByRange = $state<
+        Partial<Record<ChartRange, { prices: number[]; volumes: number[] }>>
+    >({});
     let chartFetchRequestId = 0;
 
     const chartWidth = 1000;
@@ -79,26 +81,26 @@
     const overviewHeight = 30;
     const rightLabelX = 960;
 
-    const compactUsd = new Intl.NumberFormat('en-US', {
-        style: 'currency',
-        currency: 'USD',
-        notation: 'compact',
-        maximumFractionDigits: 2
+    const compactUsd = new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        notation: "compact",
+        maximumFractionDigits: 2,
     });
 
-    const shortTime = new Intl.DateTimeFormat('en-US', {
-        hour: 'numeric',
-        minute: '2-digit'
+    const shortTime = new Intl.DateTimeFormat("en-US", {
+        hour: "numeric",
+        minute: "2-digit",
     });
 
-    const shortDate = new Intl.DateTimeFormat('en-US', {
-        month: 'short',
-        day: 'numeric'
+    const shortDate = new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
     });
 
     function buildLinePath(values: number[], min: number, max: number): string {
         if (values.length < 2) {
-            return '';
+            return "";
         }
 
         const range = max - min || 1;
@@ -108,15 +110,15 @@
             .map((value, index) => {
                 const x = plotLeft + step * index;
                 const y = plotTop + ((max - value) / range) * priceHeight;
-                return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+                return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
             })
-            .join(' ');
+            .join(" ");
     }
 
     function buildAreaPath(values: number[], min: number, max: number): string {
         const line = buildLinePath(values, min, max);
         if (!line) {
-            return '';
+            return "";
         }
 
         return `${line} L ${plotLeft + plotWidth} ${plotTop + priceHeight} L ${plotLeft} ${plotTop + priceHeight} Z`;
@@ -124,7 +126,7 @@
 
     function buildOverviewPath(values: number[]): string {
         if (values.length < 2) {
-            return '';
+            return "";
         }
 
         const localMin = Math.min(...values);
@@ -135,15 +137,22 @@
         return values
             .map((value, index) => {
                 const x = plotLeft + step * index;
-                const y = overviewTop + ((localMax - value) / localRange) * overviewHeight;
-                return `${index === 0 ? 'M' : 'L'} ${x.toFixed(2)} ${y.toFixed(2)}`;
+                const y =
+                    overviewTop +
+                    ((localMax - value) / localRange) * overviewHeight;
+                return `${index === 0 ? "M" : "L"} ${x.toFixed(2)} ${y.toFixed(2)}`;
             })
-            .join(' ');
+            .join(" ");
     }
 
-    function formatTickTime(index: number, totalTicks: number, durationHours: number): string {
+    function formatTickTime(
+        index: number,
+        totalTicks: number,
+        durationHours: number,
+    ): string {
         const now = Date.now();
-        const offsetHours = durationHours * (1 - index / Math.max(totalTicks - 1, 1));
+        const offsetHours =
+            durationHours * (1 - index / Math.max(totalTicks - 1, 1));
         const date = new Date(now - offsetHours * 3600 * 1000);
         if (durationHours <= 48) {
             return shortTime.format(date);
@@ -154,7 +163,7 @@
 
     function buildCandles(
         values: number[],
-        buckets: number
+        buckets: number,
     ): Array<{ open: number; close: number; high: number; low: number }> {
         if (values.length < 2) {
             return [];
@@ -169,7 +178,10 @@
         const chunkSize = Math.max(2, Math.floor(values.length / buckets));
 
         for (let i = 0; i < values.length - 1; i += chunkSize) {
-            const chunk = values.slice(i, Math.min(values.length, i + chunkSize));
+            const chunk = values.slice(
+                i,
+                Math.min(values.length, i + chunkSize),
+            );
             if (chunk.length < 2) {
                 continue;
             }
@@ -178,15 +190,19 @@
                 open: chunk[0],
                 close: chunk[chunk.length - 1],
                 high: Math.max(...chunk),
-                low: Math.min(...chunk)
+                low: Math.min(...chunk),
             });
         }
 
         return candles;
     }
 
-    function toFallbackSeries(prices: number[], totalVolume24h: number): { prices: number[]; volumes: number[] } {
-        const safePrices = prices.length > 1 ? prices : [coin.currentPrice, coin.currentPrice];
+    function toFallbackSeries(
+        prices: number[],
+        totalVolume24h: number,
+    ): { prices: number[]; volumes: number[] } {
+        const safePrices =
+            prices.length > 1 ? prices : [coin.currentPrice, coin.currentPrice];
         const volumes = safePrices.map((price, index, arr) => {
             if (index === 0) {
                 return totalVolume24h / 24;
@@ -206,12 +222,16 @@
             return remote;
         }
 
-        const fallbackPrices = coin.chartPrices7d?.length > 1 ? coin.chartPrices7d : coin.sparkline7d;
-        const fallbackVolumes = coin.chartVolumes7d?.length > 1 ? coin.chartVolumes7d : [];
+        const fallbackPrices =
+            coin.chartPrices7d?.length > 1
+                ? coin.chartPrices7d
+                : coin.sparkline7d;
+        const fallbackVolumes =
+            coin.chartVolumes7d?.length > 1 ? coin.chartVolumes7d : [];
         if (fallbackVolumes.length > 1) {
             return {
                 prices: fallbackPrices,
-                volumes: fallbackVolumes
+                volumes: fallbackVolumes,
             };
         }
 
@@ -221,25 +241,54 @@
     const filteredChartPrices = $derived(chartSeries.prices);
     const filteredChartVolumes = $derived(chartSeries.volumes);
 
-    const chartMin = $derived(Math.min(...filteredChartPrices, coin.currentPrice));
-    const chartMax = $derived(Math.max(...filteredChartPrices, coin.currentPrice));
-    const chartPadding = $derived((chartMax - chartMin || chartMax || 1) * 0.12);
+    const chartMin = $derived(
+        Math.min(...filteredChartPrices, coin.currentPrice),
+    );
+    const chartMax = $derived(
+        Math.max(...filteredChartPrices, coin.currentPrice),
+    );
+    const chartPadding = $derived(
+        (chartMax - chartMin || chartMax || 1) * 0.12,
+    );
     const scaledMin = $derived(Math.max(0, chartMin - chartPadding));
     const scaledMax = $derived(chartMax + chartPadding);
-    const isPositive = $derived(filteredChartPrices[filteredChartPrices.length - 1] >= filteredChartPrices[0]);
-    const linePath = $derived(buildLinePath(filteredChartPrices, scaledMin, scaledMax));
-    const areaPath = $derived(buildAreaPath(filteredChartPrices, scaledMin, scaledMax));
+    const isPositive = $derived(
+        filteredChartPrices[filteredChartPrices.length - 1] >=
+            filteredChartPrices[0],
+    );
+    const linePath = $derived(
+        buildLinePath(filteredChartPrices, scaledMin, scaledMax),
+    );
+    const areaPath = $derived(
+        buildAreaPath(filteredChartPrices, scaledMin, scaledMax),
+    );
     const overviewPath = $derived(buildOverviewPath(filteredChartPrices));
     const yLevels = $derived(
-        Array.from({ length: 6 }, (_, idx) => scaledMax - ((scaledMax - scaledMin) * idx) / 5)
+        Array.from(
+            { length: 6 },
+            (_, idx) => scaledMax - ((scaledMax - scaledMin) * idx) / 5,
+        ),
     );
     const volumeMax = $derived(Math.max(...filteredChartVolumes, 1));
-    const candles = $derived(buildCandles(filteredChartPrices, chartRangeConfig[chartRange].candleBuckets));
-    const chartDurationHours = $derived(chartRangeConfig[chartRange].durationHours);
-    const xTickLabels = $derived(Array.from({ length: 6 }, (_, idx) => formatTickTime(idx, 6, chartDurationHours)));
+    const candles = $derived(
+        buildCandles(
+            filteredChartPrices,
+            chartRangeConfig[chartRange].candleBuckets,
+        ),
+    );
+    const chartDurationHours = $derived(
+        chartRangeConfig[chartRange].durationHours,
+    );
+    const xTickLabels = $derived(
+        Array.from({ length: 6 }, (_, idx) =>
+            formatTickTime(idx, 6, chartDurationHours),
+        ),
+    );
     const currentPriceValue = $derived(coin.currentPrice);
     const currentPriceY = $derived(
-        plotTop + ((scaledMax - currentPriceValue) / (scaledMax - scaledMin || 1)) * priceHeight
+        plotTop +
+            ((scaledMax - currentPriceValue) / (scaledMax - scaledMin || 1)) *
+                priceHeight,
     );
 
     $effect(() => {
@@ -256,7 +305,9 @@
         void fetch(`/api/coins/${coin.id}/chart?range=${range}`)
             .then(async (response) => {
                 if (!response.ok) {
-                    throw new Error(`Chart request failed with status ${response.status}`);
+                    throw new Error(
+                        `Chart request failed with status ${response.status}`,
+                    );
                 }
 
                 const payload = (await response.json()) as {
@@ -264,21 +315,28 @@
                     volumes?: number[];
                 };
 
-                const prices = payload.prices?.filter((value) => Number.isFinite(value)) ?? [];
+                const prices =
+                    payload.prices?.filter((value) => Number.isFinite(value)) ??
+                    [];
                 if (requestId !== chartFetchRequestId || prices.length < 2) {
                     return;
                 }
 
                 const volumes =
-                    payload.volumes?.filter((value) => Number.isFinite(value)) ??
-                    toFallbackSeries(prices, coin.totalVolume24h).volumes;
+                    payload.volumes?.filter((value) =>
+                        Number.isFinite(value),
+                    ) ?? toFallbackSeries(prices, coin.totalVolume24h).volumes;
 
                 chartSeriesByRange = {
                     ...chartSeriesByRange,
                     [range]: {
                         prices,
-                        volumes: volumes.length > 1 ? volumes : toFallbackSeries(prices, coin.totalVolume24h).volumes
-                    }
+                        volumes:
+                            volumes.length > 1
+                                ? volumes
+                                : toFallbackSeries(prices, coin.totalVolume24h)
+                                      .volumes,
+                    },
                 };
             })
             .catch(() => {
@@ -289,24 +347,29 @@
 
 <article class="coin-chart-card">
     <div class="coin-chart-shell">
-        <div class="coin-chart-toolbar" role="group" aria-label="Chart controls">
+        <div
+            class="coin-chart-toolbar"
+            role="group"
+            aria-label="Chart controls"
+        >
             <div class="coin-chart-left">
                 <div class="coin-chart-modes">
-                    <button class="coin-chip active" type="button">Price</button>
+                    <button class="coin-chip active" type="button">Price</button
+                    >
                     <button class="coin-chip" type="button">Mkt Cap</button>
                 </div>
 
                 <div class="coin-chart-type">
                     <button
-                        class={`coin-chip ${chartMode === 'line' ? 'active' : ''}`}
+                        class={`coin-chip ${chartMode === "line" ? "active" : ""}`}
                         type="button"
-                        onclick={() => (chartMode = 'line')}
-                    >Line</button>
+                        onclick={() => (chartMode = "line")}>Line</button
+                    >
                     <button
-                        class={`coin-chip ${chartMode === 'candles' ? 'active' : ''}`}
+                        class={`coin-chip ${chartMode === "candles" ? "active" : ""}`}
                         type="button"
-                        onclick={() => (chartMode = 'candles')}
-                    >Candles</button>
+                        onclick={() => (chartMode = "candles")}>Candles</button
+                    >
                 </div>
             </div>
 
@@ -314,7 +377,7 @@
                 <div class="coin-chart-range">
                     {#each Object.entries(chartRangeConfig) as [key, value]}
                         <button
-                            class={`coin-chip ${chartRange === key ? 'active' : ''}`}
+                            class={`coin-chip ${chartRange === key ? "active" : ""}`}
                             type="button"
                             onclick={() => (chartRange = key as ChartRange)}
                         >
@@ -333,28 +396,52 @@
                 aria-label={`${coin.name} price and volume chart`}
             >
                 <defs>
-                    <linearGradient id={`priceFill-${coin.id}`} x1="0" y1="0" x2="0" y2="1">
+                    <linearGradient
+                        id={`priceFill-${coin.id}`}
+                        x1="0"
+                        y1="0"
+                        x2="0"
+                        y2="1"
+                    >
                         <stop
                             offset="0%"
-                            stop-color={isPositive ? 'rgba(32, 214, 141, 0.24)' : 'rgba(255, 77, 87, 0.24)'}
+                            stop-color={isPositive
+                                ? "rgba(32, 214, 141, 0.24)"
+                                : "rgba(255, 77, 87, 0.24)"}
                         />
                         <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
                     </linearGradient>
                 </defs>
 
-                <rect x={plotLeft} y={plotTop} width={plotWidth} height={priceHeight} class="coin-chart-plot-bg" />
+                <rect
+                    x={plotLeft}
+                    y={plotTop}
+                    width={plotWidth}
+                    height={priceHeight}
+                    class="coin-chart-plot-bg"
+                />
 
                 {#each yLevels as level}
                     <line
                         x1={plotLeft}
                         x2={plotLeft + plotWidth}
-                        y1={plotTop + ((scaledMax - level) / (scaledMax - scaledMin || 1)) * priceHeight}
-                        y2={plotTop + ((scaledMax - level) / (scaledMax - scaledMin || 1)) * priceHeight}
+                        y1={plotTop +
+                            ((scaledMax - level) /
+                                (scaledMax - scaledMin || 1)) *
+                                priceHeight}
+                        y2={plotTop +
+                            ((scaledMax - level) /
+                                (scaledMax - scaledMin || 1)) *
+                                priceHeight}
                         class="coin-chart-grid-line"
                     />
                     <text
                         x={rightLabelX}
-                        y={plotTop + ((scaledMax - level) / (scaledMax - scaledMin || 1)) * priceHeight + 4}
+                        y={plotTop +
+                            ((scaledMax - level) /
+                                (scaledMax - scaledMin || 1)) *
+                                priceHeight +
+                            4}
                         class="coin-chart-axis-label"
                         text-anchor="end"
                     >
@@ -362,21 +449,41 @@
                     </text>
                 {/each}
 
-                {#if chartMode === 'line'}
-                    <path d={areaPath} class="coin-chart-area" fill={`url(#priceFill-${coin.id})`} />
-                    <path d={linePath} class={`coin-chart-line ${isPositive ? 'positive' : 'negative'}`} />
+                {#if chartMode === "line"}
+                    <path
+                        d={areaPath}
+                        class="coin-chart-area"
+                        fill={`url(#priceFill-${coin.id})`}
+                    />
+                    <path
+                        d={linePath}
+                        class={`coin-chart-line ${isPositive ? "positive" : "negative"}`}
+                    />
                 {:else}
                     {#each candles as candle, index}
-                        {@const candleStep = plotWidth / Math.max(candles.length, 1)}
+                        {@const candleStep =
+                            plotWidth / Math.max(candles.length, 1)}
                         {@const cx = plotLeft + candleStep * (index + 0.5)}
                         {@const openY =
-                            plotTop + ((scaledMax - candle.open) / (scaledMax - scaledMin || 1)) * priceHeight}
+                            plotTop +
+                            ((scaledMax - candle.open) /
+                                (scaledMax - scaledMin || 1)) *
+                                priceHeight}
                         {@const closeY =
-                            plotTop + ((scaledMax - candle.close) / (scaledMax - scaledMin || 1)) * priceHeight}
+                            plotTop +
+                            ((scaledMax - candle.close) /
+                                (scaledMax - scaledMin || 1)) *
+                                priceHeight}
                         {@const highY =
-                            plotTop + ((scaledMax - candle.high) / (scaledMax - scaledMin || 1)) * priceHeight}
+                            plotTop +
+                            ((scaledMax - candle.high) /
+                                (scaledMax - scaledMin || 1)) *
+                                priceHeight}
                         {@const lowY =
-                            plotTop + ((scaledMax - candle.low) / (scaledMax - scaledMin || 1)) * priceHeight}
+                            plotTop +
+                            ((scaledMax - candle.low) /
+                                (scaledMax - scaledMin || 1)) *
+                                priceHeight}
                         {@const bodyY = Math.min(openY, closeY)}
                         {@const bodyH = Math.max(1.5, Math.abs(closeY - openY))}
                         <line
@@ -384,26 +491,32 @@
                             x2={cx}
                             y1={highY}
                             y2={lowY}
-                            class={`coin-candle-wick ${candle.close >= candle.open ? 'up' : 'down'}`}
+                            class={`coin-candle-wick ${candle.close >= candle.open ? "up" : "down"}`}
                         />
                         <rect
                             x={cx - candleStep * 0.28}
                             y={bodyY}
                             width={candleStep * 0.56}
                             height={bodyH}
-                            class={`coin-candle-body ${candle.close >= candle.open ? 'up' : 'down'}`}
+                            class={`coin-candle-body ${candle.close >= candle.open ? "up" : "down"}`}
                         />
                     {/each}
                 {/if}
 
-                <line x1={plotLeft} x2={plotLeft + plotWidth} y1={currentPriceY} y2={currentPriceY} class="coin-current-line" />
+                <line
+                    x1={plotLeft}
+                    x2={plotLeft + plotWidth}
+                    y1={currentPriceY}
+                    y2={currentPriceY}
+                    class="coin-current-line"
+                />
                 <rect
                     x={plotLeft + plotWidth + 4}
                     y={currentPriceY - 12}
                     width="88"
                     height="24"
                     rx="6"
-                    class={`coin-current-pill ${isPositive ? 'positive' : 'negative'}`}
+                    class={`coin-current-pill ${isPositive ? "positive" : "negative"}`}
                 />
                 <text
                     x={plotLeft + plotWidth + 48}
@@ -414,7 +527,13 @@
                     {compactUsd.format(currentPriceValue)}
                 </text>
 
-                <rect x={plotLeft} y={volumeTop} width={plotWidth} height={volumeHeight} class="coin-volume-bg" />
+                <rect
+                    x={plotLeft}
+                    y={volumeTop}
+                    width={plotWidth}
+                    height={volumeHeight}
+                    class="coin-volume-bg"
+                />
                 {#each filteredChartVolumes as volume, idx}
                     {@const barWidth = plotWidth / filteredChartVolumes.length}
                     {@const barH = (volume / volumeMax) * volumeHeight}
@@ -429,9 +548,15 @@
 
                 {#each xTickLabels as label, idx}
                     <text
-                        x={plotLeft + (plotWidth * idx) / Math.max(xTickLabels.length - 1, 1)}
+                        x={plotLeft +
+                            (plotWidth * idx) /
+                                Math.max(xTickLabels.length - 1, 1)}
                         y={401}
-                        text-anchor={idx === 0 ? 'start' : idx === xTickLabels.length - 1 ? 'end' : 'middle'}
+                        text-anchor={idx === 0
+                            ? "start"
+                            : idx === xTickLabels.length - 1
+                              ? "end"
+                              : "middle"}
                         class="coin-chart-time-label"
                     >
                         {label}
