@@ -2,7 +2,6 @@
     import M3Button from "../lib/components/M3Button.svelte";
 
     let { data } = $props();
-    let showAllHeadlines = $state(false);
 
     const usd = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -50,27 +49,8 @@
         signDisplay: "always",
     });
 
-    const headlineDate = new Intl.DateTimeFormat("en-US", {
-        month: "short",
-        day: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-    });
-
     const sparklineWidth = 140;
     const sparklineHeight = 42;
-
-    function featuredHeadlines() {
-        return data.headlines.slice(0, 3);
-    }
-
-    function extraHeadlines() {
-        return data.headlines.slice(3);
-    }
-
-    function visibleHeadlines() {
-        return showAllHeadlines ? data.headlines : featuredHeadlines();
-    }
 
     function sparklinePath(
         points: number[],
@@ -110,15 +90,6 @@
             : "chart-negative";
     }
 
-    function formatHeadlineDate(value: string): string {
-        const date = new Date(value);
-        if (Number.isNaN(date.getTime())) {
-            return "";
-        }
-
-        return headlineDate.format(date);
-    }
-
     function displayCoinName(value: string): string {
         return value
             .replace(/[\u200B-\u200D\uFEFF]/g, "")
@@ -136,48 +107,6 @@
 </svelte:head>
 
 <section class="market-overview">
-    <section class="news-section" aria-label="Top crypto headlines">
-        <div class="news-section-head">
-            <h2>Top Crypto Headlines</h2>
-        </div>
-
-        {#if data.headlines.length === 0}
-            <p class="muted">No headlines available right now.</p>
-        {:else}
-            <ul class="news-list">
-                {#each visibleHeadlines() as headline}
-                    <li>
-                        <a
-                            href={headline.url}
-                            target="_blank"
-                            rel="noreferrer"
-                            class="news-link"
-                        >
-                            {headline.title}
-                        </a>
-                        <span class="news-meta"
-                            >{headline.source} • {formatHeadlineDate(
-                                headline.publishedAt,
-                            )}</span
-                        >
-                    </li>
-                {/each}
-            </ul>
-
-            {#if extraHeadlines().length > 0}
-                <!-- TODO(T-011, see .docs/features/open/ROADMAP.md): Replace headlines view toggle placeholder with paginated or dedicated news route behavior. -->
-                <button
-                    type="button"
-                    class="news-more-toggle"
-                    onclick={() => (showAllHeadlines = !showAllHeadlines)}
-                    aria-expanded={showAllHeadlines}
-                >
-                    {showAllHeadlines ? "View less" : "View more"}
-                </button>
-            {/if}
-        {/if}
-    </section>
-
     <div class="market-overview-head">
         <div>
             <h1>Cryptocurrency Prices by Market Cap</h1>

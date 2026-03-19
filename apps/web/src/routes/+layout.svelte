@@ -25,6 +25,22 @@
         signDisplay: "always",
     });
 
+    const headlineDate = new Intl.DateTimeFormat("en-US", {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+    });
+
+    function formatHeadlineDate(value: string): string {
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) {
+            return "";
+        }
+
+        return headlineDate.format(date);
+    }
+
     function formatGasGwei(value: number | null | undefined): string {
         if (value === null || value === undefined || !Number.isFinite(value)) {
             return "--";
@@ -45,38 +61,80 @@
 <div class="app-shell">
     {#if $page.url.pathname === "/" && $page.data?.global}
         {@const global = $page.data.global}
+        {@const topbarHeadlines = ($page.data?.headlines ?? []).slice(0, 5)}
         <section class="market-floating-bar" aria-label="Pinned market stats">
-            <span class="market-floating-item"
-                >Coins: {integerNumber.format(
-                    global.activeCryptocurrencies,
-                )}</span
-            >
-            <span class="market-floating-item"
-                >Exchanges: {integerNumber.format(global.totalExchanges)}</span
-            >
-            <span class="market-floating-item"
-                >Market Cap: {compactUsd.format(global.totalMarketCapUsd)}
-                <span
-                    class={global.marketCapChangePercentage24hUsd >= 0
-                        ? "positive"
-                        : "negative"}
-                    >{signedPercent.format(
-                        global.marketCapChangePercentage24hUsd / 100,
+            <div class="market-floating-stats" aria-label="Live market stats">
+                <span class="market-floating-item"
+                    >Coins: {integerNumber.format(
+                        global.activeCryptocurrencies,
                     )}</span
-                ></span
-            >
-            <span class="market-floating-item"
-                >24h Vol: {compactUsd.format(global.totalVolumeUsd)}</span
-            >
-            <span class="market-floating-item"
-                >Dominance: BTC {global.btcDominance.toFixed(1)}%</span
-            >
-            <span class="market-floating-item"
-                >ETH {global.ethDominance.toFixed(1)}%</span
-            >
-            <span class="market-floating-item"
-                >Gas: {formatGasGwei(global.gasGwei)} GWEI</span
-            >
+                >
+                <span class="market-floating-item"
+                    >Exchanges: {integerNumber.format(
+                        global.totalExchanges,
+                    )}</span
+                >
+                <span class="market-floating-item"
+                    >Market Cap: {compactUsd.format(global.totalMarketCapUsd)}
+                    <span
+                        class={global.marketCapChangePercentage24hUsd >= 0
+                            ? "positive"
+                            : "negative"}
+                        >{signedPercent.format(
+                            global.marketCapChangePercentage24hUsd / 100,
+                        )}</span
+                    ></span
+                >
+                <span class="market-floating-item"
+                    >24h Vol: {compactUsd.format(global.totalVolumeUsd)}</span
+                >
+                <span class="market-floating-item"
+                    >Dominance: BTC {global.btcDominance.toFixed(1)}%</span
+                >
+                <span class="market-floating-item"
+                    >ETH {global.ethDominance.toFixed(1)}%</span
+                >
+                <span class="market-floating-item"
+                    >Gas: {formatGasGwei(global.gasGwei)} GWEI</span
+                >
+            </div>
+
+            <details class="floating-headlines-dropdown">
+                <summary class="market-floating-item floating-headlines-pill">
+                    Headlines
+                </summary>
+
+                <div
+                    class="floating-headlines-panel"
+                    aria-label="Top crypto headlines"
+                >
+                    {#if topbarHeadlines.length === 0}
+                        <p class="floating-headlines-empty">
+                            No headlines available right now.
+                        </p>
+                    {:else}
+                        <ul class="floating-headlines-list">
+                            {#each topbarHeadlines as headline}
+                                <li>
+                                    <a
+                                        href={headline.url}
+                                        target="_blank"
+                                        rel="noreferrer"
+                                        class="floating-headline-link"
+                                    >
+                                        {headline.title}
+                                    </a>
+                                    <span class="floating-headline-meta"
+                                        >{headline.source} • {formatHeadlineDate(
+                                            headline.publishedAt,
+                                        )}</span
+                                    >
+                                </li>
+                            {/each}
+                        </ul>
+                    {/if}
+                </div>
+            </details>
         </section>
     {/if}
 

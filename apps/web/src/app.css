@@ -131,6 +131,7 @@ a {
     display: flex;
     gap: 0;
     flex-wrap: wrap;
+    align-items: center;
 }
 
 .menu-link {
@@ -149,6 +150,93 @@ a {
 
 .menu-link:hover {
     color: #b8ff9f;
+}
+
+.floating-headlines-dropdown {
+    position: relative;
+    flex: 0 0 auto;
+}
+
+.floating-headlines-pill {
+    list-style: none;
+    border: 1px solid #2f4236;
+    border-radius: 999px;
+    padding: 0.28rem 0.78rem;
+    color: #cde2d6;
+    cursor: pointer;
+}
+
+.floating-headlines-pill::-webkit-details-marker {
+    display: none;
+}
+
+.floating-headlines-pill::after {
+    content: " \25BE";
+    font-size: 0.72rem;
+    color: #95a69d;
+    margin-left: 0.28rem;
+}
+
+.floating-headlines-dropdown[open] .floating-headlines-pill {
+    color: #b8ff9f;
+    border-color: #3f5a48;
+}
+
+.floating-headlines-dropdown[open] .floating-headlines-pill::after {
+    content: " \25B4";
+}
+
+.floating-headlines-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: min(34rem, calc(100vw - 2rem));
+    border: 1px solid #273137;
+    background: #070b0d;
+    border-radius: 0.6rem;
+    padding: 0.5rem 0.85rem;
+    box-shadow: 0 12px 24px rgba(0, 0, 0, 0.35);
+    z-index: 120;
+}
+
+.floating-headlines-list {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.floating-headlines-list li {
+    display: grid;
+    gap: 0.12rem;
+    padding: 0.52rem 0;
+    border-bottom: 1px solid #1f2529;
+}
+
+.floating-headlines-list li:last-child {
+    border-bottom: 0;
+}
+
+.floating-headline-link {
+    color: #e6efea;
+    font-weight: 600;
+    font-size: 0.87rem;
+    line-height: 1.35;
+}
+
+.floating-headline-link:hover {
+    color: #b8ff9f;
+}
+
+.floating-headline-meta {
+    color: var(--tv-text-muted);
+    font-size: 0.78rem;
+}
+
+.floating-headlines-empty {
+    margin: 0;
+    color: var(--tv-text-muted);
+    font-size: 0.85rem;
+    padding: 0.4rem 0;
 }
 
 .menu-actions {
@@ -318,16 +406,26 @@ a {
 .market-floating-bar {
     position: sticky;
     top: 0;
-    z-index: 50;
+    z-index: 80;
     display: flex;
-    flex-wrap: nowrap;
+    align-items: center;
     gap: 0.9rem;
-    overflow-x: auto;
+    overflow: visible;
     margin-bottom: var(--space-4);
     border-bottom: 1px solid #232a2f;
     background: rgba(5, 6, 7, 0.92);
     backdrop-filter: blur(4px);
     padding: 0.46rem 0.2rem;
+}
+
+.market-floating-stats {
+    min-width: 0;
+    flex: 1 1 auto;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 0.9rem;
+    overflow-x: auto;
+    overflow-y: hidden;
 }
 
 .market-floating-item {
@@ -357,85 +455,6 @@ a {
     margin-top: var(--space-2);
     max-width: 72ch;
     color: var(--tv-text-muted);
-}
-
-.news-section {
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid #232a2f;
-}
-
-.news-section-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: var(--space-3);
-    margin-bottom: var(--space-2);
-}
-
-.news-section-head h2 {
-    font-size: 1.05rem;
-}
-
-.news-section-head span {
-    color: var(--tv-text-muted);
-    font-size: 0.86rem;
-}
-
-.news-list {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-}
-
-.news-list li {
-    display: flex;
-    flex-direction: column;
-    gap: 0.15rem;
-    padding: 0.55rem 0;
-    border-bottom: 1px solid #1f2529;
-}
-
-.news-list li:last-child {
-    border-bottom: 0;
-}
-
-.news-link {
-    color: #e6efea;
-    font-weight: 600;
-}
-
-.news-link:hover {
-    color: #b8ff9f;
-}
-
-.news-meta {
-    color: var(--tv-text-muted);
-    font-size: 0.82rem;
-}
-
-.news-more-toggle {
-    margin-top: var(--space-2);
-    border: 0;
-    background: transparent;
-    cursor: pointer;
-    color: var(--tv-text-muted);
-    font-weight: 500;
-    font-size: 0.8rem;
-    opacity: 0.8;
-}
-
-.news-more-toggle::before {
-    content: "+ ";
-    color: #96a59d;
-}
-
-.news-more-toggle[aria-expanded='true']::before {
-    content: "- ";
-}
-
-.news-more-toggle:hover {
-    opacity: 1;
-    color: #bdc9c3;
 }
 
 .overview-grid {
@@ -696,6 +715,10 @@ a {
         margin-right: -0.25rem;
     }
 
+    .market-floating-stats {
+        overflow-x: auto;
+    }
+
     .market-overview-head {
         flex-direction: column;
     }
@@ -718,6 +741,12 @@ a {
     .top-nav-main {
         flex-direction: column;
         align-items: flex-start;
+    }
+
+    .floating-headlines-panel {
+        right: auto;
+        left: 0;
+        width: min(34rem, calc(100vw - 1.5rem));
     }
 
     .menu-links,

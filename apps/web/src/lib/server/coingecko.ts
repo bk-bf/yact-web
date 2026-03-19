@@ -6,69 +6,6 @@ const COINGECKO_GLOBAL_ENDPOINT = 'https://api.coingecko.com/api/v3/global';
 
 const MARKET_CACHE_TTL_MS = 60_000;
 
-const FALLBACK_BASE_COINS: Array<Pick<MarketCoin, 'id' | 'symbol' | 'name' | 'image'>> = [
-    {
-        id: 'bitcoin',
-        symbol: 'btc',
-        name: 'Bitcoin',
-        image: 'https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400'
-    },
-    {
-        id: 'ethereum',
-        symbol: 'eth',
-        name: 'Ethereum',
-        image: 'https://coin-images.coingecko.com/coins/images/279/large/ethereum.png?1696501628'
-    },
-    {
-        id: 'tether',
-        symbol: 'usdt',
-        name: 'Tether',
-        image: 'https://coin-images.coingecko.com/coins/images/325/large/Tether.png?1696501661'
-    },
-    {
-        id: 'xrp',
-        symbol: 'xrp',
-        name: 'XRP',
-        image: 'https://coin-images.coingecko.com/coins/images/44/large/xrp-symbol-white-128.png?1696501442'
-    },
-    {
-        id: 'binancecoin',
-        symbol: 'bnb',
-        name: 'BNB',
-        image: 'https://coin-images.coingecko.com/coins/images/825/large/bnb-icon2_2x.png?1696501970'
-    },
-    {
-        id: 'usd-coin',
-        symbol: 'usdc',
-        name: 'USDC',
-        image: 'https://coin-images.coingecko.com/coins/images/6319/large/USDC.png?1769615602'
-    },
-    {
-        id: 'solana',
-        symbol: 'sol',
-        name: 'Solana',
-        image: 'https://coin-images.coingecko.com/coins/images/4128/large/solana.png?1718769756'
-    },
-    {
-        id: 'tron',
-        symbol: 'trx',
-        name: 'TRON',
-        image: 'https://coin-images.coingecko.com/coins/images/1094/large/tron-logo.png?1696502193'
-    },
-    {
-        id: 'dogecoin',
-        symbol: 'doge',
-        name: 'Dogecoin',
-        image: 'https://coin-images.coingecko.com/coins/images/5/large/dogecoin.png?1696501409'
-    },
-    {
-        id: 'cardano',
-        symbol: 'ada',
-        name: 'Cardano',
-        image: 'https://coin-images.coingecko.com/coins/images/975/large/cardano.png?1696502090'
-    }
-];
-
 type MarketCache = {
     coins: MarketCoin[];
     fetchedAt: number;
@@ -146,31 +83,6 @@ const ETH_RPC_GAS_ENDPOINTS = [
     'https://ethereum-rpc.publicnode.com',
     'https://rpc.ankr.com/eth'
 ];
-
-function buildFallbackCoins(): MarketCoin[] {
-    return Array.from({ length: 100 }, (_, i) => {
-        const rank = i + 1;
-        const base = FALLBACK_BASE_COINS[i] ?? {
-            id: `token-${rank}`,
-            symbol: `t${rank}`,
-            name: `Token ${rank}`,
-            image: 'https://coin-images.coingecko.com/coins/images/1/large/bitcoin.png?1696501400'
-        };
-
-        return {
-            ...base,
-            currentPrice: 0,
-            marketCap: 0,
-            totalVolume24h: 0,
-            circulatingSupply: 0,
-            marketCapRank: rank,
-            priceChangePercentage24h: 0,
-            sparkline7d: [0, 0, 0, 0, 0, 0, 0]
-        };
-    });
-}
-
-const FALLBACK_COINS = buildFallbackCoins();
 
 function normalizeCoin(coin: CoinGeckoMarketCoin): MarketCoin {
     const sparkline = coin.sparkline_in_7d?.price ?? [];
@@ -308,10 +220,6 @@ export function getCachedGasGwei(): number | null {
     }
 
     return gasCache.gwei;
-}
-
-export function getFallbackTopMarketCoins(): MarketCoin[] {
-    return FALLBACK_COINS;
 }
 
 export function getFallbackGlobalMarketSummary(coins: MarketCoin[]): GlobalMarketSummary {

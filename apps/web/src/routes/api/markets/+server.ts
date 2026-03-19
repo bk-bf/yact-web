@@ -5,7 +5,6 @@ import {
     getCachedGasGwei,
     getCachedTopMarketCoins,
     getFallbackGlobalMarketSummary,
-    getFallbackTopMarketCoins,
     getGlobalMarketSummary,
     getLatestGasGwei,
     getTopGainers,
@@ -69,24 +68,26 @@ export async function GET({ fetch }) {
                 });
             }
 
-            const fallback = getFallbackTopMarketCoins();
-            const fallbackGlobal = getFallbackGlobalMarketSummary(fallback);
-            return json({
-                source: 'local-fallback',
-                count: fallback.length,
-                coins: fallback,
-                global: {
-                    ...fallbackGlobal,
-                    gasGwei: gasGwei ?? fallbackGlobal.gasGwei
+            const emptyGlobal = getFallbackGlobalMarketSummary([]);
+            return json(
+                {
+                    source: 'coingecko-unavailable',
+                    count: 0,
+                    coins: [],
+                    global: {
+                        ...emptyGlobal,
+                        gasGwei: gasGwei ?? emptyGlobal.gasGwei
+                    },
+                    headlines,
+                    highlights: {
+                        trending: [],
+                        topGainers: []
+                    },
+                    stale: true,
+                    warning: 'CoinGecko rate-limited requests (429) and no cached market snapshot is available.'
                 },
-                headlines,
-                highlights: {
-                    trending: getTrendingByVolume(fallback, 3),
-                    topGainers: getTopGainers(fallback, 3)
-                },
-                stale: true,
-                warning: 'CoinGecko rate-limited requests (429). Showing fallback market list.'
-            });
+                { status: 503 }
+            );
         }
 
         return json(
