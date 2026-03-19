@@ -253,10 +253,7 @@
         <button class="table-filter-item" type="button">New Listings</button>
         <button class="table-filter-item" type="button">Layer 1</button>
         <button class="table-filter-item" type="button">DeFi</button>
-        <button class="table-filter-item no-right-border" type="button"
-          >AI Tokens</button
-        >
-        <span class="table-filter-divider" aria-hidden="true"></span>
+        <button class="table-filter-item" type="button">AI Tokens</button>
         <button class="table-filter-item" type="button">All</button>
         <button class="table-filter-item" type="button">Highlights</button>
         <button class="table-filter-item" type="button">Base Ecosystem</button>

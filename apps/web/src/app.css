@@ -497,15 +497,6 @@ a {
     gap: 0;
 }
 
-.table-filter-divider {
-    width: 1px;
-    height: auto;
-    align-self: stretch;
-    background: #2e353a;
-    margin: 0.34rem 0.35rem;
-    flex: 0 0 auto;
-}
-
 .table-filter-item,
 .table-filter-action {
     border: 0;
@@ -517,10 +508,6 @@ a {
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
-}
-
-.table-filter-item.no-right-border {
-    border-right: 0;
 }
 
 .table-filter-item.active {
