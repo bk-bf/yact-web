@@ -87,7 +87,9 @@
     }
 
     $effect(() => {
-        const pageGlobal = $page.data?.global as GlobalMarketSummary | undefined;
+        const pageGlobal = $page.data?.global as
+            | GlobalMarketSummary
+            | undefined;
         if (pageGlobal) {
             sharedGlobal = pageGlobal;
         }
@@ -146,8 +148,13 @@
 
 <div class="app-shell">
     {#if sharedGlobal ?? ($page.data?.global as GlobalMarketSummary | undefined)}
-        {@const global = sharedGlobal ?? ($page.data?.global as GlobalMarketSummary)}
-        {@const topbarHeadlines = (sharedHeadlines.length > 0 ? sharedHeadlines : ($page.data?.headlines ?? [])).slice(0, 5)}
+        {@const global =
+            sharedGlobal ?? ($page.data?.global as GlobalMarketSummary)}
+        {@const topbarHeadlines = (
+            sharedHeadlines.length > 0
+                ? sharedHeadlines
+                : ($page.data?.headlines ?? [])
+        ).slice(0, 5)}
         <section class="market-floating-bar" aria-label="Pinned market stats">
             <div class="market-floating-stats" aria-label="Live market stats">
                 <span class="market-floating-item"
@@ -226,10 +233,10 @@
 
     <header class="terminal-header">
         <div class="top-nav-main">
-            <div class="brand">
+            <a class="brand" href="/" aria-label="Go to markets home">
                 <span class="brand-badge">YACT</span>
                 <span class="brand-name">YACT</span>
-            </div>
+            </a>
 
             <nav class="menu-links" aria-label="Primary market menu">
                 {#each primaryNav as navItem}
