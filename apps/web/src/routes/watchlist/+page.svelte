@@ -68,9 +68,15 @@
                 Tracking halving-cycle context with baseline probability
                 signals.
             </p>
-            <span class="metric-chip">Price: {formatPrice(btc.currentPrice)}</span>
-            <span class="metric-chip">24h: {formatPercent(btc.priceChangePercentage24h)}</span>
-            <span class="metric-chip">Volume: {formatVolume(btc.totalVolume24h)}</span>
+            <span class="metric-chip"
+                >Price: {formatPrice(btc.currentPrice)}</span
+            >
+            <span class="metric-chip"
+                >24h: {formatPercent(btc.priceChangePercentage24h)}</span
+            >
+            <span class="metric-chip"
+                >Volume: {formatVolume(btc.totalVolume24h)}</span
+            >
         </article>
 
         <!-- TODO(T-004, see .docs/features/open/ROADMAP.md): Replace placeholder ETH card with real watchlist module fed by live data. -->
@@ -79,9 +85,15 @@
             <p>
                 Short-term trend and liquidity context for watchlist comparison.
             </p>
-            <span class="metric-chip">Price: {formatPrice(eth.currentPrice)}</span>
-            <span class="metric-chip">24h: {formatPercent(eth.priceChangePercentage24h)}</span>
-            <span class="metric-chip">Volume: {formatVolume(eth.totalVolume24h)}</span>
+            <span class="metric-chip"
+                >Price: {formatPrice(eth.currentPrice)}</span
+            >
+            <span class="metric-chip"
+                >24h: {formatPercent(eth.priceChangePercentage24h)}</span
+            >
+            <span class="metric-chip"
+                >Volume: {formatVolume(eth.totalVolume24h)}</span
+            >
         </article>
     </div>
 
