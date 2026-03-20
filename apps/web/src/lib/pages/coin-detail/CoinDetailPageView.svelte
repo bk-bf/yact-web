@@ -647,16 +647,18 @@
         <aside class="coin-left-rail">
             <article class="coin-rail-card coin-hero-card">
                 <div class="coin-terminal-identity">
-                    <img
-                        src={coin.image}
-                        alt={coin.name}
-                        width="40"
-                        height="40"
-                    />
-                    <h1>
-                        {coin.name} <span>{coin.symbol.toUpperCase()}</span>
-                    </h1>
-                    <span class="metric-chip">#{coin.marketCapRank}</span>
+                    <div class="coin-title-wrap">
+                        <img
+                            src={coin.image}
+                            alt={coin.name}
+                            width="40"
+                            height="40"
+                        />
+                        <h1>
+                            {coin.name} <span>{coin.symbol.toUpperCase()}</span>
+                        </h1>
+                    </div>
+                    <span class="coin-rank-pill">#{coin.marketCapRank}</span>
                 </div>
 
                 <div class="coin-terminal-price">
