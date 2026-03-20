@@ -27,7 +27,7 @@ export async function GET({ fetch }) {
     const cachedGasGwei = getCachedGasGwei();
 
     // Keep API latency low: refresh upstream sources in background only.
-    void getTopCryptoHeadlines(fetch, 5)
+    void getTopCryptoHeadlines(fetch, 12)
         .then((freshHeadlines) => {
             if (freshHeadlines.length > 0) {
                 return writePersistentHeadlinesSnapshot('reddit-direct', freshHeadlines);

@@ -175,7 +175,7 @@ async function getRssHeadlines(fetchFn: typeof fetch, limit: number): Promise<Cr
 }
 
 export async function getTopCryptoHeadlines(fetchFn: typeof fetch, limit = 5): Promise<CryptoHeadline[]> {
-    const target = Math.max(3, Math.min(limit, 5));
+    const target = Math.max(6, Math.min(limit, 20));
 
     const results = await Promise.allSettled(
         REDDIT_ENDPOINTS.map(async (endpoint) => {
@@ -192,7 +192,7 @@ export async function getTopCryptoHeadlines(fetchFn: typeof fetch, limit = 5): P
     const merged = results
         .flatMap((result) => (result.status === 'fulfilled' ? result.value : []))
         .filter(isQualityPost)
-        .sort((a, b) => b.score - a.score);
+        .sort((a, b) => b.created_utc - a.created_utc);
 
     const seen = new Set<string>();
     const deduped = merged.filter((post) => {
@@ -204,7 +204,17 @@ export async function getTopCryptoHeadlines(fetchFn: typeof fetch, limit = 5): P
         return true;
     });
 
-    const redditHeadlines = deduped.slice(0, target).map(toHeadline);
+    const redditHeadlines = deduped
+        .slice(0, target)
+        .map(toHeadline)
+        .sort((a, b) => {
+            const tsDelta = +new Date(b.publishedAt) - +new Date(a.publishedAt);
+            if (tsDelta !== 0) {
+                return tsDelta;
+            }
+
+            return a.id.localeCompare(b.id);
+        });
     if (redditHeadlines.length >= target) {
         return redditHeadlines;
     }
@@ -226,7 +236,16 @@ export async function getTopCryptoHeadlines(fetchFn: typeof fetch, limit = 5): P
         return true;
     });
 
-    return finalHeadlines.slice(0, target);
+    return finalHeadlines
+        .sort((a, b) => {
+            const tsDelta = +new Date(b.publishedAt) - +new Date(a.publishedAt);
+            if (tsDelta !== 0) {
+                return tsDelta;
+            }
+
+            return a.id.localeCompare(b.id);
+        })
+        .slice(0, target);
 }
 
 export function getFallbackCryptoHeadlines(): CryptoHeadline[] {

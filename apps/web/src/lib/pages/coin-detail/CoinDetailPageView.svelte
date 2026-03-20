@@ -71,8 +71,19 @@
     }
 
     const coin = $derived(data.coin);
-    const primaryHeadline = $derived(data.headlines[0] ?? null);
-    const extraHeadlines = $derived((data.headlines ?? []).slice(1, 4));
+    const latestHeadlines = $derived(
+        [...(data.headlines ?? [])]
+            .sort((a, b) => {
+                const tsDelta =
+                    +new Date(b.publishedAt) - +new Date(a.publishedAt);
+                if (tsDelta !== 0) {
+                    return tsDelta;
+                }
+
+                return a.id.localeCompare(b.id);
+            })
+            .slice(0, 12),
+    );
     const bullishShare = $derived(
         clamp(Math.round(50 + coin.priceChangePercentage24h * 4), 5, 95),
     );
@@ -581,31 +592,13 @@
             </article>
 
             <article class="coin-rail-card">
-                <h3>Hot Topic</h3>
-                {#if primaryHeadline}
-                    <a
-                        href={primaryHeadline.url}
-                        target="_blank"
-                        rel="noreferrer"
-                        class="coin-news-link"
-                    >
-                        {primaryHeadline.title}
-                    </a>
-                    <p class="coin-news-meta">
-                        {primaryHeadline.source} • {formatHeadlineDate(
-                            primaryHeadline.publishedAt,
-                        )}
-                    </p>
-                {:else}
-                    <p class="muted">No headlines available right now.</p>
-                {/if}
-            </article>
-
-            <article class="coin-rail-card">
                 <h3>Latest</h3>
-                {#if extraHeadlines.length > 0}
+                <p class="coin-news-subtitle">
+                    Here is what happened in crypto today.
+                </p>
+                {#if latestHeadlines.length > 0}
                     <ul class="coin-news-list">
-                        {#each extraHeadlines as headline}
+                        {#each latestHeadlines as headline}
                             <li>
                                 <a
                                     href={headline.url}
@@ -624,7 +617,7 @@
                         {/each}
                     </ul>
                 {:else}
-                    <p class="muted">No additional headlines available.</p>
+                    <p class="muted">No headlines available right now.</p>
                 {/if}
             </article>
 
