@@ -1,6 +1,7 @@
 import { json } from '@sveltejs/kit';
 
 import { enqueueCoinRefresh, ensureAutoRefreshStarted } from '../../../../lib/server/autoRefreshService';
+import { enrichContractsWithPlatformLogos } from '../../../../lib/server/coingecko';
 import {
     readCoinBreakdownSnapshot,
     readCoinChartSnapshot,
@@ -85,6 +86,7 @@ function buildDerivedBreakdownFromMarketCoin(coin: MarketCoin) {
         categories: [],
         description: '',
         homepage: null,
+        whitepaper: null,
         blockchainSite: null,
         websites: [],
         explorers: [],
@@ -112,8 +114,22 @@ export async function GET({ fetch, params }) {
     const persisted = await readCoinBreakdownSnapshot(coinId);
     if (persisted) {
         const ageMs = Date.now() - persisted.ts;
+        const hasMissingMetadataFields =
+            (persisted.value.contracts?.length ?? 0) === 0 &&
+            (persisted.value.chains?.length ?? 0) === 0 &&
+            (persisted.value.websites?.length ?? 0) === 0 &&
+            (persisted.value.explorers?.length ?? 0) === 0 &&
+            !persisted.value.whitepaper;
+        const hasMissingContractLogos =
+            (persisted.value.contracts?.length ?? 0) > 0 &&
+            persisted.value.contracts.some((entry) => !entry.logoUrl);
+        const hasMissingMetadata =
+            hasMissingMetadataFields || hasMissingContractLogos;
+
         if (ageMs > BREAKDOWN_STALE_MS) {
             enqueueCoinRefresh(coinId, 'normal', 'coin-breakdown-stale');
+        } else if (hasMissingMetadata) {
+            enqueueCoinRefresh(coinId, 'high', 'coin-breakdown-metadata-missing');
         }
 
         const sparklineTail = persisted.value.sparkline7d.length > 24
@@ -121,8 +137,15 @@ export async function GET({ fetch, params }) {
             : persisted.value.sparkline7d;
         const computedLow24h = sparklineTail.length ? Math.min(...sparklineTail) : persisted.value.currentPrice;
         const computedHigh24h = sparklineTail.length ? Math.max(...sparklineTail) : persisted.value.currentPrice;
+        const enrichedContracts = await enrichContractsWithPlatformLogos(fetch, persisted.value.contracts ?? []);
+        const enrichedContractChains = Array.from(
+            new Set(enrichedContracts.map((entry) => entry.chain).filter((value) => value.trim().length > 0))
+        );
+        const chains = persisted.value.chains?.length ? persisted.value.chains : enrichedContractChains;
         const coinWithDerivedRange = {
             ...persisted.value,
+            contracts: enrichedContracts,
+            chains,
             low24h: persisted.value.low24h ?? computedLow24h,
             high24h: persisted.value.high24h ?? computedHigh24h
         };
@@ -137,7 +160,7 @@ export async function GET({ fetch, params }) {
             }
             : coinWithDerivedRange;
 
-        if (atlFallback) {
+        if (atlFallback || hasMissingContractLogos) {
             void writeCoinBreakdownSnapshot(coinId, coinWithDerivedAtl);
         }
 

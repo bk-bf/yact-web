@@ -1,3 +1,6 @@
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+
 import type { MarketCoin } from '../types/market';
 import { readPersistentMarketSnapshot } from './persistentMarketSnapshot';
 
@@ -5,8 +8,11 @@ const COINGECKO_MARKETS_ENDPOINT =
     'https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=100&page=1&sparkline=true&price_change_percentage=24h';
 const COINGECKO_GLOBAL_ENDPOINT = 'https://api.coingecko.com/api/v3/global';
 const COINGECKO_COIN_ENDPOINT_BASE = 'https://api.coingecko.com/api/v3/coins';
+const COINGECKO_ASSET_PLATFORMS_ENDPOINT = 'https://api.coingecko.com/api/v3/asset_platforms';
 const CRYPTOCOMPARE_API_BASE = 'https://min-api.cryptocompare.com/data/v2';
 const COINPAPRIKA_API_BASE = 'https://api.coinpaprika.com/v1';
+const PLATFORM_LOGO_CACHE_TTL_MS = 14 * 24 * 60 * 60_000;
+const PLATFORM_LOGO_CACHE_FILE = path.join(process.cwd(), '.cache', 'coingecko-platforms.json');
 
 const MARKET_CACHE_TTL_MS = 60_000;
 const CHART_DEBUG_PREFIX = '[chart-debug]';
@@ -50,11 +56,12 @@ export interface CoinBreakdown {
     categories: string[];
     description: string;
     homepage: string | null;
+    whitepaper: string | null;
     blockchainSite: string | null;
     websites: string[];
     explorers: string[];
     community: Array<{ label: string; url: string }>;
-    contracts: Array<{ chain: string; address: string }>;
+    contracts: Array<{ chain: string; address: string; logoUrl: string | null }>;
     chains: string[];
     coingeckoUrl: string;
     coinmarketcapUrl: string;
@@ -77,6 +84,12 @@ type GasCache = {
 let marketCache: MarketCache | null = null;
 let globalCache: GlobalCache | null = null;
 let gasCache: GasCache | null = null;
+let platformLogoCache: PlatformLogoCache | null = null;
+
+type PlatformLogoCache = {
+    fetchedAt: number;
+    byKey: Record<string, string>;
+};
 
 interface CoinGeckoMarketCoin {
     id: string;
@@ -127,12 +140,14 @@ interface CoinGeckoCoinDetailResponse {
     links?: {
         homepage?: string[];
         blockchain_site?: string[];
+        whitepaper?: string | string[];
         official_forum_url?: string[];
         chat_url?: string[];
         announcement_url?: string[];
         subreddit_url?: string;
         twitter_screen_name?: string;
         facebook_username?: string;
+        telegram_channel_identifier?: string | string[];
     };
     platforms?: Record<string, string | null>;
     market_data?: {
@@ -175,6 +190,19 @@ interface CoinGeckoCoinDetailResponse {
 interface CoinGeckoMarketChartResponse {
     prices?: Array<[number, number]>;
     total_volumes?: Array<[number, number]>;
+}
+
+interface CoinGeckoAssetPlatformResponse {
+    id?: string;
+    name?: string;
+    shortname?: string;
+    image?:
+    | string
+    | {
+        thumb?: string;
+        small?: string;
+        large?: string;
+    };
 }
 
 export type CoinChartRange = '24h' | '7d' | '1m' | '3m' | 'ytd' | '1y' | 'max';
@@ -307,6 +335,141 @@ async function withTimeout<T>(promise: Promise<T>, timeoutMs: number): Promise<T
                 clearTimeout(timer);
                 reject(error);
             });
+    });
+}
+
+function normalizePlatformKey(value: string): string {
+    return value.trim().toLowerCase().replace(/[^a-z0-9]+/g, '-');
+}
+
+function extractPlatformLogoUrl(platform: CoinGeckoAssetPlatformResponse): string | null {
+    const image = platform.image;
+    if (typeof image === 'string' && /^https?:\/\//i.test(image)) {
+        return image;
+    }
+
+    if (image && typeof image === 'object') {
+        const candidate = image.small ?? image.thumb ?? image.large;
+        if (typeof candidate === 'string' && /^https?:\/\//i.test(candidate)) {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+async function readPlatformLogoCacheFromDisk(): Promise<PlatformLogoCache | null> {
+    try {
+        const raw = await readFile(PLATFORM_LOGO_CACHE_FILE, 'utf8');
+        const parsed = JSON.parse(raw) as Partial<PlatformLogoCache>;
+        if (typeof parsed?.fetchedAt !== 'number' || !parsed.byKey || typeof parsed.byKey !== 'object') {
+            return null;
+        }
+
+        return {
+            fetchedAt: parsed.fetchedAt,
+            byKey: parsed.byKey as Record<string, string>
+        };
+    } catch {
+        return null;
+    }
+}
+
+async function writePlatformLogoCacheToDisk(cache: PlatformLogoCache): Promise<void> {
+    await mkdir(path.dirname(PLATFORM_LOGO_CACHE_FILE), { recursive: true });
+    await writeFile(PLATFORM_LOGO_CACHE_FILE, JSON.stringify(cache), 'utf8');
+}
+
+async function getPlatformLogoCache(fetchFn: typeof fetch): Promise<PlatformLogoCache | null> {
+    const now = Date.now();
+    if (platformLogoCache && now - platformLogoCache.fetchedAt < PLATFORM_LOGO_CACHE_TTL_MS) {
+        return platformLogoCache;
+    }
+
+    const diskCache = await readPlatformLogoCacheFromDisk();
+    if (diskCache && now - diskCache.fetchedAt < PLATFORM_LOGO_CACHE_TTL_MS) {
+        platformLogoCache = diskCache;
+        return diskCache;
+    }
+
+    try {
+        const response = await withTimeout(
+            fetchFn(COINGECKO_ASSET_PLATFORMS_ENDPOINT, {
+                headers: {
+                    accept: 'application/json'
+                }
+            }),
+            6_000
+        );
+
+        if (!response.ok) {
+            platformLogoCache = diskCache;
+            return diskCache;
+        }
+
+        const payload = (await response.json()) as CoinGeckoAssetPlatformResponse[];
+        const byKey: Record<string, string> = {};
+
+        for (const platform of payload) {
+            const logoUrl = extractPlatformLogoUrl(platform);
+            if (!logoUrl) {
+                continue;
+            }
+
+            if (platform.id?.trim()) {
+                byKey[normalizePlatformKey(platform.id)] = logoUrl;
+            }
+            if (platform.name?.trim()) {
+                byKey[normalizePlatformKey(platform.name)] = logoUrl;
+            }
+            if (platform.shortname?.trim()) {
+                byKey[normalizePlatformKey(platform.shortname)] = logoUrl;
+            }
+        }
+
+        const cache: PlatformLogoCache = {
+            fetchedAt: now,
+            byKey
+        };
+        platformLogoCache = cache;
+        void writePlatformLogoCacheToDisk(cache);
+        return cache;
+    } catch {
+        platformLogoCache = diskCache;
+        return diskCache;
+    }
+}
+
+function resolvePlatformLogo(cache: PlatformLogoCache | null, chain: string): string | null {
+    if (!cache) {
+        return null;
+    }
+
+    return cache.byKey[normalizePlatformKey(chain)] ?? null;
+}
+
+export async function enrichContractsWithPlatformLogos(
+    fetchFn: typeof fetch,
+    contracts: Array<{ chain: string; address: string; logoUrl: string | null }>
+): Promise<Array<{ chain: string; address: string; logoUrl: string | null }>> {
+    if (!contracts.length) {
+        return contracts;
+    }
+
+    const platformCache = await getPlatformLogoCache(fetchFn);
+    if (!platformCache) {
+        return contracts;
+    }
+
+    return contracts.map((entry) => {
+        if (entry.logoUrl) {
+            return entry;
+        }
+
+        return {
+            ...entry,
+            logoUrl: resolvePlatformLogo(platformCache, entry.chain)
+        };
     });
 }
 
@@ -473,6 +636,7 @@ async function getCoinPaprikaBreakdown(fetchFn: typeof fetch, coinId: string, ca
         categories: [],
         description: '',
         homepage: firstNonEmpty(coinPayload.links?.website),
+        whitepaper: null,
         blockchainSite: firstNonEmpty(coinPayload.links?.explorer),
         websites: normalizeUrlList(coinPayload.links?.website),
         explorers: normalizeUrlList(coinPayload.links?.explorer),
@@ -800,6 +964,50 @@ function normalizeCommunityLinks(links: Array<{ label: string; url: string }>): 
     return normalized;
 }
 
+function inferCommunityLabelFromUrl(url: string, fallback: string): string {
+    try {
+        const host = new URL(url).hostname.toLowerCase();
+        if (host === 'reddit.com' || host.endsWith('.reddit.com')) {
+            return 'Reddit';
+        }
+        if (host === 'x.com' || host.endsWith('.x.com') || host === 'twitter.com' || host.endsWith('.twitter.com')) {
+            return 'X';
+        }
+        if (host === 'facebook.com' || host.endsWith('.facebook.com') || host === 'm.facebook.com') {
+            return 'Facebook';
+        }
+        if (host === 't.me' || host.endsWith('.t.me') || host === 'telegram.me' || host.endsWith('.telegram.me')) {
+            return 'Telegram';
+        }
+        if (host === 'discord.gg' || host.endsWith('.discord.gg') || host === 'discord.com' || host.endsWith('.discord.com')) {
+            return 'Discord';
+        }
+        if (host === 'youtube.com' || host.endsWith('.youtube.com') || host === 'youtu.be') {
+            return 'YouTube';
+        }
+        if (host === 'medium.com' || host.endsWith('.medium.com')) {
+            return 'Medium';
+        }
+    } catch {
+        // Keep fallback label for malformed URLs.
+    }
+
+    return fallback;
+}
+
+function toTelegramUrl(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) {
+        return null;
+    }
+
+    if (/^https?:\/\//i.test(trimmed)) {
+        return trimmed;
+    }
+
+    return `https://t.me/${trimmed.replace(/^@/, '')}`;
+}
+
 function toPlainText(html: string | undefined): string {
     if (!html) {
         return '';
@@ -845,6 +1053,7 @@ function toCoinBreakdownFromCache(coin: MarketCoin): CoinBreakdown {
         categories: [],
         description: '',
         homepage: null,
+        whitepaper: null,
         blockchainSite: null,
         websites: [],
         explorers: [],
@@ -1066,12 +1275,10 @@ export async function getTopMarketCoins(fetchFn: typeof fetch): Promise<MarketCo
 
 export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): Promise<CoinBreakdown> {
     const cachedCoin = await getCachedOrPersistentCoin(coinId);
+    const platformCache = await getPlatformLogoCache(fetchFn);
 
     try {
-        const [detailResponse, chartResponse] = await Promise.all([
-            withTimeout(fetchCoinByIdWithRetry(fetchFn, coinId), 6_000),
-            withTimeout(fetchCoinChartWithRetry(fetchFn, coinId, 7, 'hourly'), 6_000)
-        ]);
+        const detailResponse = await withTimeout(fetchCoinByIdWithRetry(fetchFn, coinId), 6_000);
 
         if (!detailResponse.ok) {
             throw new Error(`CoinGecko coin request failed with status ${detailResponse.status}`);
@@ -1083,19 +1290,25 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
         let chartPrices7d = sparkline;
         let chartVolumes7d: number[] = [];
 
-        if (chartResponse.ok) {
-            const chartPayload = (await chartResponse.json()) as CoinGeckoMarketChartResponse;
-            const prices = chartPayload.prices?.map(([, price]) => price).filter((price) => Number.isFinite(price));
-            if (prices && prices.length > 1) {
-                chartPrices7d = prices;
-            }
+        try {
+            const chartResponse = await withTimeout(fetchCoinChartWithRetry(fetchFn, coinId, 7, 'hourly'), 6_000);
 
-            const volumes = chartPayload.total_volumes
-                ?.map(([, volume]) => volume)
-                .filter((volume) => Number.isFinite(volume));
-            if (volumes && volumes.length > 1) {
-                chartVolumes7d = volumes;
+            if (chartResponse.ok) {
+                const chartPayload = (await chartResponse.json()) as CoinGeckoMarketChartResponse;
+                const prices = chartPayload.prices?.map(([, price]) => price).filter((price) => Number.isFinite(price));
+                if (prices && prices.length > 1) {
+                    chartPrices7d = prices;
+                }
+
+                const volumes = chartPayload.total_volumes
+                    ?.map(([, volume]) => volume)
+                    .filter((volume) => Number.isFinite(volume));
+                if (volumes && volumes.length > 1) {
+                    chartVolumes7d = volumes;
+                }
             }
+        } catch {
+            // Chart fetch failures should not drop detail metadata (contracts/chains/links).
         }
 
         if (chartVolumes7d.length < 2) {
@@ -1112,11 +1325,32 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
         }
 
         const websites = normalizeUrlList(payload.links?.homepage);
+        const whitepaper = Array.isArray(payload.links?.whitepaper)
+            ? firstNonEmpty(payload.links?.whitepaper)
+            : typeof payload.links?.whitepaper === 'string' && /^https?:\/\//i.test(payload.links.whitepaper.trim())
+                ? payload.links.whitepaper.trim()
+                : null;
         const explorers = normalizeUrlList(payload.links?.blockchain_site);
+        const telegramLinksRaw = Array.isArray(payload.links?.telegram_channel_identifier)
+            ? payload.links?.telegram_channel_identifier
+            : payload.links?.telegram_channel_identifier
+                ? [payload.links.telegram_channel_identifier]
+                : [];
+        const telegramLinks = normalizeUrlList(telegramLinksRaw.map((entry) => toTelegramUrl(entry ?? '') ?? ''));
         const community = normalizeCommunityLinks([
-            ...normalizeUrlList(payload.links?.official_forum_url).map((url) => ({ label: 'Forum', url })),
-            ...normalizeUrlList(payload.links?.chat_url).map((url) => ({ label: 'Chat', url })),
-            ...normalizeUrlList(payload.links?.announcement_url).map((url) => ({ label: 'Announcement', url })),
+            ...normalizeUrlList(payload.links?.official_forum_url).map((url) => ({
+                label: inferCommunityLabelFromUrl(url, 'Forum'),
+                url
+            })),
+            ...normalizeUrlList(payload.links?.chat_url).map((url) => ({
+                label: inferCommunityLabelFromUrl(url, 'Chat'),
+                url
+            })),
+            ...normalizeUrlList(payload.links?.announcement_url).map((url) => ({
+                label: inferCommunityLabelFromUrl(url, 'Announcement'),
+                url
+            })),
+            ...telegramLinks.map((url) => ({ label: 'Telegram', url })),
             ...(payload.links?.subreddit_url
                 ? [{ label: 'Reddit', url: payload.links.subreddit_url }]
                 : []),
@@ -1129,7 +1363,11 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
         ]);
         const contracts = Object.entries(payload.platforms ?? {})
             .filter(([, address]) => typeof address === 'string' && address.trim().length > 0)
-            .map(([chain, address]) => ({ chain, address: (address ?? '').trim() }));
+            .map(([chain, address]) => ({
+                chain,
+                address: (address ?? '').trim(),
+                logoUrl: resolvePlatformLogo(platformCache, chain)
+            }));
         const chains = contracts.map((entry) => entry.chain);
 
         return {
@@ -1154,6 +1392,7 @@ export async function getCoinBreakdown(fetchFn: typeof fetch, coinId: string): P
             categories: payload.categories ?? [],
             description: toPlainText(payload.description?.en),
             homepage: websites[0] ?? null,
+            whitepaper,
             blockchainSite: explorers[0] ?? null,
             websites,
             explorers,

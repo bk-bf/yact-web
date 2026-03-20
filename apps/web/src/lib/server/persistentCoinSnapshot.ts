@@ -34,6 +34,10 @@ interface PersistentCoinSnapshot {
 }
 
 function normalizeCoinBreakdown(value: CoinBreakdown): CoinBreakdown {
+    const whitepaper = typeof (value as Partial<CoinBreakdown>).whitepaper === 'string' &&
+        (value as Partial<CoinBreakdown>).whitepaper?.trim().length
+        ? (value as Partial<CoinBreakdown>).whitepaper?.trim() ?? null
+        : null;
     const websites = Array.isArray((value as Partial<CoinBreakdown>).websites)
         ? (value as Partial<CoinBreakdown>).websites ?? []
         : [];
@@ -44,7 +48,13 @@ function normalizeCoinBreakdown(value: CoinBreakdown): CoinBreakdown {
         ? (value as Partial<CoinBreakdown>).community ?? []
         : [];
     const contracts = Array.isArray((value as Partial<CoinBreakdown>).contracts)
-        ? (value as Partial<CoinBreakdown>).contracts ?? []
+        ? ((value as Partial<CoinBreakdown>).contracts ?? []).map((entry) => ({
+            chain: typeof entry.chain === 'string' ? entry.chain : '',
+            address: typeof entry.address === 'string' ? entry.address : '',
+            logoUrl: typeof entry.logoUrl === 'string' && entry.logoUrl.trim().length > 0
+                ? entry.logoUrl
+                : null
+        }))
         : [];
     const chains = Array.isArray((value as Partial<CoinBreakdown>).chains)
         ? (value as Partial<CoinBreakdown>).chains ?? []
@@ -53,6 +63,7 @@ function normalizeCoinBreakdown(value: CoinBreakdown): CoinBreakdown {
     return {
         ...value,
         apiId: value.apiId || value.id,
+        whitepaper,
         websites,
         explorers,
         community,
@@ -131,6 +142,7 @@ function mergeCoinBreakdownPreservingDetails(
         chains: incoming.chains.length > 0 ? incoming.chains : existingChains,
         description,
         homepage: pickNonEmptyNullableString(incoming.homepage, existing.homepage),
+        whitepaper: pickNonEmptyNullableString(incoming.whitepaper, existing.whitepaper),
         blockchainSite: pickNonEmptyNullableString(incoming.blockchainSite, existing.blockchainSite),
         sparkline7d: incoming.sparkline7d.length > 1 ? incoming.sparkline7d : existing.sparkline7d,
         chartPrices7d: incoming.chartPrices7d.length > 1 ? incoming.chartPrices7d : existing.chartPrices7d,

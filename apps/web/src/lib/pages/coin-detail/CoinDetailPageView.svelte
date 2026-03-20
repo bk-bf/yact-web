@@ -70,11 +70,11 @@
 
     function shortAddress(address: string): string {
         const trimmed = address.trim();
-        if (trimmed.length <= 16) {
+        if (trimmed.length <= 14) {
             return trimmed;
         }
 
-        return `${trimmed.slice(0, 8)}...${trimmed.slice(-6)}`;
+        return `${trimmed.slice(0, 6)}...${trimmed.slice(-4)}`;
     }
 
     function chainMonogram(chain: string): string {
@@ -98,26 +98,62 @@
         }
     }
 
-    let copiedContractAddress = $state<string | null>(null);
-    let copiedContractTimer: ReturnType<typeof setTimeout> | null = null;
+    function faviconForUrl(url: string): string {
+        return `https://www.google.com/s2/favicons?sz=64&domain_url=${encodeURIComponent(
+            url,
+        )}`;
+    }
 
-    async function copyContractAddress(address: string): Promise<void> {
+    function logoForLink(label: string, url: string): string {
+        const normalized = label.trim().toLowerCase();
+        if (normalized === "x") {
+            return "https://x.com/favicon.ico";
+        }
+        if (normalized === "reddit") {
+            return "https://www.reddit.com/favicon.ico";
+        }
+        if (normalized === "coingecko") {
+            return "https://www.coingecko.com/favicon.ico";
+        }
+        if (normalized === "coinmarketcap") {
+            return "https://coinmarketcap.com/favicon.ico";
+        }
+
+        try {
+            const host = new URL(url).hostname.toLowerCase();
+            if (host === "x.com" || host.endsWith(".x.com") || host === "twitter.com" || host.endsWith(".twitter.com")) {
+                return "https://x.com/favicon.ico";
+            }
+            if (host === "reddit.com" || host.endsWith(".reddit.com")) {
+                return "https://www.reddit.com/favicon.ico";
+            }
+        } catch {
+            // Fallback below for malformed URLs.
+        }
+
+        return faviconForUrl(url);
+    }
+
+    let copiedInfoKey = $state<string | null>(null);
+    let copiedInfoTimer: ReturnType<typeof setTimeout> | null = null;
+
+    async function copyInfoValue(value: string, key: string): Promise<void> {
         if (!browser) {
             return;
         }
 
         try {
-            await navigator.clipboard.writeText(address);
-            copiedContractAddress = address;
-            if (copiedContractTimer) {
-                clearTimeout(copiedContractTimer);
+            await navigator.clipboard.writeText(value);
+            copiedInfoKey = key;
+            if (copiedInfoTimer) {
+                clearTimeout(copiedInfoTimer);
             }
-            copiedContractTimer = setTimeout(() => {
-                copiedContractAddress = null;
-                copiedContractTimer = null;
+            copiedInfoTimer = setTimeout(() => {
+                copiedInfoKey = null;
+                copiedInfoTimer = null;
             }, 1800);
         } catch {
-            copiedContractAddress = null;
+            copiedInfoKey = null;
         }
     }
 
@@ -262,6 +298,89 @@
         { label: "CoinGecko", url: coin.coingeckoUrl },
         { label: "CoinMarketCap", url: coin.coinmarketcapUrl },
     ]);
+    const searchBrandLinks = $derived(
+        searchLinks.map((link: { label: string; url: string }) => ({
+            ...link,
+            logoUrl: logoForLink(link.label, link.url),
+        })),
+    );
+    const displayChainBadges = $derived(
+        (() => {
+            const fromContracts = Array.from(
+                new Map(
+                    coin.contracts
+                        .filter(
+                            (entry: {
+                                chain: string;
+                                logoUrl: string | null;
+                            }) => entry.chain.trim().length > 0,
+                        )
+                        .map(
+                            (entry: {
+                                chain: string;
+                                logoUrl: string | null;
+                            }) => [
+                                entry.chain,
+                                {
+                                    chain: entry.chain,
+                                    logoUrl: entry.logoUrl,
+                                },
+                            ],
+                        ),
+                ).values(),
+            );
+
+            if (fromContracts.length > 0) {
+                return fromContracts;
+            }
+
+            return (coin.chains ?? [])
+                .filter((chain: string) => chain.trim().length > 0)
+                .map((chain: string) => ({
+                    chain,
+                    logoUrl: null as string | null,
+                }));
+        })(),
+    );
+    const displayWebsites = $derived(
+        coin.websites.length > 0
+            ? coin.websites
+            : coin.homepage
+              ? [coin.homepage]
+              : [],
+    );
+    const displayWebsiteLinks = $derived(
+        [
+            ...displayWebsites.map((url: string) => ({
+                label: hostLabel(url),
+                url,
+            })),
+            ...(coin.whitepaper &&
+            !displayWebsites.some((url: string) => url === coin.whitepaper)
+                ? [{ label: "Whitepaper", url: coin.whitepaper }]
+                : []),
+        ].slice(0, 4),
+    );
+    const displayExplorers = $derived(
+        coin.explorers.length > 0
+            ? coin.explorers
+            : coin.blockchainSite
+              ? [coin.blockchainSite]
+              : [],
+    );
+    const displayCommunity = $derived(
+        coin.community.length > 0
+            ? coin.community
+            : coin.homepage
+              ? [{ label: "Site", url: coin.homepage }]
+              : [],
+    );
+    const displayCommunityLinks = $derived(
+        displayCommunity.map((link: { label: string; url: string }) => ({
+            ...link,
+            logoUrl: logoForLink(link.label, link.url),
+        })),
+    );
     const low24h = $derived(coin.low24h ?? coin.currentPrice);
     const high24h = $derived(coin.high24h ?? coin.currentPrice);
     const dayRangeSpread = $derived(Math.max(0, high24h - low24h));
@@ -662,7 +781,22 @@
                 <div class="info-chip-row">
                     <span class="info-row-label">API ID</span>
                     <div class="info-chip-wrap">
-                        <span class="info-pill">{coin.apiId || coin.id}</span>
+                        <button
+                            class="info-pill info-pill-button"
+                            type="button"
+                            title={`Copy ${coin.apiId || coin.id}`}
+                            onclick={() =>
+                                copyInfoValue(coin.apiId || coin.id, "api-id")}
+                        >
+                            <span>{coin.apiId || coin.id}</span>
+                            <span
+                                class="info-copy-icon"
+                                aria-label={copiedInfoKey === "api-id"
+                                    ? "Copied"
+                                    : "Copy API ID"}
+                                >{copiedInfoKey === "api-id" ? "✓" : "⧉"}</span
+                            >
+                        </button>
                     </div>
                 </div>
 
@@ -676,20 +810,41 @@
                                     type="button"
                                     title={entry.address}
                                     onclick={() =>
-                                        copyContractAddress(entry.address)}
+                                        copyInfoValue(
+                                            entry.address,
+                                            `contract-${entry.address}`,
+                                        )}
                                 >
+                                    {#if entry.logoUrl}
+                                        <img
+                                            class="chain-logo-image"
+                                            src={entry.logoUrl}
+                                            alt={entry.chain}
+                                            loading="lazy"
+                                        />
+                                    {:else}
+                                        <span
+                                            class="chain-logo"
+                                            aria-hidden="true"
+                                            title={entry.chain}
+                                            >{chainMonogram(entry.chain)}</span
+                                        >
+                                    {/if}
                                     <span
-                                        class="chain-logo"
-                                        aria-hidden="true"
-                                        title={entry.chain}
-                                        >{chainMonogram(entry.chain)}</span
+                                        class="contract-address"
+                                        title={entry.address}
+                                        >{shortAddress(entry.address)}</span
                                     >
-                                    <span>{shortAddress(entry.address)}</span>
-                                    <span class="contract-copy-indicator"
-                                        >{copiedContractAddress ===
-                                        entry.address
+                                    <span
+                                        class="info-copy-icon"
+                                        aria-label={copiedInfoKey ===
+                                        `contract-${entry.address}`
                                             ? "Copied"
-                                            : "Copy"}</span
+                                            : "Copy contract address"}
+                                        >{copiedInfoKey ===
+                                        `contract-${entry.address}`
+                                            ? "✓"
+                                            : "⧉"}</span
                                     >
                                 </button>
                             {/each}
@@ -702,15 +857,28 @@
                 <div class="info-chip-row">
                     <span class="info-row-label">Chains</span>
                     <div class="info-chip-wrap">
-                        {#if coin.chains.length > 0}
-                            {#each coin.chains.slice(0, 8) as chain}
+                        {#if displayChainBadges.length > 0}
+                            {#each displayChainBadges.slice(0, 8) as chainEntry}
                                 <span
                                     class="info-pill chain-pill"
-                                    title={chain}
+                                    title={chainEntry.chain}
                                 >
-                                    <span class="chain-logo" aria-hidden="true"
-                                        >{chainMonogram(chain)}</span
-                                    >
+                                    {#if chainEntry.logoUrl}
+                                        <img
+                                            class="chain-logo-image"
+                                            src={chainEntry.logoUrl}
+                                            alt={chainEntry.chain}
+                                            loading="lazy"
+                                        />
+                                    {:else}
+                                        <span
+                                            class="chain-logo"
+                                            aria-hidden="true"
+                                            >{chainMonogram(
+                                                chainEntry.chain,
+                                            )}</span
+                                        >
+                                    {/if}
                                 </span>
                             {/each}
                         {:else}
@@ -750,13 +918,13 @@
                 <div class="info-chip-row">
                     <span class="info-row-label">Website</span>
                     <div class="info-chip-wrap">
-                        {#if coin.websites.length > 0}
-                            {#each coin.websites.slice(0, 3) as website}
+                        {#if displayWebsiteLinks.length > 0}
+                            {#each displayWebsiteLinks as websiteLink}
                                 <a
                                     class="info-pill info-link-pill"
-                                    href={website}
+                                    href={websiteLink.url}
                                     target="_blank"
-                                    rel="noreferrer">{hostLabel(website)}</a
+                                    rel="noreferrer">{websiteLink.label}</a
                                 >
                             {/each}
                         {:else}
@@ -768,8 +936,8 @@
                 <div class="info-chip-row">
                     <span class="info-row-label">Explorers</span>
                     <div class="info-chip-wrap">
-                        {#if coin.explorers.length > 0}
-                            {#each coin.explorers.slice(0, 4) as explorer}
+                        {#if displayExplorers.length > 0}
+                            {#each displayExplorers.slice(0, 4) as explorer}
                                 <a
                                     class="info-pill info-link-pill"
                                     href={explorer}
@@ -786,14 +954,22 @@
                 <div class="info-chip-row">
                     <span class="info-row-label">Community</span>
                     <div class="info-chip-wrap">
-                        {#if coin.community.length > 0}
-                            {#each coin.community.slice(0, 6) as communityLink}
+                        {#if displayCommunityLinks.length > 0}
+                            {#each displayCommunityLinks as communityLink}
                                 <a
-                                    class="info-pill info-link-pill"
+                                    class="info-pill info-link-pill info-logo-pill"
                                     href={communityLink.url}
                                     target="_blank"
-                                    rel="noreferrer">{communityLink.label}</a
+                                    rel="noreferrer"
                                 >
+                                    <img
+                                        class="info-link-logo"
+                                        src={communityLink.logoUrl}
+                                        alt={communityLink.label}
+                                        loading="lazy"
+                                    />
+                                    <span>{communityLink.label}</span>
+                                </a>
                             {/each}
                         {:else}
                             <span class="muted">--</span>
@@ -804,13 +980,21 @@
                 <div class="info-chip-row">
                     <span class="info-row-label">Search on</span>
                     <div class="info-chip-wrap">
-                        {#each searchLinks as link}
+                        {#each searchBrandLinks as link}
                             <a
-                                class="info-pill info-link-pill"
+                                class="info-pill info-link-pill info-logo-pill"
                                 href={link.url}
                                 target="_blank"
-                                rel="noreferrer">{link.label}</a
+                                rel="noreferrer"
                             >
+                                <img
+                                    class="info-link-logo"
+                                    src={link.logoUrl}
+                                    alt={link.label}
+                                    loading="lazy"
+                                />
+                                <span>{link.label}</span>
+                            </a>
                         {/each}
                     </div>
                 </div>

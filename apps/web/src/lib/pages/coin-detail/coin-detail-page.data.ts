@@ -22,11 +22,12 @@ interface CoinBreakdown {
     categories: string[];
     description: string;
     homepage: string | null;
+    whitepaper: string | null;
     blockchainSite: string | null;
     websites: string[];
     explorers: string[];
     community: Array<{ label: string; url: string }>;
-    contracts: Array<{ chain: string; address: string }>;
+    contracts: Array<{ chain: string; address: string; logoUrl: string | null }>;
     chains: string[];
     coingeckoUrl: string;
     coinmarketcapUrl: string;
