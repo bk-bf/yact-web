@@ -18,22 +18,36 @@ import { readPersistentMarketSnapshot } from '../../../lib/server/persistentMark
 export async function GET({ fetch }) {
     ensureAutoRefreshStarted();
 
-    const headlinesSnapshotPromise = readPersistentHeadlinesSnapshot();
-    const headlinesPromise = getTopCryptoHeadlines(fetch, 5).catch(() => getFallbackCryptoHeadlines());
-    const gasPromise = getLatestGasGwei().catch(() => getCachedGasGwei());
-    const [persistentSnapshot, headlinesFromSource, headlinesSnapshot, gasGwei] = await Promise.all([
+    const [persistentSnapshot, headlinesSnapshot] = await Promise.all([
         readPersistentMarketSnapshot(),
-        headlinesPromise,
-        headlinesSnapshotPromise,
-        gasPromise
+        readPersistentHeadlinesSnapshot()
     ]);
 
-    const headlines = headlinesFromSource.length > 0
-        ? headlinesFromSource
-        : (headlinesSnapshot?.headlines ?? []);
+    const headlines = headlinesSnapshot?.headlines ?? [];
+    const cachedGasGwei = getCachedGasGwei();
 
-    if (headlinesFromSource.length > 0) {
-        void writePersistentHeadlinesSnapshot('reddit-direct', headlinesFromSource);
+    // Keep API latency low: refresh upstream sources in background only.
+    void getTopCryptoHeadlines(fetch, 5)
+        .then((freshHeadlines) => {
+            if (freshHeadlines.length > 0) {
+                return writePersistentHeadlinesSnapshot('reddit-direct', freshHeadlines);
+            }
+
+            const fallbackHeadlines = getFallbackCryptoHeadlines();
+            if (fallbackHeadlines.length > 0) {
+                return writePersistentHeadlinesSnapshot('fallback', fallbackHeadlines);
+            }
+
+            return Promise.resolve();
+        })
+        .catch(() => {
+            // Keep stale snapshot headlines when live fetch fails.
+        });
+
+    if (cachedGasGwei === null) {
+        void getLatestGasGwei().catch(() => {
+            // Gas is optional in UI; stale value is acceptable.
+        });
     }
 
     if (persistentSnapshot) {
@@ -42,7 +56,7 @@ export async function GET({ fetch }) {
 
         const dbGlobalResolved = {
             ...persistentSnapshot.global,
-            gasGwei: gasGwei ?? persistentSnapshot.global.gasGwei
+            gasGwei: cachedGasGwei ?? persistentSnapshot.global.gasGwei
         };
 
         const ageMs = Date.now() - persistentSnapshot.ts;
