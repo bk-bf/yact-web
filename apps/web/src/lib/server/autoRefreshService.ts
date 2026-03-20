@@ -9,7 +9,12 @@ import {
     type CoinChartRange
 } from './coingecko';
 import type { MarketCoin } from '../types/market';
-import { listTrackedCoinIds, writeCoinBreakdownSnapshot, writeCoinChartSnapshot } from './persistentCoinSnapshot';
+import {
+    listTrackedCoinIds,
+    readCoinChartSnapshot,
+    writeCoinBreakdownSnapshot,
+    writeCoinChartSnapshot
+} from './persistentCoinSnapshot';
 import { writePersistentMarketSnapshot } from './persistentMarketSnapshot';
 
 const AUTO_REFRESH_INTERVAL_MS = 5 * 60_000;
@@ -21,6 +26,17 @@ const QUEUE_DEBUG_LOGS_ENABLED = process.env.YACT_QUEUE_DEBUG === '1';
 const AUTO_REFRESH_LOG_DIR = path.join(process.cwd(), '.cache');
 const AUTO_REFRESH_LOG_FILE = path.join(AUTO_REFRESH_LOG_DIR, 'auto-refresh.log');
 const CHART_RANGES: CoinChartRange[] = ['24h', '7d', '1m', '3m', 'ytd', '1y', 'max'];
+const CHART_RANGE_STALE_MS: Record<CoinChartRange, number> = {
+    '24h': 3 * 60_000,
+    '7d': 10 * 60_000,
+    '1m': 45 * 60_000,
+    '3m': 2 * 60 * 60_000,
+    ytd: 12 * 60 * 60_000,
+    '1y': 12 * 60 * 60_000,
+    max: 24 * 60 * 60_000
+};
+const COIN_REFRESH_CONCURRENCY = Number.parseInt(process.env.YACT_COIN_REFRESH_CONCURRENCY ?? '3', 10);
+const CHART_REFRESH_CONCURRENCY = Number.parseInt(process.env.YACT_CHART_REFRESH_CONCURRENCY ?? '2', 10);
 
 let autoRefreshStarted = false;
 let autoRefreshTimer: NodeJS.Timeout | null = null;
@@ -184,6 +200,42 @@ function appendAutoRefreshLog(scope: string, phase: string, detail: Record<strin
         .catch(() => {
             // Keep runtime path resilient even if file logging fails.
         });
+}
+
+async function runWithConcurrency<T>(
+    items: T[],
+    concurrency: number,
+    worker: (item: T) => Promise<void>
+): Promise<void> {
+    const safeConcurrency = Math.max(1, Math.min(10, concurrency));
+    let cursor = 0;
+
+    const workers = Array.from({ length: Math.min(safeConcurrency, items.length) }, async () => {
+        while (cursor < items.length) {
+            const index = cursor;
+            cursor += 1;
+            await worker(items[index]);
+        }
+    });
+
+    await Promise.all(workers);
+}
+
+async function getDueChartRanges(coinId: string): Promise<CoinChartRange[]> {
+    const now = Date.now();
+    const due = await Promise.all(
+        CHART_RANGES.map(async (range) => {
+            const snapshot = await readCoinChartSnapshot(coinId, range);
+            if (!snapshot) {
+                return range;
+            }
+
+            const ageMs = now - snapshot.ts;
+            return ageMs >= CHART_RANGE_STALE_MS[range] ? range : null;
+        })
+    );
+
+    return due.filter((range): range is CoinChartRange => range !== null);
 }
 
 function logQueueDebug(phase: string, detail: Record<string, unknown> = {}): void {
@@ -458,8 +510,7 @@ export async function refreshTrackedCoinData(fetchFn: typeof fetch, marketCoinId
     let chartSuccessCount = 0;
     let chartFailureCount = 0;
 
-    // Refresh tracked coins sequentially to reduce upstream burst pressure.
-    for (const coinId of coinIds) {
+    await runWithConcurrency(coinIds, COIN_REFRESH_CONCURRENCY, async (coinId) => {
         const coinStartedAt = Date.now();
         console.info(`${AUTO_REFRESH_LOG_PREFIX} coin refresh start`, {
             coinId,
@@ -477,7 +528,16 @@ export async function refreshTrackedCoinData(fetchFn: typeof fetch, marketCoinId
                 source: breakdown.source
             });
 
-            for (const range of CHART_RANGES) {
+            const dueRanges = await getDueChartRanges(coinId);
+            if (!dueRanges.length) {
+                console.info(`${AUTO_REFRESH_LOG_PREFIX} chart refresh noop`, {
+                    coinId,
+                    reason: 'all-ranges-fresh'
+                });
+                return;
+            }
+
+            await runWithConcurrency(dueRanges, CHART_REFRESH_CONCURRENCY, async (range) => {
                 const chartStartedAt = Date.now();
                 console.info(`${AUTO_REFRESH_LOG_PREFIX} chart refresh start`, {
                     coinId,
@@ -512,12 +572,12 @@ export async function refreshTrackedCoinData(fetchFn: typeof fetch, marketCoinId
                     chartFailureCount += 1;
                     console.warn(`${AUTO_REFRESH_LOG_PREFIX} chart refresh failed for ${coinId}/${range}:`, error);
                 }
-            }
+            });
         } catch (error) {
             coinFailureCount += 1;
             console.warn(`${AUTO_REFRESH_LOG_PREFIX} coin refresh failed for ${coinId}:`, error);
         }
-    }
+    });
 
     console.info(`${AUTO_REFRESH_LOG_PREFIX} tracked coin refresh finished`, {
         startedAt,
@@ -663,7 +723,15 @@ export async function refreshCoinNow(fetchFn: typeof fetch, coinId: string): Pro
         let chartSuccessCount = 0;
         let chartFailureCount = 0;
 
-        for (const range of CHART_RANGES) {
+        const dueRanges = await getDueChartRanges(coinId);
+        if (!dueRanges.length) {
+            console.info(`${AUTO_REFRESH_LOG_PREFIX} ad-hoc chart refresh noop`, {
+                coinId,
+                reason: 'all-ranges-fresh'
+            });
+        }
+
+        await runWithConcurrency(dueRanges, CHART_REFRESH_CONCURRENCY, async (range) => {
             try {
                 const series = await getCoinChartSeries(fetchFn, coinId, range);
                 if (series.source === 'coingecko' || series.source === 'cryptocompare') {
@@ -681,7 +749,7 @@ export async function refreshCoinNow(fetchFn: typeof fetch, coinId: string): Pro
                 chartFailureCount += 1;
                 console.warn(`${AUTO_REFRESH_LOG_PREFIX} ad-hoc chart refresh failed for ${coinId}/${range}:`, error);
             }
-        }
+        });
 
         console.info(`${AUTO_REFRESH_LOG_PREFIX} ad-hoc coin refresh success`, {
             coinId,
