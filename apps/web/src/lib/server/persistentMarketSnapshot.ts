@@ -4,6 +4,7 @@ import path from 'node:path';
 import type { MarketCoin } from '../types/market';
 import type { GlobalMarketSummary } from './coingecko';
 import { getDataDir } from './dataPaths';
+import { persistMarketSnapshot as persistToDatabase } from './persistentDatabaseWrite';
 
 const SNAPSHOT_VERSION = 1;
 const SNAPSHOT_DIR = getDataDir();
@@ -82,6 +83,26 @@ async function tryReadSnapshotFile(filePath: string): Promise<PersistentMarketSn
 }
 
 export async function readPersistentMarketSnapshot(): Promise<PersistentMarketSnapshot | null> {
+    // Try to read from API first (primary source)
+    try {
+        const API_BASE_URL = process.env.YACT_ANALYTICS_URL || "http://localhost:8000";
+        const response = await fetch(`${API_BASE_URL}/api/v1/markets`, {
+            headers: { 'Accept': 'application/json' }
+        });
+
+        if (response.ok) {
+            const data = await response.json();
+            console.info(
+                `${SNAPSHOT_LOG_PREFIX} loaded snapshot from API ` +
+                `(source=${data.source}, count=${data.count})`
+            );
+            return data;
+        }
+    } catch (error) {
+        console.warn(`${SNAPSHOT_LOG_PREFIX} failed to read from API, falling back to files:`, error);
+    }
+
+    // Fall back to file-based snapshot
     const primary = await tryReadSnapshotFile(SNAPSHOT_FILE);
     const snapshot = primary ?? await tryReadSnapshotFile(SNAPSHOT_BACKUP_FILE);
 
@@ -125,6 +146,11 @@ export async function writePersistentMarketSnapshot(
             `${SNAPSHOT_LOG_PREFIX} wrote snapshot to ${SNAPSHOT_FILE} ` +
             `(source=${source}, count=${coins.length}, ts=${snapshot.ts})`
         );
+
+        // Also persist to database (non-blocking)
+        persistToDatabase(snapshot).catch((error) => {
+            console.error(`${SNAPSHOT_LOG_PREFIX} failed to sync to database:`, error);
+        });
     } catch (error) {
         console.error(`${SNAPSHOT_LOG_PREFIX} failed to write snapshot to ${SNAPSHOT_FILE}:`, error);
         throw error;

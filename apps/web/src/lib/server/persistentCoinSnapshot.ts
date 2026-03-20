@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import type { CoinBreakdown, CoinChartRange, CoinChartSeries } from './coingecko';
 import { getDataDir } from './dataPaths';
+import { persistCoinSnapshot as persistToDatabase } from './persistentDatabaseWrite';
 
 const SNAPSHOT_VERSION = 1;
 const DESCRIPTION_REVALIDATE_MS = 14 * 24 * 60 * 60_000;
@@ -381,6 +382,11 @@ async function writeSnapshot(snapshot: PersistentCoinSnapshot): Promise<void> {
     await rename(primaryTempFile, SNAPSHOT_FILE);
     await writeFile(backupTempFile, serialized, 'utf-8');
     await rename(backupTempFile, SNAPSHOT_BACKUP_FILE);
+
+    // Also persist to database (non-blocking)
+    persistToDatabase(snapshot).catch((error) => {
+        console.error(`${SNAPSHOT_LOG_PREFIX} failed to sync to database:`, error);
+    });
 }
 
 export async function readCoinBreakdownSnapshot(coinId: string): Promise<PersistedCoinBreakdown | null> {

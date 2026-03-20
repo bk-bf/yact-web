@@ -3,6 +3,7 @@ import path from 'node:path';
 
 import type { CryptoHeadline } from './headlines';
 import { getDataDir } from './dataPaths';
+import { persistHeadlinesSnapshot as persistToDatabase } from './persistentDatabaseWrite';
 
 const SNAPSHOT_VERSION = 1;
 const SNAPSHOT_DIR = getDataDir();
@@ -127,6 +128,11 @@ export async function writePersistentHeadlinesSnapshot(source: string, headlines
         await writeFile(tempFile, serialized, 'utf-8');
         await rename(tempFile, SNAPSHOT_FILE);
         await writeFile(SNAPSHOT_BACKUP_FILE, serialized, 'utf-8');
+
+        // Also persist to database (non-blocking)
+        persistToDatabase(snapshot).catch((error) => {
+            console.error(`${SNAPSHOT_LOG_PREFIX} failed to sync to database:`, error);
+        });
     } catch (error) {
         console.error(`${SNAPSHOT_LOG_PREFIX} failed to write headlines snapshot:`, error);
     }

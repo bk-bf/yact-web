@@ -15,22 +15,15 @@ YACT does not provide auto-trading execution and does not present deterministic 
 ## Monorepo layout
 
 - `apps/web`: SvelteKit web app scaffold (Vercel-ready)
-- `apps/analytics`: FastAPI analytics service skeleton
 - `packages/shared-schemas`: shared JSON schema package
-- `docs`: product and project documentation
+- `.docs`: product and project documentation
+
+Backend services moved to the standalone `yact-server` repo. This web repo consumes backend data via REST using `YACT_ANALYTICS_URL`.
 
 ## Local run scripts
 
 - `npm run dev:web`: start the SvelteKit app
-- `make dev-analytics`: start the FastAPI service via `uv run`
-- `make lint`: run workspace lint stubs
-- `make test`: run workspace test stubs
+- `make lint`: run web and schema checks
+- `make test`: run web and schema tests
 - `scripts/check.sh`: run lint/test checks in one command
-
-## Python environment (uv)
-
-- Install `uv` once on your machine.
-- Bootstrap analytics dependencies:
-	- `cd apps/analytics && uv sync --extra dev`
-- Run analytics commands through uv (already wired in `make` and `scripts/`).
 
