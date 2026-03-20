@@ -1,7 +1,10 @@
 <script lang="ts">
     import { browser } from "$app/environment";
     import CoinTerminalChart from "../../components/CoinTerminalChart.svelte";
-    import { loadCoinDetailPageData } from "./coin-detail-page.data";
+    import {
+        loadCoinDetailAuxData,
+        loadCoinDetailPageData,
+    } from "./coin-detail-page.data";
 
     let { data } = $props();
     let liveData = $state<typeof data | null>(null);
@@ -52,6 +55,50 @@
     let lastLoadedCoinId = $state<string | null>(null);
     let coinRefreshRequestId = 0;
 
+    function delay(ms: number): Promise<void> {
+        return new Promise((resolve) => setTimeout(resolve, ms));
+    }
+
+    async function backfillAuxDataIfEmpty(
+        coinId: string,
+        requestId: number,
+    ): Promise<void> {
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+            if (requestId !== coinRefreshRequestId) {
+                return;
+            }
+
+            const aux = await loadCoinDetailAuxData(fetch);
+            if (requestId !== coinRefreshRequestId) {
+                return;
+            }
+
+            if (!aux.ok) {
+                await delay(1500);
+                continue;
+            }
+
+            const current = liveData ?? data;
+            if (current.coin.id !== coinId) {
+                return;
+            }
+
+            liveData = {
+                ...current,
+                marketsSnapshotTs: aux.marketsSnapshotTs,
+                headlines: aux.headlines.length > 0 ? aux.headlines : current.headlines,
+                trending: aux.trending.length > 0 ? aux.trending : current.trending,
+                topGainers: aux.topGainers.length > 0 ? aux.topGainers : current.topGainers,
+            };
+
+            if (aux.headlines.length > 0 || aux.topGainers.length > 0) {
+                return;
+            }
+
+            await delay(1500);
+        }
+    }
+
     async function refreshCoinData(coinId: string): Promise<void> {
         const requestId = ++coinRefreshRequestId;
         const nextData = await loadCoinDetailPageData(fetch, coinId);
@@ -59,6 +106,10 @@
             return;
         }
         liveData = nextData;
+
+        if (nextData.headlines.length === 0 || nextData.topGainers.length === 0) {
+            void backfillAuxDataIfEmpty(coinId, requestId);
+        }
     }
 
     function formatOptionalDate(value: string | null): string {

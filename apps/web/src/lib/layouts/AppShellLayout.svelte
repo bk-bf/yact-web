@@ -23,6 +23,9 @@
 
     interface MarketsLayoutPayload {
         global?: GlobalMarketSummary;
+    }
+
+    interface HeadlinesPayload {
         headlines?: CryptoHeadline[];
     }
 
@@ -132,23 +135,28 @@
 
         const syncFloatingData = async () => {
             try {
-                const response = await fetch(`/api/markets?_ts=${Date.now()}`, {
+                const marketsResponse = await fetch(`/api/markets?_ts=${Date.now()}`, {
                     cache: "no-store",
                 });
-                if (!response.ok) {
-                    return;
+                if (marketsResponse.ok) {
+                    const payload = (await marketsResponse.json()) as MarketsLayoutPayload;
+                    if (!cancelled && payload.global) {
+                        sharedGlobal = payload.global;
+                    }
                 }
+            } catch {
+                // Ignore transient fetch errors; keep last known values.
+            }
 
-                const payload = (await response.json()) as MarketsLayoutPayload;
-                if (cancelled) {
-                    return;
-                }
-
-                if (payload.global) {
-                    sharedGlobal = payload.global;
-                }
-                if (Array.isArray(payload.headlines)) {
-                    sharedHeadlines = payload.headlines;
+            try {
+                const headlinesResponse = await fetch(`/api/headlines?_ts=${Date.now()}`, {
+                    cache: "no-store",
+                });
+                if (headlinesResponse.ok) {
+                    const payload = (await headlinesResponse.json()) as HeadlinesPayload;
+                    if (!cancelled && Array.isArray(payload.headlines)) {
+                        sharedHeadlines = payload.headlines;
+                    }
                 }
             } catch {
                 // Ignore transient fetch errors; keep last known values.

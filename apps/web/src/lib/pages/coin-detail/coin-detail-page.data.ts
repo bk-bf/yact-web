@@ -61,11 +61,14 @@ interface HighlightCoin {
 interface MarketsAuxResponse {
     snapshotTs?: number;
     ts?: number;
-    headlines?: CryptoHeadline[];
     highlights?: {
         trending?: HighlightCoin[];
         topGainers?: HighlightCoin[];
     };
+}
+
+interface HeadlinesResponse {
+    headlines?: CryptoHeadline[];
 }
 
 interface CoinChartResponse {
@@ -237,11 +240,59 @@ export function createInitialCoinDetailPageData(coinId: string) {
     };
 }
 
+function delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function loadCoinDetailAuxData(fetchFn: typeof fetch) {
+    const timeoutsMs = [2500, 4000, 6000];
+
+    for (let i = 0; i < timeoutsMs.length; i += 1) {
+        const [marketsResult, headlinesResult] = await Promise.all([
+            fetchJsonWithTimeout<MarketsAuxResponse>(
+                fetchFn,
+                '/api/markets',
+                timeoutsMs[i],
+            ),
+            fetchJsonWithTimeout<HeadlinesResponse>(
+                fetchFn,
+                '/api/headlines',
+                2500,
+            ),
+        ]);
+
+        if ((marketsResult.ok && marketsResult.data) || (headlinesResult.ok && headlinesResult.data)) {
+            const aux = marketsResult.data;
+            const headlinesData = headlinesResult.data;
+            return {
+                ok: true,
+                marketsSnapshotTs: aux?.snapshotTs ?? aux?.ts ?? null,
+                headlines: headlinesData?.headlines ?? [],
+                trending: aux?.highlights?.trending ?? [],
+                topGainers: aux?.highlights?.topGainers ?? [],
+            };
+        }
+
+        if (i < timeoutsMs.length - 1) {
+            await delay(300);
+        }
+    }
+
+    return {
+        ok: false,
+        marketsSnapshotTs: null,
+        headlines: [],
+        trending: [],
+        topGainers: [],
+    };
+}
+
 export async function loadCoinDetailPageData(fetchFn: typeof fetch, coinId: string) {
-    const [coinResult, chartResult, marketsResult] = await Promise.all([
+    const [coinResult, chartResult, marketsResult, headlinesResult] = await Promise.all([
         fetchJsonWithTimeout<CoinBreakdownResponse>(fetchFn, `/api/coins/${coinId}`, 4000),
         fetchJsonWithTimeout<CoinChartResponse>(fetchFn, `/api/coins/${coinId}/chart?range=7d`, 3000),
-        fetchJsonWithTimeout<MarketsAuxResponse>(fetchFn, '/api/markets', 1500)
+        fetchJsonWithTimeout<MarketsAuxResponse>(fetchFn, '/api/markets', 2500),
+        fetchJsonWithTimeout<HeadlinesResponse>(fetchFn, '/api/headlines', 2500),
     ]);
 
     let chartPayload: CoinChartResponse | undefined;
@@ -256,9 +307,12 @@ export async function loadCoinDetailPageData(fetchFn: typeof fetch, coinId: stri
     if (marketsResult.ok && marketsResult.data) {
         const aux = marketsResult.data;
         marketsSnapshotTs = aux.snapshotTs ?? aux.ts ?? null;
-        headlines = aux.headlines ?? [];
         trending = aux.highlights?.trending ?? [];
         topGainers = aux.highlights?.topGainers ?? [];
+    }
+
+    if (headlinesResult.ok && headlinesResult.data) {
+        headlines = headlinesResult.data.headlines ?? [];
     }
 
     const coinPayload = coinResult.ok ? coinResult.data : null;
