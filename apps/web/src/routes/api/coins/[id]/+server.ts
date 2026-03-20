@@ -1,6 +1,6 @@
 import { json } from '@sveltejs/kit';
 
-import { ensureAutoRefreshStarted, refreshCoinNow } from '../../../../lib/server/autoRefreshService';
+import { enqueueCoinRefresh, ensureAutoRefreshStarted } from '../../../../lib/server/autoRefreshService';
 import {
     readCoinBreakdownSnapshot,
     readCoinChartSnapshot,
@@ -107,7 +107,7 @@ export async function GET({ fetch, params }) {
     if (persisted) {
         const ageMs = Date.now() - persisted.ts;
         if (ageMs > BREAKDOWN_STALE_MS) {
-            void refreshCoinNow(fetch, coinId);
+            enqueueCoinRefresh(coinId, 'normal', 'coin-breakdown-stale');
         }
 
         const sparklineTail = persisted.value.sparkline7d.length > 24
@@ -148,7 +148,7 @@ export async function GET({ fetch, params }) {
     if (fallbackCoin) {
         const derived = buildDerivedBreakdownFromMarketCoin(fallbackCoin);
         await writeCoinBreakdownSnapshot(coinId, derived);
-        void refreshCoinNow(fetch, coinId);
+        enqueueCoinRefresh(coinId, 'high', 'coin-breakdown-derived-from-market');
 
         return json({
             coin: derived,
@@ -158,7 +158,7 @@ export async function GET({ fetch, params }) {
         });
     }
 
-    void refreshCoinNow(fetch, coinId);
+    enqueueCoinRefresh(coinId, 'critical', 'coin-breakdown-missing');
 
     return json(
         {

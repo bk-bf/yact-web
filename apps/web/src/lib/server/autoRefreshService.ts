@@ -10,6 +10,7 @@ import { listTrackedCoinIds, writeCoinBreakdownSnapshot, writeCoinChartSnapshot 
 import { writePersistentMarketSnapshot } from './persistentMarketSnapshot';
 
 const AUTO_REFRESH_INTERVAL_MS = 5 * 60_000;
+const QUEUE_POLL_INTERVAL_MS = 8_000;
 const MARKET_SWEEP_LIMIT = 100;
 const AUTO_REFRESH_LOG_PREFIX = '[auto-refresh]';
 const CHART_RANGES: CoinChartRange[] = ['24h', '7d', '1m', '3m', 'ytd', '1y', 'max'];
@@ -17,6 +18,36 @@ const CHART_RANGES: CoinChartRange[] = ['24h', '7d', '1m', '3m', 'ytd', '1y', 'm
 let autoRefreshStarted = false;
 let autoRefreshTimer: NodeJS.Timeout | null = null;
 let autoRefreshRunning = false;
+let queueTimer: NodeJS.Timeout | null = null;
+let queueTaskRunning = false;
+
+type RefreshPriority = 'critical' | 'high' | 'normal' | 'low';
+type RefreshTaskType = 'markets' | 'coin-full';
+
+interface RefreshTask {
+    key: string;
+    type: RefreshTaskType;
+    coinId: string | null;
+    priority: RefreshPriority;
+    priorityScore: number;
+    enqueuedAt: number;
+    reason: string;
+}
+
+const REFRESH_PRIORITY_SCORE: Record<RefreshPriority, number> = {
+    critical: 4,
+    high: 3,
+    normal: 2,
+    low: 1
+};
+
+const TASK_COOLDOWN_MS: Record<RefreshTaskType, number> = {
+    markets: 90_000,
+    'coin-full': 120_000
+};
+
+const refreshQueue = new Map<string, RefreshTask>();
+const taskLastRunAt = new Map<string, number>();
 
 interface AutoRefreshStatus {
     intervalMs: number;
@@ -35,6 +66,15 @@ interface AutoRefreshStatus {
         finishedAt: number | null;
         ok: boolean | null;
         error: string | null;
+    } | null;
+    queueLength: number;
+    queueNextTask: {
+        key: string;
+        type: RefreshTaskType;
+        coinId: string | null;
+        priority: RefreshPriority;
+        enqueuedAt: number;
+        reason: string;
     } | null;
 }
 
@@ -78,11 +118,159 @@ const autoRefreshStatus: AutoRefreshStatus = {
     lastCycleOk: null,
     lastCycleError: null,
     lastSweepCoinCount: 0,
-    lastAdHocCoin: null
+    lastAdHocCoin: null,
+    queueLength: 0,
+    queueNextTask: null
 };
 
 export function getAutoRefreshStatus(): AutoRefreshStatus {
     return { ...autoRefreshStatus };
+}
+
+function taskKey(type: RefreshTaskType, coinId: string | null): string {
+    return type === 'markets' ? 'markets' : `coin:${coinId ?? 'unknown'}`;
+}
+
+function popNextQueueTask(): RefreshTask | null {
+    const tasks = [...refreshQueue.values()];
+    if (!tasks.length) {
+        autoRefreshStatus.queueLength = 0;
+        autoRefreshStatus.queueNextTask = null;
+        return null;
+    }
+
+    tasks.sort((a, b) => {
+        if (a.priorityScore !== b.priorityScore) {
+            return b.priorityScore - a.priorityScore;
+        }
+
+        return a.enqueuedAt - b.enqueuedAt;
+    });
+
+    const [selected] = tasks;
+    refreshQueue.delete(selected.key);
+    autoRefreshStatus.queueLength = refreshQueue.size;
+
+    const nextTask = [...refreshQueue.values()].sort((a, b) => {
+        if (a.priorityScore !== b.priorityScore) {
+            return b.priorityScore - a.priorityScore;
+        }
+
+        return a.enqueuedAt - b.enqueuedAt;
+    })[0] ?? null;
+
+    autoRefreshStatus.queueNextTask = nextTask
+        ? {
+            key: nextTask.key,
+            type: nextTask.type,
+            coinId: nextTask.coinId,
+            priority: nextTask.priority,
+            enqueuedAt: nextTask.enqueuedAt,
+            reason: nextTask.reason
+        }
+        : null;
+
+    return selected;
+}
+
+function enqueueTask(type: RefreshTaskType, coinId: string | null, priority: RefreshPriority, reason: string): void {
+    const key = taskKey(type, coinId);
+    const now = Date.now();
+    const existing = refreshQueue.get(key);
+    const candidate: RefreshTask = {
+        key,
+        type,
+        coinId,
+        priority,
+        priorityScore: REFRESH_PRIORITY_SCORE[priority],
+        enqueuedAt: existing?.enqueuedAt ?? now,
+        reason
+    };
+
+    if (existing) {
+        if (candidate.priorityScore >= existing.priorityScore) {
+            refreshQueue.set(key, candidate);
+        }
+    } else {
+        refreshQueue.set(key, candidate);
+    }
+
+    autoRefreshStatus.queueLength = refreshQueue.size;
+    const nextTask = [...refreshQueue.values()].sort((a, b) => {
+        if (a.priorityScore !== b.priorityScore) {
+            return b.priorityScore - a.priorityScore;
+        }
+        return a.enqueuedAt - b.enqueuedAt;
+    })[0] ?? null;
+    autoRefreshStatus.queueNextTask = nextTask
+        ? {
+            key: nextTask.key,
+            type: nextTask.type,
+            coinId: nextTask.coinId,
+            priority: nextTask.priority,
+            enqueuedAt: nextTask.enqueuedAt,
+            reason: nextTask.reason
+        }
+        : null;
+}
+
+async function runQueueTask(task: RefreshTask): Promise<void> {
+    const cooldownMs = TASK_COOLDOWN_MS[task.type];
+    const lastRun = taskLastRunAt.get(task.key) ?? 0;
+    const now = Date.now();
+
+    if (now - lastRun < cooldownMs) {
+        return;
+    }
+
+    taskLastRunAt.set(task.key, now);
+
+    if (task.type === 'markets') {
+        await refreshMarketsNow(fetch);
+        return;
+    }
+
+    if (task.coinId) {
+        await refreshCoinNow(fetch, task.coinId);
+    }
+}
+
+async function processRefreshQueue(): Promise<void> {
+    if (queueTaskRunning || autoRefreshRunning) {
+        return;
+    }
+
+    const task = popNextQueueTask();
+    if (!task) {
+        return;
+    }
+
+    queueTaskRunning = true;
+    try {
+        await runQueueTask(task);
+    } catch (error) {
+        console.warn(`${AUTO_REFRESH_LOG_PREFIX} queued task failed`, {
+            key: task.key,
+            type: task.type,
+            coinId: task.coinId,
+            reason: task.reason,
+            error: error instanceof Error ? error.message : String(error)
+        });
+    } finally {
+        queueTaskRunning = false;
+    }
+}
+
+export function enqueueMarketsRefresh(priority: RefreshPriority = 'low', reason = 'background-update'): void {
+    enqueueTask('markets', null, priority, reason);
+}
+
+export function enqueueCoinRefresh(coinId: string, priority: RefreshPriority = 'normal', reason = 'background-update'): void {
+    if (!coinId) {
+        return;
+    }
+
+    enqueueTask('coin-full', coinId, priority, reason);
 }
 
 async function refreshMarketsFromUpstream(fetchFn: typeof fetch): Promise<MarketCoin[]> {
@@ -299,8 +487,15 @@ export function ensureAutoRefreshStarted(): void {
         void runAutoRefresh();
     }, AUTO_REFRESH_INTERVAL_MS);
 
+    queueTimer = setInterval(() => {
+        void processRefreshQueue();
+    }, QUEUE_POLL_INTERVAL_MS);
+
     if (typeof autoRefreshTimer.unref === 'function') {
         autoRefreshTimer.unref();
+    }
+    if (queueTimer && typeof queueTimer.unref === 'function') {
+        queueTimer.unref();
     }
 
     void runAutoRefresh();

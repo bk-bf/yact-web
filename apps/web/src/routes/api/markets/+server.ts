@@ -8,7 +8,7 @@ import {
     getTrendingByVolume
 } from '../../../lib/server/coingecko';
 import { getFallbackCryptoHeadlines, getTopCryptoHeadlines } from '../../../lib/server/headlines';
-import { ensureAutoRefreshStarted, refreshMarketsNow } from '../../../lib/server/autoRefreshService';
+import { enqueueMarketsRefresh, ensureAutoRefreshStarted } from '../../../lib/server/autoRefreshService';
 import {
     readPersistentHeadlinesSnapshot,
     writePersistentHeadlinesSnapshot
@@ -51,8 +51,8 @@ export async function GET({ fetch }) {
     }
 
     if (persistentSnapshot) {
-        // Serve DB snapshot immediately and refresh upstream asynchronously.
-        void refreshMarketsNow(fetch);
+        // Serve DB snapshot immediately and queue refresh in background.
+        enqueueMarketsRefresh('low', 'markets-page-read');
 
         const dbGlobalResolved = {
             ...persistentSnapshot.global,

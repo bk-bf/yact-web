@@ -47,6 +47,8 @@
         minute: "2-digit",
     });
 
+    const HEADLINES_REORDER_COOLDOWN_MS = 45_000;
+
     function formatOptionalDate(value: string | null): string {
         if (!value) return "--";
         const date = new Date(value);
@@ -84,6 +86,76 @@
             })
             .slice(0, 12),
     );
+    let visibleHeadlines = $state<typeof latestHeadlines>([]);
+    let pendingHeadlines = $state<typeof latestHeadlines>([]);
+    let headlinesCooldownUntil = $state<number | null>(null);
+    let headlinesNowTs = $state(Date.now());
+    const headlinesCooldownRemainingSec = $derived(
+        headlinesCooldownUntil
+            ? Math.max(
+                  0,
+                  Math.ceil((headlinesCooldownUntil - headlinesNowTs) / 1000),
+              )
+            : 0,
+    );
+
+    function headlineOrderKey(headlines: typeof latestHeadlines): string {
+        return headlines.map((headline) => headline.id).join("|");
+    }
+
+    $effect(() => {
+        if (!browser) {
+            visibleHeadlines = latestHeadlines;
+            return;
+        }
+
+        if (visibleHeadlines.length === 0) {
+            visibleHeadlines = latestHeadlines;
+            return;
+        }
+
+        if (headlineOrderKey(latestHeadlines) === headlineOrderKey(visibleHeadlines)) {
+            return;
+        }
+
+        if (headlinesCooldownUntil && Date.now() < headlinesCooldownUntil) {
+            pendingHeadlines = latestHeadlines;
+            return;
+        }
+
+        visibleHeadlines = latestHeadlines;
+        pendingHeadlines = [];
+        headlinesCooldownUntil = Date.now() + HEADLINES_REORDER_COOLDOWN_MS;
+    });
+
+    $effect(() => {
+        if (!browser) {
+            return;
+        }
+
+        const timer = window.setInterval(() => {
+            headlinesNowTs = Date.now();
+            if (headlinesCooldownUntil && headlinesNowTs >= headlinesCooldownUntil) {
+                if (
+                    pendingHeadlines.length > 0 &&
+                    headlineOrderKey(pendingHeadlines) !==
+                        headlineOrderKey(visibleHeadlines)
+                ) {
+                    visibleHeadlines = pendingHeadlines;
+                    pendingHeadlines = [];
+                    headlinesCooldownUntil =
+                        Date.now() + HEADLINES_REORDER_COOLDOWN_MS;
+                    return;
+                }
+
+                headlinesCooldownUntil = null;
+            }
+        }, 1000);
+
+        return () => {
+            window.clearInterval(timer);
+        };
+    });
     const bullishShare = $derived(
         clamp(Math.round(50 + coin.priceChangePercentage24h * 4), 5, 95),
     );
@@ -596,9 +668,17 @@
                 <p class="coin-news-subtitle">
                     Here is what happened in crypto today.
                 </p>
-                {#if latestHeadlines.length > 0}
+                {#if headlinesCooldownUntil}
+                    <p class="coin-news-cooldown" role="status" aria-live="polite">
+                        Reorder cooldown: {headlinesCooldownRemainingSec}s
+                        {#if pendingHeadlines.length > 0}
+                            <span> • update queued</span>
+                        {/if}
+                    </p>
+                {/if}
+                {#if visibleHeadlines.length > 0}
                     <ul class="coin-news-list">
-                        {#each latestHeadlines as headline}
+                        {#each visibleHeadlines as headline}
                             <li>
                                 <a
                                     href={headline.url}

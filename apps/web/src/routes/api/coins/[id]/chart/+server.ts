@@ -1,9 +1,9 @@
 import { json } from '@sveltejs/kit';
 
 import {
+    enqueueCoinRefresh,
     ensureAutoRefreshStarted,
     getAutoRefreshStatus,
-    refreshCoinNow
 } from '../../../../../lib/server/autoRefreshService';
 import type { CoinChartRange } from '../../../../../lib/server/coingecko';
 import {
@@ -131,6 +131,23 @@ export async function GET({ fetch, params, url }) {
         });
     }
 
+    if (persisted) {
+        enqueueCoinRefresh(coinId, 'high', `chart-${rangeParam}-stale-or-fallback`);
+
+        return json({
+            range: rangeParam,
+            prices: persisted.value.prices,
+            volumes: persisted.value.volumes,
+            timestamps: persisted.value.timestamps,
+            source: 'db-cache',
+            stale: true,
+            origin: persisted.value.source,
+            snapshotTs: persisted.ts,
+            warning: `Serving stale '${rangeParam}' chart while queued refresh runs in background.`,
+            autoRefresh: getAutoRefreshStatus()
+        });
+    }
+
     if (!persisted) {
         for (const candidateRange of DERIVATION_PRIORITY[rangeParam]) {
             const candidate = await readCoinChartSnapshot(coinId, candidateRange);
@@ -169,7 +186,7 @@ export async function GET({ fetch, params, url }) {
         }
     }
 
-    void refreshCoinNow(fetch, coinId);
+    enqueueCoinRefresh(coinId, 'critical', `chart-${rangeParam}-missing`);
 
     return json(
         {
