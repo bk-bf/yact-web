@@ -205,20 +205,101 @@ function appendAutoRefreshLog(scope: string, phase: string, detail: Record<strin
 async function runWithConcurrency<T>(
     items: T[],
     concurrency: number,
-    worker: (item: T) => Promise<void>
-): Promise<void> {
+    worker: (item: T, context: { workerId: number; itemIndex: number }) => Promise<void>,
+    options?: {
+        scope?: string;
+        label?: string;
+        logItems?: boolean;
+    }
+): Promise<{ peakInFlight: number; totalItems: number; durationMs: number }> {
     const safeConcurrency = Math.max(1, Math.min(10, concurrency));
+    const startedAt = Date.now();
+    const scope = options?.scope ?? 'refresh-parallel';
+    const label = options?.label ?? 'parallel-run';
+    const logItems = options?.logItems ?? false;
+    let inFlight = 0;
+    let peakInFlight = 0;
+    let completed = 0;
+
+    appendAutoRefreshLog(scope, 'parallel-start', {
+        label,
+        requestedConcurrency: concurrency,
+        concurrency: safeConcurrency,
+        totalItems: items.length
+    });
+
+    if (!items.length) {
+        appendAutoRefreshLog(scope, 'parallel-finish', {
+            label,
+            totalItems: 0,
+            completed: 0,
+            peakInFlight: 0,
+            durationMs: 0
+        });
+        return {
+            peakInFlight: 0,
+            totalItems: 0,
+            durationMs: 0
+        };
+    }
+
     let cursor = 0;
 
-    const workers = Array.from({ length: Math.min(safeConcurrency, items.length) }, async () => {
+    const workers = Array.from({ length: Math.min(safeConcurrency, items.length) }, async (_, workerIndex) => {
+        const workerId = workerIndex + 1;
         while (cursor < items.length) {
             const index = cursor;
             cursor += 1;
-            await worker(items[index]);
+
+            inFlight += 1;
+            peakInFlight = Math.max(peakInFlight, inFlight);
+
+            if (logItems) {
+                appendAutoRefreshLog(scope, 'parallel-item-start', {
+                    label,
+                    workerId,
+                    itemIndex: index,
+                    inFlight,
+                    totalItems: items.length
+                });
+            }
+
+            try {
+                await worker(items[index], { workerId, itemIndex: index });
+            } finally {
+                inFlight -= 1;
+                completed += 1;
+
+                if (logItems) {
+                    appendAutoRefreshLog(scope, 'parallel-item-finish', {
+                        label,
+                        workerId,
+                        itemIndex: index,
+                        inFlight,
+                        completed,
+                        totalItems: items.length
+                    });
+                }
+            }
         }
     });
 
     await Promise.all(workers);
+
+    const durationMs = Date.now() - startedAt;
+    appendAutoRefreshLog(scope, 'parallel-finish', {
+        label,
+        totalItems: items.length,
+        completed,
+        peakInFlight,
+        durationMs
+    });
+
+    return {
+        peakInFlight,
+        totalItems: items.length,
+        durationMs
+    };
 }
 
 async function getDueChartRanges(coinId: string): Promise<CoinChartRange[]> {
@@ -510,7 +591,10 @@ export async function refreshTrackedCoinData(fetchFn: typeof fetch, marketCoinId
     let chartSuccessCount = 0;
     let chartFailureCount = 0;
 
-    await runWithConcurrency(coinIds, COIN_REFRESH_CONCURRENCY, async (coinId) => {
+    let peakCoinInFlight = 0;
+    let peakChartInFlight = 0;
+
+    const coinPoolStats = await runWithConcurrency(coinIds, COIN_REFRESH_CONCURRENCY, async (coinId) => {
         const coinStartedAt = Date.now();
         console.info(`${AUTO_REFRESH_LOG_PREFIX} coin refresh start`, {
             coinId,
@@ -537,12 +621,13 @@ export async function refreshTrackedCoinData(fetchFn: typeof fetch, marketCoinId
                 return;
             }
 
-            await runWithConcurrency(dueRanges, CHART_REFRESH_CONCURRENCY, async (range) => {
+            const chartPoolStats = await runWithConcurrency(dueRanges, CHART_REFRESH_CONCURRENCY, async (range, chartWorkerContext) => {
                 const chartStartedAt = Date.now();
                 console.info(`${AUTO_REFRESH_LOG_PREFIX} chart refresh start`, {
                     coinId,
                     range,
-                    startedAt: chartStartedAt
+                    startedAt: chartStartedAt,
+                    workerId: chartWorkerContext.workerId
                 });
 
                 try {
@@ -572,12 +657,24 @@ export async function refreshTrackedCoinData(fetchFn: typeof fetch, marketCoinId
                     chartFailureCount += 1;
                     console.warn(`${AUTO_REFRESH_LOG_PREFIX} chart refresh failed for ${coinId}/${range}:`, error);
                 }
+            }, {
+                scope: 'refresh-tracked-coins',
+                label: `charts:${coinId}`,
+                logItems: true
             });
+
+            peakChartInFlight = Math.max(peakChartInFlight, chartPoolStats.peakInFlight);
         } catch (error) {
             coinFailureCount += 1;
             console.warn(`${AUTO_REFRESH_LOG_PREFIX} coin refresh failed for ${coinId}:`, error);
         }
+    }, {
+        scope: 'refresh-tracked-coins',
+        label: 'coins',
+        logItems: true
     });
+
+    peakCoinInFlight = coinPoolStats.peakInFlight;
 
     console.info(`${AUTO_REFRESH_LOG_PREFIX} tracked coin refresh finished`, {
         startedAt,
@@ -586,7 +683,9 @@ export async function refreshTrackedCoinData(fetchFn: typeof fetch, marketCoinId
         coinSuccessCount,
         coinFailureCount,
         chartSuccessCount,
-        chartFailureCount
+        chartFailureCount,
+        peakCoinInFlight,
+        peakChartInFlight
     });
 }
 
@@ -731,7 +830,7 @@ export async function refreshCoinNow(fetchFn: typeof fetch, coinId: string): Pro
             });
         }
 
-        await runWithConcurrency(dueRanges, CHART_REFRESH_CONCURRENCY, async (range) => {
+        const chartPoolStats = await runWithConcurrency(dueRanges, CHART_REFRESH_CONCURRENCY, async (range, chartWorkerContext) => {
             try {
                 const series = await getCoinChartSeries(fetchFn, coinId, range);
                 if (series.source === 'coingecko' || series.source === 'cryptocompare') {
@@ -741,6 +840,7 @@ export async function refreshCoinNow(fetchFn: typeof fetch, coinId: string): Pro
                     console.warn(`${AUTO_REFRESH_LOG_PREFIX} ad-hoc chart refresh skipped`, {
                         coinId,
                         range,
+                        workerId: chartWorkerContext.workerId,
                         source: series.source,
                         reason: 'non-persistable-source'
                     });
@@ -749,6 +849,10 @@ export async function refreshCoinNow(fetchFn: typeof fetch, coinId: string): Pro
                 chartFailureCount += 1;
                 console.warn(`${AUTO_REFRESH_LOG_PREFIX} ad-hoc chart refresh failed for ${coinId}/${range}:`, error);
             }
+        }, {
+            scope: 'refresh-ad-hoc-coin',
+            label: `charts:${coinId}`,
+            logItems: true
         });
 
         console.info(`${AUTO_REFRESH_LOG_PREFIX} ad-hoc coin refresh success`, {
@@ -757,7 +861,8 @@ export async function refreshCoinNow(fetchFn: typeof fetch, coinId: string): Pro
             finishedAt: Date.now(),
             breakdownSource: breakdown.source,
             chartSuccessCount,
-            chartFailureCount
+            chartFailureCount,
+            peakChartInFlight: chartPoolStats.peakInFlight
         });
         autoRefreshStatus.lastAdHocCoin = {
             coinId,

@@ -384,12 +384,6 @@
 </svelte:head>
 
 <section class="coin-terminal">
-    {#if data.stale}
-        <p class="warning-text">
-            Showing cached coin data while live detail data is unavailable.
-        </p>
-    {/if}
-
     <div class="coin-terminal-layout">
         <aside class="coin-left-rail">
             <article class="coin-rail-card coin-hero-card">
