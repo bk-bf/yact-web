@@ -1,95 +1,46 @@
 import { json } from '@sveltejs/kit';
 
-import {
-    getCachedGasGwei,
-    getFallbackGlobalMarketSummary,
-    getLatestGasGwei,
-    getTopGainers,
-    getTrendingByVolume
-} from '../../../lib/server/coingecko';
-import { getFallbackCryptoHeadlines, getTopCryptoHeadlines } from '../../../lib/server/headlines';
-import { enqueueMarketsRefresh, ensureAutoRefreshStarted } from '../../../lib/server/autoRefreshService';
-import {
-    readPersistentHeadlinesSnapshot,
-    writePersistentHeadlinesSnapshot
-} from '../../../lib/server/persistentHeadlinesSnapshot';
-import { readPersistentMarketSnapshot } from '../../../lib/server/persistentMarketSnapshot';
+const ANALYTICS_BASE_URL = process.env.YACT_ANALYTICS_URL || 'http://localhost:8000';
+
+function getHighlights(coins: Array<{ priceChangePercentage24h: number; totalVolume24h: number }>) {
+    const topGainers = [...coins]
+        .sort((a, b) => b.priceChangePercentage24h - a.priceChangePercentage24h)
+        .slice(0, 3);
+    const trending = [...coins]
+        .sort((a, b) => b.totalVolume24h - a.totalVolume24h)
+        .slice(0, 3);
+
+    return { topGainers, trending };
+}
 
 export async function GET({ fetch }) {
-    ensureAutoRefreshStarted();
-
-    const [persistentSnapshot, headlinesSnapshot] = await Promise.all([
-        readPersistentMarketSnapshot(),
-        readPersistentHeadlinesSnapshot()
+    const [marketsResponse, headlinesResponse] = await Promise.all([
+        fetch(`${ANALYTICS_BASE_URL}/api/v1/markets`, {
+            headers: { Accept: 'application/json' }
+        }),
+        fetch(`${ANALYTICS_BASE_URL}/api/v1/headlines`, {
+            headers: { Accept: 'application/json' }
+        })
     ]);
 
-    const headlines = headlinesSnapshot?.headlines ?? [];
-    const cachedGasGwei = getCachedGasGwei();
-
-    // Keep API latency low: refresh upstream sources in background only.
-    void getTopCryptoHeadlines(fetch, 12)
-        .then((freshHeadlines) => {
-            if (freshHeadlines.length > 0) {
-                return writePersistentHeadlinesSnapshot('reddit-direct', freshHeadlines);
-            }
-
-            const fallbackHeadlines = getFallbackCryptoHeadlines();
-            if (fallbackHeadlines.length > 0) {
-                return writePersistentHeadlinesSnapshot('fallback', fallbackHeadlines);
-            }
-
-            return Promise.resolve();
-        })
-        .catch(() => {
-            // Keep stale snapshot headlines when live fetch fails.
-        });
-
-    if (cachedGasGwei === null) {
-        void getLatestGasGwei().catch(() => {
-            // Gas is optional in UI; stale value is acceptable.
-        });
-    }
-
-    if (persistentSnapshot) {
-        // Serve DB snapshot immediately and queue refresh in background.
-        enqueueMarketsRefresh('low', 'markets-page-read');
-
-        const dbGlobalResolved = {
-            ...persistentSnapshot.global,
-            gasGwei: cachedGasGwei ?? persistentSnapshot.global.gasGwei
-        };
-
-        const ageMs = Date.now() - persistentSnapshot.ts;
+    if (!marketsResponse.ok) {
+        const detail = await marketsResponse.text();
         return json({
-            source: 'db-cache',
-            count: persistentSnapshot.count,
-            coins: persistentSnapshot.coins,
-            global: dbGlobalResolved,
-            headlines,
-            highlights: {
-                trending: getTrendingByVolume(persistentSnapshot.coins, 3),
-                topGainers: getTopGainers(persistentSnapshot.coins, 3)
-            },
-            stale: ageMs > 5 * 60_000,
-            snapshotTs: persistentSnapshot.ts
-        });
+            error: `markets upstream failed: HTTP ${marketsResponse.status}`,
+            detail
+        }, { status: 503 });
     }
 
-    // DB-only mode: never block request path on live upstream fetch.
-    return json(
-        {
-            source: 'db-unavailable',
-            count: 0,
-            coins: [],
-            global: getFallbackGlobalMarketSummary([]),
-            headlines,
-            highlights: {
-                trending: [],
-                topGainers: []
-            },
-            stale: true,
-            error: 'No persisted market snapshot available yet. Auto-refresh will populate DB when upstream succeeds.'
-        },
-        { status: 503 }
-    );
+    const marketsPayload = await marketsResponse.json();
+    const headlinesPayload = headlinesResponse.ok
+        ? await headlinesResponse.json()
+        : { headlines: [] };
+
+    const coins = Array.isArray(marketsPayload.coins) ? marketsPayload.coins : [];
+    return json({
+        ...marketsPayload,
+        headlines: Array.isArray(headlinesPayload.headlines) ? headlinesPayload.headlines : [],
+        highlights: getHighlights(coins),
+        stale: false
+    });
 }

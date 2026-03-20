@@ -1,109 +1,7 @@
 import { json } from '@sveltejs/kit';
-
-import { enqueueCoinRefresh, ensureAutoRefreshStarted } from '../../../../lib/server/autoRefreshService';
-import { enrichContractsWithPlatformLogos } from '../../../../lib/server/coingecko';
-import {
-    readCoinBreakdownSnapshot,
-    readCoinChartSnapshot,
-    writeCoinBreakdownSnapshot,
-} from '../../../../lib/server/persistentCoinSnapshot';
-import { readPersistentMarketSnapshot } from '../../../../lib/server/persistentMarketSnapshot';
-import type { MarketCoin } from '../../../../lib/types/market';
-
-const BREAKDOWN_STALE_MS = 10 * 60_000;
-
-async function deriveAtlFromPersistedCharts(coinId: string): Promise<{ allTimeLow: number; allTimeLowDate: string | null } | null> {
-    const ranges = ['max', '1y', 'ytd', '3m', '1m', '7d', '24h'] as const;
-    for (const range of ranges) {
-        const snapshot = await readCoinChartSnapshot(coinId, range);
-        const prices = snapshot?.value.prices ?? [];
-        const timestamps = snapshot?.value.timestamps ?? [];
-
-        if (prices.length < 2 || prices.length !== timestamps.length) {
-            continue;
-        }
-
-        let minPrice = Number.POSITIVE_INFINITY;
-        let minTs: number | null = null;
-        for (let index = 0; index < prices.length; index += 1) {
-            const price = prices[index];
-            const ts = timestamps[index];
-            if (!Number.isFinite(price) || !Number.isFinite(ts)) {
-                continue;
-            }
-
-            if (price < minPrice) {
-                minPrice = price;
-                minTs = ts;
-            }
-        }
-
-        if (Number.isFinite(minPrice) && minPrice > 0) {
-            return {
-                allTimeLow: minPrice,
-                allTimeLowDate: minTs ? new Date(minTs).toISOString() : null
-            };
-        }
-    }
-
-    return null;
-}
-
-function buildDerivedBreakdownFromMarketCoin(coin: MarketCoin) {
-    const sparklineTail = coin.sparkline7d.length > 24 ? coin.sparkline7d.slice(-24) : coin.sparkline7d;
-    const low24h = sparklineTail.length ? Math.min(...sparklineTail) : coin.currentPrice;
-    const high24h = sparklineTail.length ? Math.max(...sparklineTail) : coin.currentPrice;
-
-    const syntheticVolumes = coin.sparkline7d.map((price, index, arr) => {
-        if (index === 0) {
-            return coin.totalVolume24h / 24;
-        }
-
-        const prev = arr[index - 1] || price;
-        const relativeMove = Math.abs((price - prev) / (prev || 1));
-        return (coin.totalVolume24h / 24) * (1 + relativeMove * 4);
-    });
-
-    return {
-        id: coin.id,
-        apiId: coin.id,
-        symbol: coin.symbol,
-        name: coin.name,
-        image: coin.image,
-        currentPrice: coin.currentPrice,
-        marketCap: coin.marketCap,
-        marketCapRank: coin.marketCapRank,
-        totalVolume24h: coin.totalVolume24h,
-        low24h,
-        high24h,
-        circulatingSupply: coin.circulatingSupply,
-        maxSupply: null,
-        priceChangePercentage24h: coin.priceChangePercentage24h,
-        allTimeHigh: 0,
-        allTimeHighDate: null,
-        allTimeLow: 0,
-        allTimeLowDate: null,
-        categories: [],
-        description: '',
-        homepage: null,
-        whitepaper: null,
-        blockchainSite: null,
-        websites: [],
-        explorers: [],
-        community: [],
-        contracts: [],
-        chains: [],
-        coingeckoUrl: `https://www.coingecko.com/en/coins/${coin.id}`,
-        coinmarketcapUrl: `https://coinmarketcap.com/currencies/${coin.id}/`,
-        sparkline7d: coin.sparkline7d,
-        chartPrices7d: coin.sparkline7d,
-        chartVolumes7d: syntheticVolumes,
-        source: 'coingecko-cache' as const
-    };
-}
+const ANALYTICS_BASE_URL = process.env.YACT_ANALYTICS_URL || 'http://localhost:8000';
 
 export async function GET({ fetch, params }) {
-    ensureAutoRefreshStarted();
 
     const coinId = params.id;
 
@@ -111,97 +9,31 @@ export async function GET({ fetch, params }) {
         return json({ error: 'Missing coin id.' }, { status: 400 });
     }
 
-    const persisted = await readCoinBreakdownSnapshot(coinId);
-    if (persisted) {
-        const ageMs = Date.now() - persisted.ts;
-        const hasLegacyCommunityLabels =
-            (persisted.value.community?.length ?? 0) > 0 &&
-            persisted.value.community.some(
-                (entry) =>
-                    entry.label.trim().toLowerCase() === 'chat' ||
-                    entry.label.trim().toLowerCase() === 'announcement'
-            );
-        const hasMissingMetadataFields =
-            (persisted.value.contracts?.length ?? 0) === 0 &&
-            (persisted.value.chains?.length ?? 0) === 0 &&
-            (persisted.value.websites?.length ?? 0) === 0 &&
-            (persisted.value.explorers?.length ?? 0) === 0 &&
-            !persisted.value.whitepaper;
-        const hasMissingContractLogos =
-            (persisted.value.contracts?.length ?? 0) > 0 &&
-            persisted.value.contracts.some((entry) => !entry.logoUrl);
-        const hasMissingMetadata =
-            hasMissingMetadataFields ||
-            hasMissingContractLogos ||
-            hasLegacyCommunityLabels;
+    const response = await fetch(`${ANALYTICS_BASE_URL}/api/v1/coins/${encodeURIComponent(coinId)}`, {
+        headers: { Accept: 'application/json' }
+    });
 
-        if (ageMs > BREAKDOWN_STALE_MS) {
-            enqueueCoinRefresh(coinId, 'normal', 'coin-breakdown-stale');
-        } else if (hasMissingMetadata) {
-            enqueueCoinRefresh(coinId, 'high', 'coin-breakdown-metadata-missing');
-        }
-
-        const sparklineTail = persisted.value.sparkline7d.length > 24
-            ? persisted.value.sparkline7d.slice(-24)
-            : persisted.value.sparkline7d;
-        const computedLow24h = sparklineTail.length ? Math.min(...sparklineTail) : persisted.value.currentPrice;
-        const computedHigh24h = sparklineTail.length ? Math.max(...sparklineTail) : persisted.value.currentPrice;
-        const enrichedContracts = await enrichContractsWithPlatformLogos(fetch, persisted.value.contracts ?? []);
-        const enrichedContractChains = Array.from(
-            new Set(enrichedContracts.map((entry) => entry.chain).filter((value) => value.trim().length > 0))
-        );
-        const chains = persisted.value.chains?.length ? persisted.value.chains : enrichedContractChains;
-        const coinWithDerivedRange = {
-            ...persisted.value,
-            contracts: enrichedContracts,
-            chains,
-            low24h: persisted.value.low24h ?? computedLow24h,
-            high24h: persisted.value.high24h ?? computedHigh24h
-        };
-
-        const hasAtl = coinWithDerivedRange.allTimeLow > 0;
-        const atlFallback = hasAtl ? null : await deriveAtlFromPersistedCharts(coinId);
-        const coinWithDerivedAtl = atlFallback
-            ? {
-                ...coinWithDerivedRange,
-                allTimeLow: atlFallback.allTimeLow,
-                allTimeLowDate: atlFallback.allTimeLowDate
-            }
-            : coinWithDerivedRange;
-
-        if (atlFallback || hasMissingContractLogos) {
-            void writeCoinBreakdownSnapshot(coinId, coinWithDerivedAtl);
-        }
-
+    if (!response.ok) {
+        const detail = await response.text();
         return json({
-            coin: coinWithDerivedAtl,
-            stale: ageMs > BREAKDOWN_STALE_MS,
-            source: 'db-cache',
-            snapshotTs: persisted.ts
-        });
+            error: `coin upstream failed: HTTP ${response.status}`,
+            detail
+        }, { status: response.status === 404 ? 404 : 503 });
     }
 
-    const marketSnapshot = await readPersistentMarketSnapshot();
-    const fallbackCoin = marketSnapshot?.coins.find((coin) => coin.id === coinId) ?? null;
-    if (fallbackCoin) {
-        const derived = buildDerivedBreakdownFromMarketCoin(fallbackCoin);
-        await writeCoinBreakdownSnapshot(coinId, derived);
-        enqueueCoinRefresh(coinId, 'high', 'coin-breakdown-derived-from-market');
-
+    const payload = await response.json();
+    const entry = payload?.coins?.[coinId];
+    const breakdown = entry?.breakdown;
+    if (!breakdown) {
         return json({
-            coin: derived,
-            stale: true,
-            source: 'db-derived-market-snapshot',
-            warning: `Serving derived '${coinId}' breakdown from persisted market snapshot while detail refresh is in progress.`
-        });
+            error: `coin payload missing breakdown for '${coinId}'`
+        }, { status: 502 });
     }
 
-    enqueueCoinRefresh(coinId, 'critical', 'coin-breakdown-missing');
-
-    return json(
-        {
-            error: `No persisted coin breakdown available for '${coinId}' yet. Auto-refresh will populate DB when upstream succeeds.`
-        },
-        { status: 503 }
-    );
+    return json({
+        coin: breakdown.value,
+        stale: false,
+        source: 'analytics-api',
+        snapshotTs: breakdown.ts
+    });
 }
