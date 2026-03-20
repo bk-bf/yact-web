@@ -15,6 +15,7 @@ import {
     writeCoinBreakdownSnapshot,
     writeCoinChartSnapshot
 } from './persistentCoinSnapshot';
+import { getDataDir } from './dataPaths';
 import { writePersistentMarketSnapshot } from './persistentMarketSnapshot';
 
 const AUTO_REFRESH_INTERVAL_MS = 5 * 60_000;
@@ -23,7 +24,7 @@ const MARKET_SWEEP_LIMIT = 100;
 const AUTO_REFRESH_LOG_PREFIX = '[auto-refresh]';
 const QUEUE_LOG_PREFIX = '[refresh-queue]';
 const QUEUE_DEBUG_LOGS_ENABLED = process.env.YACT_QUEUE_DEBUG === '1';
-const AUTO_REFRESH_LOG_DIR = path.join(process.cwd(), '.cache');
+const AUTO_REFRESH_LOG_DIR = getDataDir();
 const AUTO_REFRESH_LOG_FILE = path.join(AUTO_REFRESH_LOG_DIR, 'auto-refresh.log');
 const CHART_RANGES: CoinChartRange[] = ['24h', '7d', '1m', '3m', 'ytd', '1y', 'max'];
 const CHART_RANGE_STALE_MS: Record<CoinChartRange, number> = {

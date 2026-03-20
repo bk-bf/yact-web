@@ -2,9 +2,10 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { CryptoHeadline } from './headlines';
+import { getDataDir } from './dataPaths';
 
 const SNAPSHOT_VERSION = 1;
-const SNAPSHOT_DIR = path.join(process.cwd(), '.cache');
+const SNAPSHOT_DIR = getDataDir();
 const SNAPSHOT_FILE = path.join(SNAPSHOT_DIR, 'headlines-snapshot.json');
 const SNAPSHOT_BACKUP_FILE = path.join(SNAPSHOT_DIR, 'headlines-snapshot.backup.json');
 const SNAPSHOT_LOG_PREFIX = '[headlines-snapshot]';

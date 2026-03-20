@@ -2,10 +2,11 @@ import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { CoinBreakdown, CoinChartRange, CoinChartSeries } from './coingecko';
+import { getDataDir } from './dataPaths';
 
 const SNAPSHOT_VERSION = 1;
 const DESCRIPTION_REVALIDATE_MS = 14 * 24 * 60 * 60_000;
-const SNAPSHOT_DIR = path.join(process.cwd(), '.cache');
+const SNAPSHOT_DIR = getDataDir();
 const SNAPSHOT_FILE = path.join(SNAPSHOT_DIR, 'coin-snapshot.json');
 const SNAPSHOT_BACKUP_FILE = path.join(SNAPSHOT_DIR, 'coin-snapshot.backup.json');
 const SNAPSHOT_LOG_PREFIX = '[coin-snapshot]';

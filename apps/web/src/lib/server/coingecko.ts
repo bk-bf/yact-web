@@ -2,6 +2,7 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 
 import type { MarketCoin } from '../types/market';
+import { getDataDir } from './dataPaths';
 import { readPersistentMarketSnapshot } from './persistentMarketSnapshot';
 
 const COINGECKO_MARKETS_ENDPOINT =
@@ -12,7 +13,7 @@ const COINGECKO_ASSET_PLATFORMS_ENDPOINT = 'https://api.coingecko.com/api/v3/ass
 const CRYPTOCOMPARE_API_BASE = 'https://min-api.cryptocompare.com/data/v2';
 const COINPAPRIKA_API_BASE = 'https://api.coinpaprika.com/v1';
 const PLATFORM_LOGO_CACHE_TTL_MS = 14 * 24 * 60 * 60_000;
-const PLATFORM_LOGO_CACHE_FILE = path.join(process.cwd(), '.cache', 'coingecko-platforms.json');
+const PLATFORM_LOGO_CACHE_FILE = path.join(getDataDir(), 'coingecko-platforms.json');
 
 const MARKET_CACHE_TTL_MS = 60_000;
 const CHART_DEBUG_PREFIX = '[chart-debug]';

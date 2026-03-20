@@ -3,9 +3,10 @@ import path from 'node:path';
 
 import type { MarketCoin } from '../types/market';
 import type { GlobalMarketSummary } from './coingecko';
+import { getDataDir } from './dataPaths';
 
 const SNAPSHOT_VERSION = 1;
-const SNAPSHOT_DIR = path.join(process.cwd(), '.cache');
+const SNAPSHOT_DIR = getDataDir();
 const SNAPSHOT_FILE = path.join(SNAPSHOT_DIR, 'markets-snapshot.json');
 const SNAPSHOT_BACKUP_FILE = path.join(SNAPSHOT_DIR, 'markets-snapshot.backup.json');
 const SNAPSHOT_LOG_PREFIX = '[market-snapshot]';
