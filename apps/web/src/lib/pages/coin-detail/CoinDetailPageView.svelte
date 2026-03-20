@@ -139,6 +139,47 @@
         return faviconForUrl(url);
     }
 
+    function communityLabelForLink(label: string, url: string): string {
+        const normalized = label.trim().toLowerCase();
+        if (normalized && normalized !== "chat") {
+            return label;
+        }
+
+        try {
+            const host = new URL(url).hostname.toLowerCase();
+            if (
+                host === "facebook.com" ||
+                host.endsWith(".facebook.com") ||
+                host === "m.facebook.com"
+            ) {
+                return "Facebook";
+            }
+            if (
+                host === "t.me" ||
+                host.endsWith(".t.me") ||
+                host === "telegram.me" ||
+                host.endsWith(".telegram.me")
+            ) {
+                return "Telegram";
+            }
+            if (
+                host === "x.com" ||
+                host.endsWith(".x.com") ||
+                host === "twitter.com" ||
+                host.endsWith(".twitter.com")
+            ) {
+                return "X";
+            }
+            if (host === "reddit.com" || host.endsWith(".reddit.com")) {
+                return "Reddit";
+            }
+        } catch {
+            // Keep fallback label below.
+        }
+
+        return label || "Community";
+    }
+
     let copiedInfoKey = $state<string | null>(null);
     let copiedInfoTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -382,8 +423,12 @@
     );
     const displayCommunityLinks = $derived(
         displayCommunity.map((link: { label: string; url: string }) => ({
-            ...link,
-            logoUrl: logoForLink(link.label, link.url),
+            label: communityLabelForLink(link.label, link.url),
+            url: link.url,
+            logoUrl: logoForLink(
+                communityLabelForLink(link.label, link.url),
+                link.url,
+            ),
         })),
     );
     const low24h = $derived(coin.low24h ?? coin.currentPrice);
@@ -1031,14 +1076,6 @@
                     <p class="muted">
                         No description available from the current data source.
                     </p>
-                {/if}
-
-                {#if coin.categories.length > 0}
-                    <div>
-                        {#each coin.categories.slice(0, 8) as category}
-                            <span class="metric-chip">{category}</span>
-                        {/each}
-                    </div>
                 {/if}
             </article>
         </main>

@@ -114,6 +114,13 @@ export async function GET({ fetch, params }) {
     const persisted = await readCoinBreakdownSnapshot(coinId);
     if (persisted) {
         const ageMs = Date.now() - persisted.ts;
+        const hasLegacyCommunityLabels =
+            (persisted.value.community?.length ?? 0) > 0 &&
+            persisted.value.community.some(
+                (entry) =>
+                    entry.label.trim().toLowerCase() === 'chat' ||
+                    entry.label.trim().toLowerCase() === 'announcement'
+            );
         const hasMissingMetadataFields =
             (persisted.value.contracts?.length ?? 0) === 0 &&
             (persisted.value.chains?.length ?? 0) === 0 &&
@@ -124,7 +131,9 @@ export async function GET({ fetch, params }) {
             (persisted.value.contracts?.length ?? 0) > 0 &&
             persisted.value.contracts.some((entry) => !entry.logoUrl);
         const hasMissingMetadata =
-            hasMissingMetadataFields || hasMissingContractLogos;
+            hasMissingMetadataFields ||
+            hasMissingContractLogos ||
+            hasLegacyCommunityLabels;
 
         if (ageMs > BREAKDOWN_STALE_MS) {
             enqueueCoinRefresh(coinId, 'normal', 'coin-breakdown-stale');
