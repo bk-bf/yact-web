@@ -34,7 +34,6 @@ interface MarketsResponse {
     highlights: MarketHighlights;
     snapshotTs?: number;
     stale?: boolean;
-    warning?: string;
     error?: string;
 }
 
@@ -65,7 +64,6 @@ function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
         source: safePayload.source ?? 'analytics-api',
         snapshotTs: safePayload.snapshotTs ?? null,
         stale: safePayload.stale ?? false,
-        warning: safePayload.warning ?? null,
         error: safePayload.error ?? null
     };
 }
@@ -78,8 +76,7 @@ export async function loadMarketsPageData(fetchFn: typeof fetch) {
         if (!response.ok) {
             return normalizeMarketsPayload({
                 ...payload,
-                stale: true,
-                warning: payload.warning ?? 'Live market data is temporarily unavailable. Showing safe defaults.'
+                stale: true
             });
         }
 
@@ -87,7 +84,6 @@ export async function loadMarketsPageData(fetchFn: typeof fetch) {
     } catch {
         return normalizeMarketsPayload({
             stale: true,
-            warning: 'Live market data is temporarily unavailable. Showing safe defaults.',
             error: null
         });
     }

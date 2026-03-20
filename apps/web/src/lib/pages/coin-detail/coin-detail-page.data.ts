@@ -1,5 +1,3 @@
-import { error } from '@sveltejs/kit';
-
 interface CoinBreakdown {
     id: string;
     apiId: string;
@@ -209,28 +207,21 @@ function normalizeCoinBreakdown(raw: unknown, coinId: string, chart?: CoinChartR
 }
 
 export async function loadCoinDetailPageData(fetchFn: typeof fetch, coinId: string) {
-    const [coinResponse, chartResponse] = await Promise.all([
-        fetchFn(`/api/coins/${coinId}`),
-        fetchFn(`/api/coins/${coinId}/chart?range=7d`).catch(() => null)
+    const [coinResult, chartResult, marketsResult] = await Promise.all([
+        fetchJsonWithTimeout<CoinBreakdownResponse>(fetchFn, `/api/coins/${coinId}`, 4000),
+        fetchJsonWithTimeout<CoinChartResponse>(fetchFn, `/api/coins/${coinId}/chart?range=7d`, 3000),
+        fetchJsonWithTimeout<MarketsAuxResponse>(fetchFn, '/api/markets', 1500)
     ]);
 
-    const payload = (await coinResponse.json()) as CoinBreakdownResponse;
-
-    if (!coinResponse.ok || !payload.coin) {
-        throw error(coinResponse.status || 500, payload.error ?? 'Unable to load coin breakdown.');
-    }
-
     let chartPayload: CoinChartResponse | undefined;
-    if (chartResponse?.ok) {
-        chartPayload = (await chartResponse.json()) as CoinChartResponse;
+    if (chartResult.ok && chartResult.data) {
+        chartPayload = chartResult.data;
     }
 
     let headlines: CryptoHeadline[] = [];
     let trending: HighlightCoin[] = [];
     let topGainers: HighlightCoin[] = [];
     let marketsSnapshotTs: number | null = null;
-
-    const marketsResult = await fetchJsonWithTimeout<MarketsAuxResponse>(fetchFn, '/api/markets', 1500);
     if (marketsResult.ok && marketsResult.data) {
         const aux = marketsResult.data;
         marketsSnapshotTs = aux.snapshotTs ?? null;
@@ -239,10 +230,30 @@ export async function loadCoinDetailPageData(fetchFn: typeof fetch, coinId: stri
         topGainers = aux.highlights?.topGainers ?? [];
     }
 
+    const coinPayload = coinResult.ok ? coinResult.data : null;
+    const hasCoin = Boolean(coinPayload?.coin);
+    const fallbackCoinName = coinId
+        .split('-')
+        .filter((part) => part.length > 0)
+        .map((part) => part[0].toUpperCase() + part.slice(1))
+        .join(' ');
+
     return {
-        coin: normalizeCoinBreakdown(payload.coin, coinId, chartPayload),
-        coinSnapshotTs: payload.snapshotTs ?? null,
-        stale: payload.stale ?? false,
+        coin: normalizeCoinBreakdown(
+            hasCoin
+                ? coinPayload!.coin
+                : {
+                    id: coinId,
+                    apiId: coinId,
+                    symbol: coinId,
+                    name: fallbackCoinName || coinId,
+                    source: 'unavailable'
+                },
+            coinId,
+            chartPayload
+        ),
+        coinSnapshotTs: coinPayload?.snapshotTs ?? null,
+        stale: hasCoin ? (coinPayload?.stale ?? false) : true,
         marketsSnapshotTs,
         headlines,
         trending,

@@ -1628,16 +1628,6 @@ a {
     font-weight: 700;
 }
 
-.warning-text {
-    color: var(--color-warning-text);
-    background: var(--color-warning-bg);
-    border: 1px solid var(--color-warning-border);
-    border-radius: var(--radius-sm);
-    padding: var(--space-3) var(--space-4);
-    margin-bottom: var(--space-4);
-    font-weight: 600;
-}
-
 .grid-two {
     display: grid;
     gap: var(--space-4);

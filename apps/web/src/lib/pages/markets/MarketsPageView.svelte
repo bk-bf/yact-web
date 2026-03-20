@@ -1,7 +1,6 @@
 <script lang="ts">
     import { browser } from "$app/environment";
     import { invalidateAll } from "$app/navigation";
-    import { goto } from "$app/navigation";
     import M3Button from "../../components/M3Button.svelte";
 
     let { data } = $props();
@@ -116,17 +115,6 @@
             return "--";
         }
         return fullInteger.format(value);
-    }
-
-    function openCoinBreakdown(coinId: string): void {
-        void goto(`/currencies/${encodeURIComponent(coinId)}`);
-    }
-
-    function handleCoinRowKeydown(event: KeyboardEvent, coinId: string): void {
-        if (event.key === "Enter" || event.key === " ") {
-            event.preventDefault();
-            openCoinBreakdown(coinId);
-        }
     }
 
     $effect(() => {
@@ -325,10 +313,6 @@
 
 <section class="market-section">
     <h2 class="m3-surface-title">Top 100 Cryptocurrencies By Market Cap</h2>
-    {#if data.warning}
-        <p class="warning-text">{data.warning}</p>
-    {/if}
-
     {#if data.error}
         <p class="error-text">Unable to load market data: {data.error}</p>
     {:else}
@@ -401,27 +385,25 @@
                 </thead>
                 <tbody>
                     {#each data.coins as coin}
-                        <tr
-                            tabindex="0"
-                            class="coin-row-link"
-                            role="link"
-                            aria-label={`Open ${coin.name} breakdown`}
-                            onclick={() => openCoinBreakdown(coin.id)}
-                            onkeydown={(event) =>
-                                handleCoinRowKeydown(event, coin.id)}
-                        >
+                        <tr>
                             <td>{coin.marketCapRank}</td>
                             <td>
                                 <div class="coin-name">
-                                    <img
-                                        src={coin.image}
-                                        alt={coin.name}
-                                        width="24"
-                                        height="24"
-                                    />
-                                    <span
-                                        >{coin.name} ({coin.symbol.toUpperCase()})</span
+                                    <a
+                                        class="coin-row-anchor"
+                                        href={`/currencies/${encodeURIComponent(coin.id)}`}
+                                        aria-label={`Open ${coin.name} breakdown`}
                                     >
+                                        <img
+                                            src={coin.image}
+                                            alt={coin.name}
+                                            width="24"
+                                            height="24"
+                                        />
+                                        <span
+                                            >{coin.name} ({coin.symbol.toUpperCase()})</span
+                                        >
+                                    </a>
                                 </div>
                             </td>
                             <td>{usd.format(coin.currentPrice)}</td>

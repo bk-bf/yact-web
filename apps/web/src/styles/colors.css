@@ -9,7 +9,6 @@
     --tv-highlight: #b026ff;
     --tv-highlight-soft: #d56bff;
     --tv-negative: #ff4d57;
-    --tv-warning: #ffc247;
 
     --m3-primary: var(--tv-highlight);
     --m3-on-primary: #170322;
@@ -70,9 +69,6 @@
     --color-table-head-bg: #06090b;
     --color-row-hover: rgba(176, 38, 255, 0.07);
     --color-row-focus: rgba(176, 38, 255, 0.14);
-    --color-warning-text: #f4cb74;
-    --color-warning-bg: #120f08;
-    --color-warning-border: #6f541c;
     --color-chip-bg: #07090a;
     --color-chip-border: #b355ff;
 }

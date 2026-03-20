@@ -259,7 +259,13 @@
 
     <header class="terminal-header">
         <div class="top-nav-main">
-            <a class="brand" href="/" aria-label="Go to markets home">
+            <a
+                class="brand"
+                href="/"
+                data-sveltekit-reload
+                data-sveltekit-preload-data="off"
+                aria-label="Go to markets home"
+            >
                 <span class="brand-badge">YACT</span>
                 <span class="brand-name">YACT</span>
             </a>
@@ -276,6 +282,8 @@
                     <a
                         class="route-link"
                         href="/"
+                        data-sveltekit-reload
+                        data-sveltekit-preload-data="off"
                         aria-current={$page.url.pathname === "/"
                             ? "page"
                             : undefined}>Markets</a
