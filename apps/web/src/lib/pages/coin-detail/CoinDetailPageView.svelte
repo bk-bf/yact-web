@@ -86,9 +86,16 @@
             liveData = {
                 ...current,
                 marketsSnapshotTs: aux.marketsSnapshotTs,
-                headlines: aux.headlines.length > 0 ? aux.headlines : current.headlines,
-                trending: aux.trending.length > 0 ? aux.trending : current.trending,
-                topGainers: aux.topGainers.length > 0 ? aux.topGainers : current.topGainers,
+                headlines:
+                    aux.headlines.length > 0
+                        ? aux.headlines
+                        : current.headlines,
+                trending:
+                    aux.trending.length > 0 ? aux.trending : current.trending,
+                topGainers:
+                    aux.topGainers.length > 0
+                        ? aux.topGainers
+                        : current.topGainers,
             };
 
             if (aux.headlines.length > 0 || aux.topGainers.length > 0) {
@@ -107,7 +114,10 @@
         }
         liveData = nextData;
 
-        if (nextData.headlines.length === 0 || nextData.topGainers.length === 0) {
+        if (
+            nextData.headlines.length === 0 ||
+            nextData.topGainers.length === 0
+        ) {
             void backfillAuxDataIfEmpty(coinId, requestId);
         }
     }

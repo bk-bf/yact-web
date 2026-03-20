@@ -135,11 +135,15 @@
 
         const syncFloatingData = async () => {
             try {
-                const marketsResponse = await fetch(`/api/markets?_ts=${Date.now()}`, {
-                    cache: "no-store",
-                });
+                const marketsResponse = await fetch(
+                    `/api/markets?_ts=${Date.now()}`,
+                    {
+                        cache: "no-store",
+                    },
+                );
                 if (marketsResponse.ok) {
-                    const payload = (await marketsResponse.json()) as MarketsLayoutPayload;
+                    const payload =
+                        (await marketsResponse.json()) as MarketsLayoutPayload;
                     if (!cancelled && payload.global) {
                         sharedGlobal = payload.global;
                     }
@@ -149,11 +153,15 @@
             }
 
             try {
-                const headlinesResponse = await fetch(`/api/headlines?_ts=${Date.now()}`, {
-                    cache: "no-store",
-                });
+                const headlinesResponse = await fetch(
+                    `/api/headlines?_ts=${Date.now()}`,
+                    {
+                        cache: "no-store",
+                    },
+                );
                 if (headlinesResponse.ok) {
-                    const payload = (await headlinesResponse.json()) as HeadlinesPayload;
+                    const payload =
+                        (await headlinesResponse.json()) as HeadlinesPayload;
                     if (!cancelled && Array.isArray(payload.headlines)) {
                         sharedHeadlines = payload.headlines;
                     }
