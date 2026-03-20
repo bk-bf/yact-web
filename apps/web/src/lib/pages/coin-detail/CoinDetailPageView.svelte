@@ -655,7 +655,10 @@
                             height="40"
                         />
                         <h1>
-                            {coin.name} <span>{coin.symbol.toUpperCase()}</span>
+                            <span class="coin-title-name">{coin.name}</span>
+                            <span class="coin-title-symbol"
+                                >{coin.symbol.toUpperCase()}</span
+                            >
                         </h1>
                     </div>
                     <span class="coin-rank-pill">#{coin.marketCapRank}</span>
