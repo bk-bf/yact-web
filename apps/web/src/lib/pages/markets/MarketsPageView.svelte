@@ -2,10 +2,10 @@
     import { browser } from "$app/environment";
     import M3Button from "../../components/M3Button.svelte";
     import { loadMarketsPageData } from "./markets-page.data";
+    import { useProgressiveDataLoad } from "../../composables/useProgressiveDataLoad";
 
     let { data } = $props();
-    let liveData = $state<typeof data | null>(null);
-    const viewData = $derived(liveData ?? data);
+    const { viewData, loadCritical } = useProgressiveDataLoad(() => data);
 
     const usd = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -55,10 +55,9 @@
 
     const sparklineWidth = 140;
     const sparklineHeight = 42;
-    let initialDataLoaded = false;
 
     async function refreshMarketsData(): Promise<void> {
-        liveData = await loadMarketsPageData(fetch);
+        await loadCritical(() => loadMarketsPageData(fetch));
     }
 
     function sparklinePath(
@@ -137,11 +136,6 @@
             return;
         }
 
-        if (initialDataLoaded) {
-            return;
-        }
-
-        initialDataLoaded = true;
         void refreshMarketsData();
     });
 

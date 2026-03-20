@@ -76,11 +76,31 @@ interface CoinChartResponse {
     volumes?: number[];
 }
 
+type FetchJsonResult<T> = { ok: boolean; status: number; data: T | null };
+
+type CacheEntry = {
+    expiresAt: number;
+    value: unknown;
+};
+
+const requestCache = new Map<string, CacheEntry>();
+
 async function fetchJsonWithTimeout<T>(
     fetchFn: typeof fetch,
     url: string,
-    timeoutMs: number
-): Promise<{ ok: boolean; status: number; data: T | null }> {
+    timeoutMs: number,
+    cacheTtlMs = 0,
+): Promise<FetchJsonResult<T>> {
+    if (cacheTtlMs > 0) {
+        const cached = requestCache.get(url);
+        if (cached && cached.expiresAt > Date.now()) {
+            return { ok: true, status: 200, data: cached.value as T };
+        }
+        if (cached) {
+            requestCache.delete(url);
+        }
+    }
+
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
@@ -89,6 +109,12 @@ async function fetchJsonWithTimeout<T>(
             return { ok: false, status: response.status, data: null };
         }
         const data = (await response.json()) as T;
+        if (cacheTtlMs > 0) {
+            requestCache.set(url, {
+                expiresAt: Date.now() + cacheTtlMs,
+                value: data,
+            });
+        }
         return { ok: true, status: response.status, data };
     } catch {
         return { ok: false, status: 0, data: null };
@@ -246,6 +272,8 @@ function delay(ms: number): Promise<void> {
 
 export async function loadCoinDetailAuxData(fetchFn: typeof fetch) {
     const timeoutsMs = [2500, 4000, 6000];
+    const marketsCacheTtlMs = 20_000;
+    const headlinesCacheTtlMs = 30_000;
 
     for (let i = 0; i < timeoutsMs.length; i += 1) {
         const [marketsResult, headlinesResult] = await Promise.all([
@@ -253,11 +281,13 @@ export async function loadCoinDetailAuxData(fetchFn: typeof fetch) {
                 fetchFn,
                 '/api/markets',
                 timeoutsMs[i],
+                marketsCacheTtlMs,
             ),
             fetchJsonWithTimeout<HeadlinesResponse>(
                 fetchFn,
                 '/api/headlines',
                 2500,
+                headlinesCacheTtlMs,
             ),
         ]);
 
@@ -288,11 +318,17 @@ export async function loadCoinDetailAuxData(fetchFn: typeof fetch) {
 }
 
 export async function loadCoinDetailPageData(fetchFn: typeof fetch, coinId: string) {
+    const coinCacheTtlMs = 15_000;
+    const chartCacheTtlMs = 20_000;
+    const marketsCacheTtlMs = 20_000;
+    const headlinesCacheTtlMs = 30_000;
+    const marketsTimeoutMs = 6000;
+
     const [coinResult, chartResult, marketsResult, headlinesResult] = await Promise.all([
-        fetchJsonWithTimeout<CoinBreakdownResponse>(fetchFn, `/api/coins/${coinId}`, 4000),
-        fetchJsonWithTimeout<CoinChartResponse>(fetchFn, `/api/coins/${coinId}/chart?range=7d`, 3000),
-        fetchJsonWithTimeout<MarketsAuxResponse>(fetchFn, '/api/markets', 2500),
-        fetchJsonWithTimeout<HeadlinesResponse>(fetchFn, '/api/headlines', 2500),
+        fetchJsonWithTimeout<CoinBreakdownResponse>(fetchFn, `/api/coins/${coinId}`, 4000, coinCacheTtlMs),
+        fetchJsonWithTimeout<CoinChartResponse>(fetchFn, `/api/coins/${coinId}/chart?range=7d`, 3000, chartCacheTtlMs),
+        fetchJsonWithTimeout<MarketsAuxResponse>(fetchFn, '/api/markets', marketsTimeoutMs, marketsCacheTtlMs),
+        fetchJsonWithTimeout<HeadlinesResponse>(fetchFn, '/api/headlines', 2500, headlinesCacheTtlMs),
     ]);
 
     let chartPayload: CoinChartResponse | undefined;
@@ -339,5 +375,57 @@ export async function loadCoinDetailPageData(fetchFn: typeof fetch, coinId: stri
         headlines,
         trending,
         topGainers
+    };
+}
+
+export async function loadCoinDetailCriticalData(fetchFn: typeof fetch, coinId: string) {
+    const initialData = createInitialCoinDetailPageData(coinId);
+    const coinCacheTtlMs = 15_000;
+    const chartCacheTtlMs = 20_000;
+
+    const [coinResult, chartResult] = await Promise.all([
+        fetchJsonWithTimeout<CoinBreakdownResponse>(fetchFn, `/api/coins/${coinId}`, 2500, coinCacheTtlMs),
+        fetchJsonWithTimeout<CoinChartResponse>(fetchFn, `/api/coins/${coinId}/chart?range=7d`, 2500, chartCacheTtlMs),
+    ]);
+
+    if (!coinResult.ok || !coinResult.data?.coin) {
+        return initialData;
+    }
+
+    const chartPayload = chartResult.ok ? chartResult.data ?? undefined : undefined;
+
+    return {
+        ...initialData,
+        coin: normalizeCoinBreakdown(coinResult.data.coin, coinId, chartPayload),
+        coinSnapshotTs: coinResult.data.snapshotTs ?? null,
+        stale: coinResult.data.stale ?? false,
+    };
+}
+
+export async function loadCoinDetailCriticalOnlyData(fetchFn: typeof fetch, coinId: string) {
+    const initialData = createInitialCoinDetailPageData(coinId);
+    const coinCacheTtlMs = 15_000;
+    const chartCacheTtlMs = 20_000;
+
+    const [coinResult, chartResult] = await Promise.all([
+        fetchJsonWithTimeout<CoinBreakdownResponse>(fetchFn, `/api/coins/${coinId}`, 3000, coinCacheTtlMs),
+        fetchJsonWithTimeout<CoinChartResponse>(fetchFn, `/api/coins/${coinId}/chart?range=7d`, 2500, chartCacheTtlMs),
+    ]);
+
+    if (!coinResult.ok || !coinResult.data?.coin) {
+        return initialData;
+    }
+
+    const chartPayload = chartResult.ok ? chartResult.data ?? undefined : undefined;
+
+    return {
+        ...initialData,
+        coin: normalizeCoinBreakdown(coinResult.data.coin, coinId, chartPayload),
+        coinSnapshotTs: coinResult.data.snapshotTs ?? null,
+        stale: coinResult.data.stale ?? false,
+        headlines: initialData.headlines,
+        trending: initialData.trending,
+        topGainers: initialData.topGainers,
+        marketsSnapshotTs: initialData.marketsSnapshotTs,
     };
 }
