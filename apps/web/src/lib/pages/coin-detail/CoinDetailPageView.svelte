@@ -64,6 +64,9 @@
 
         isRefreshingCoinData = true;
 
+        const headlinesPromise = loadCoinDetailHeadlinesData(fetch);
+        const marketsPromise = loadCoinDetailMarketsAuxData(fetch);
+
         // Load critical data (coin + chart) first
         try {
             await progressive.loadCritical(() =>
@@ -72,7 +75,7 @@
 
             // Then load auxiliary data (headlines, markets, etc.) in background with smart merging
             await progressive.loadAuxiliary(async (current) => {
-                const headlines = await loadCoinDetailHeadlinesData(fetch);
+                const headlines = await headlinesPromise;
                 return {
                     ...current,
                     headlines:
@@ -82,7 +85,7 @@
 
             // Keep markets-derived side panels non-blocking and independent from headline loading.
             void progressive.loadAuxiliary(async (current) => {
-                const aux = await loadCoinDetailMarketsAuxData(fetch);
+                const aux = await marketsPromise;
                 return {
                     ...current,
                     trending:
@@ -612,14 +615,22 @@
                 }
             } catch (error) {
                 if (!cancelled) {
+                    const errorMessage =
+                        error instanceof Error
+                            ? error.message
+                            : String(error);
+                    if (
+                        errorMessage.includes("NetworkError") ||
+                        errorMessage.includes("Failed to fetch")
+                    ) {
+                        return;
+                    }
+
                     console.warn("[auto-ui-refresh]", {
                         page: "coin",
                         coinId: currentCoinId,
                         phase: "poll-error",
-                        error:
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
+                        error: errorMessage,
                     });
                 }
             }
