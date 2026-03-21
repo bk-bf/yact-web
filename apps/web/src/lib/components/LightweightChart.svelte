@@ -121,7 +121,13 @@
         vals: number[],
         ts: number[],
         buckets: number,
-    ): Array<{ time: Time; open: number; high: number; low: number; close: number }> {
+    ): Array<{
+        time: Time;
+        open: number;
+        high: number;
+        low: number;
+        close: number;
+    }> {
         if (vals.length < 2 || ts.length < 2) return [];
 
         const firstTs = ts[0];
@@ -132,17 +138,35 @@
         if (span <= 0) {
             const effective = Math.max(1, Math.min(buckets, vals.length));
             const chunk = Math.max(1, Math.floor(vals.length / effective));
-            const out: Array<{ time: Time; open: number; high: number; low: number; close: number }> = [];
+            const out: Array<{
+                time: Time;
+                open: number;
+                high: number;
+                low: number;
+                close: number;
+            }> = [];
             for (let i = 0; i < vals.length; i += chunk) {
                 const c = vals.slice(i, Math.min(vals.length, i + chunk));
                 if (!c.length) continue;
-                out.push({ time: toSec(firstTs + i), open: c[0], close: c[c.length - 1], high: Math.max(...c), low: Math.min(...c) });
+                out.push({
+                    time: toSec(firstTs + i),
+                    open: c[0],
+                    close: c[c.length - 1],
+                    high: Math.max(...c),
+                    low: Math.min(...c),
+                });
             }
             return dedup(out);
         }
 
         const width = span / buckets;
-        const out: Array<{ time: Time; open: number; high: number; low: number; close: number }> = [];
+        const out: Array<{
+            time: Time;
+            open: number;
+            high: number;
+            low: number;
+            close: number;
+        }> = [];
 
         for (let b = 0; b < buckets; b++) {
             const bStart = firstTs + b * width;
@@ -448,7 +472,9 @@
     {#if tooltipVisible}
         <div
             class="lw-tooltip"
-            style:left="{tooltipX < containerW / 2 ? tooltipX + 14 : tooltipX - 154}px"
+            style:left="{tooltipX < containerW / 2
+                ? tooltipX + 14
+                : tooltipX - 154}px"
             style:top="{Math.max(4, tooltipY - 10)}px"
         >
             <p class="lw-tooltip-date">{formatTooltipTime(tooltipTimeSec)}</p>
