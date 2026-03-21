@@ -567,21 +567,30 @@ a {
 
 .overview-grid {
     display: grid;
-    gap: 0;
+    gap: var(--space-3);
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    border-bottom: 1px solid var(--color-divider);
+    border-bottom: none;
+    padding-bottom: var(--space-3);
 }
 
 .overview-stat-card,
 .overview-list-card {
-    border: 0;
-    border-right: 1px solid var(--color-divider);
-    padding: var(--space-4);
-    background: transparent;
+    border: 1px solid rgba(120, 50, 200, 0.35);
+    border-radius: 20px;
+    padding: var(--space-5);
+    background: rgba(5, 2, 10, 0.82);
+    box-shadow: 0 2px 16px rgba(80, 10, 150, 0.12);
+    transition: border-color 0.22s ease, box-shadow 0.22s ease;
+}
+
+.overview-stat-card:hover,
+.overview-list-card:hover {
+    border-color: rgba(160, 80, 255, 0.55);
+    box-shadow: 0 4px 24px rgba(110, 20, 200, 0.22);
 }
 
 .overview-grid>article:last-child {
-    border-right: 0;
+    border-right: unset;
 }
 
 .overview-stat-card h3,
@@ -1672,6 +1681,22 @@ a {
 
 .coin-movers-list a {
     color: var(--color-text-nav);
+}
+
+/* ── Hover glow effects — applied via useHoverGlow composable ── */
+.hover-glow-active {
+    text-shadow: 0 0 8px rgba(200, 160, 255, 0.55);
+    transition: text-shadow 0.18s ease;
+}
+
+.hover-glow-positive {
+    text-shadow: 0 0 8px rgba(29, 223, 114, 0.65);
+    transition: text-shadow 0.18s ease;
+}
+
+.hover-glow-negative {
+    text-shadow: 0 0 8px rgba(255, 77, 87, 0.65);
+    transition: text-shadow 0.18s ease;
 }
 
 .positive {

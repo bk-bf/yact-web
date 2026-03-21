@@ -4,6 +4,7 @@
         createPriceJitter,
         isCoinJitterEligible,
     } from "../../effects/usePriceJitter.svelte";
+    import { createHoverGlow } from "../../effects/useHoverGlow.svelte";
     import M3Button from "../../components/M3Button.svelte";
     import {
         coerceMarketsPageData,
@@ -281,6 +282,7 @@
 
     // ── Live price jitter — managed by usePriceJitter composable ──────────
     const jitter = createPriceJitter();
+    const hover  = createHoverGlow();
 
     $effect(() => {
         if (!browser) return;
@@ -320,9 +322,12 @@
             <h1>Cryptocurrency Prices by Market Cap</h1>
             <p class="market-overview-subtitle">
                 The global crypto market cap today is
-                <span class="market-overview-pill">
+                <span
+                    class={`market-overview-pill ${jitter.getFlash("globalMarketCap") === "up" ? "price-tick-up" : jitter.getFlash("globalMarketCap") === "down" ? "price-tick-down" : ""}`}
+                >
                     <strong class="market-overview-pill-value"
-                        >{formatDetailedUsd(
+                        >{formatJitterUsd(
+                            "globalMarketCap",
                             viewData.global.totalMarketCapUsd,
                         )}</strong
                     >
@@ -463,7 +468,7 @@
 
         <article class="overview-list-card">
             <header>
-                <h3>📈 Top Gainers</h3>
+                <h3>� Top Gainers</h3>
                 <!-- TODO(T-007, see .docs/features/open/ROADMAP.md): Wire this placeholder button to a full Top Gainers list view. -->
                 <button type="button" class="inline-link">View more</button>
             </header>
@@ -488,7 +493,13 @@
                             </div>
                         </div>
                         <span
-                            class={`overview-coin-value ${coin.priceChangePercentage24h >= 0 ? "positive" : "negative"}`}
+                            class={[
+                                "overview-coin-value",
+                                coin.priceChangePercentage24h >= 0 ? "positive" : "negative",
+                                hover.isActive(`g-chg-${coin.id}`) ? (coin.priceChangePercentage24h >= 0 ? "hover-glow-positive" : "hover-glow-negative") : "",
+                            ].join(" ").trim()}
+                            onmouseenter={() => hover.enter(`g-chg-${coin.id}`)}
+                            onmouseleave={() => hover.leave()}
                         >
                             {signedPercent.format(
                                 coin.priceChangePercentage24h / 100,
