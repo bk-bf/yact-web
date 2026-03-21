@@ -13,7 +13,10 @@
     const viewSettings = createViewSettings();
     setContext(VIEW_SETTINGS_KEY, viewSettings);
 
-    const overviewStyleOptions: Array<{ value: OverviewStyleVariant; label: string }> = [
+    const overviewStyleOptions: Array<{
+        value: OverviewStyleVariant;
+        label: string;
+    }> = [
         { value: "separate", label: "Separate bubbles" },
         { value: "unified", label: "One bubble" },
         { value: "minimal", label: "Flat / minimal" },
@@ -496,47 +499,60 @@
                 </nav>
 
                 <div class="nav-actions">
-                <details class="settings-dropdown">
-                    <summary class="settings-pill" aria-label="View settings">⚙</summary>
-                    <div class="settings-panel">
-                        <fieldset class="settings-group">
-                            <legend>Overview style</legend>
-                            {#each overviewStyleOptions as opt}
-                                <label class="settings-radio">
+                    <details class="settings-dropdown">
+                        <summary
+                            class="settings-pill"
+                            aria-label="View settings">⚙</summary
+                        >
+                        <div class="settings-panel">
+                            <fieldset class="settings-group">
+                                <legend>Overview style</legend>
+                                {#each overviewStyleOptions as opt}
+                                    <label class="settings-radio">
+                                        <input
+                                            type="radio"
+                                            name="overview-style"
+                                            value={opt.value}
+                                            checked={viewSettings.overviewStyle ===
+                                                opt.value}
+                                            onchange={() => {
+                                                viewSettings.overviewStyle =
+                                                    opt.value;
+                                            }}
+                                        />
+                                        {opt.label}
+                                    </label>
+                                {/each}
+                            </fieldset>
+                            <fieldset class="settings-group">
+                                <legend>Market cap pill</legend>
+                                <label class="settings-toggle">
                                     <input
-                                        type="radio"
-                                        name="overview-style"
-                                        value={opt.value}
-                                        checked={viewSettings.overviewStyle === opt.value}
-                                        onchange={() => { viewSettings.overviewStyle = opt.value; }}
+                                        type="checkbox"
+                                        checked={viewSettings.showMarketCapPill}
+                                        onchange={() => {
+                                            viewSettings.showMarketCapPill =
+                                                !viewSettings.showMarketCapPill;
+                                        }}
                                     />
-                                    {opt.label}
+                                    Show pill in overview heading
                                 </label>
-                            {/each}
-                        </fieldset>
-                        <fieldset class="settings-group">
-                            <legend>Market cap pill</legend>
-                            <label class="settings-toggle">
-                                <input
-                                    type="checkbox"
-                                    checked={viewSettings.showMarketCapPill}
-                                    onchange={() => { viewSettings.showMarketCapPill = !viewSettings.showMarketCapPill; }}
-                                />
-                                Show pill in overview heading
-                            </label>
-                        </fieldset>
-                    </div>
-                </details>
+                            </fieldset>
+                        </div>
+                    </details>
 
-                <div class="menu-actions">
-                    <!-- TODO(T-010, see .docs/features/open/ROADMAP.md): Wire Sign In placeholder action to real authentication flow. -->
-                    <button class="menu-action filled" type="button"
-                        >Sign In</button
-                    >
+                    <div class="menu-actions">
+                        <!-- TODO(T-010, see .docs/features/open/ROADMAP.md): Wire Sign In placeholder action to real authentication flow. -->
+                        <button class="menu-action filled" type="button"
+                            >Sign In</button
+                        >
+                    </div>
                 </div>
-                </div><!-- /nav-actions -->
-            </div><!-- /top-nav-right -->
-        </div><!-- /top-nav-main -->
+                <!-- /nav-actions -->
+            </div>
+            <!-- /top-nav-right -->
+        </div>
+        <!-- /top-nav-main -->
     </header>
 
     {@render children?.()}

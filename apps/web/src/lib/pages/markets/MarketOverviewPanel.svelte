@@ -63,9 +63,15 @@
                 <span
                     class={[
                         showPill ? "market-overview-pill" : "",
-                        jitter.getFlash("globalMarketCap") === "up" ? "price-tick-up" : jitter.getFlash("globalMarketCap") === "down" ? "price-tick-down" : "",
+                        jitter.getFlash("globalMarketCap") === "up"
+                            ? "price-tick-up"
+                            : jitter.getFlash("globalMarketCap") === "down"
+                              ? "price-tick-down"
+                              : "",
                         hover.isActive("pill") ? "hover-glow-active" : "",
-                    ].filter(Boolean).join(" ") || undefined}
+                    ]
+                        .filter(Boolean)
+                        .join(" ") || undefined}
                     onmouseenter={() => hover.enter("pill")}
                     onmouseleave={() => hover.leave()}
                 >
@@ -76,12 +82,14 @@
                         )}</strong
                     >
                     <span
-                        class={viewData.global.marketCapChangePercentage24hUsd >= 0
+                        class={viewData.global
+                            .marketCapChangePercentage24hUsd >= 0
                             ? "positive market-overview-pill-change"
                             : "negative market-overview-pill-change"}
                     >
                         {signedPercent.format(
-                            viewData.global.marketCapChangePercentage24hUsd / 100,
+                            viewData.global.marketCapChangePercentage24hUsd /
+                                100,
                         )}
                     </span>
                 </span>
