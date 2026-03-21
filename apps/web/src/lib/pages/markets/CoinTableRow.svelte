@@ -3,6 +3,7 @@
     import { isCoinJitterEligible } from "../../effects/usePriceJitter.svelte";
     import {
         usd,
+        smartUsd,
         percent,
         compactNumber,
         formatDetailedUsd,
@@ -54,7 +55,7 @@
     >
         {isCoinJitterEligible(coin)
             ? formatJitterUsd(coin.id, coin.currentPrice)
-            : usd.format(coin.currentPrice)}
+            : smartUsd(coin.currentPrice)}
     </td>
     <td class={coin.priceChangePercentage24h >= 0 ? "positive" : "negative"}>
         {percent.format(coin.priceChangePercentage24h / 100)}

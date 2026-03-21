@@ -40,7 +40,7 @@ export const signedPercent = new Intl.NumberFormat("en-US", {
 });
 
 export function formatDetailedUsd(value: number): string {
-    return value >= 1000 ? largeUsd.format(value) : fullUsd.format(value);
+    return value >= 1000 ? largeUsd.format(value) : smartUsd(value);
 }
 
 export function formatStableCompactUsd(value: number | null | undefined): string {
@@ -68,4 +68,38 @@ export function displayCoinName(value: string): string {
         .replace(/[\u200B-\u200D\uFEFF]/g, "")
         .replace(/\s+/g, " ")
         .trim();
+}
+
+/**
+ * Smart coin price formatter.
+ * - >= $1000  → no decimals (e.g. $94,123)
+ * - >= $1     → 2 decimals (e.g. $3.45)
+ * - >= $0.01  → 4 decimals (e.g. $0.0123)
+ * - >= $0.0001 → 5 significant decimal digits after the leading zeros
+ * - < $0.0001  → up to 8 significant decimal digits
+ */
+export function smartUsd(value: number): string {
+    if (!Number.isFinite(value)) return "--";
+    const abs = Math.abs(value);
+    if (abs === 0) return "$0.00";
+    if (abs >= 1000) return largeUsd.format(value);
+    if (abs >= 1) return fullUsd.format(value);
+    if (abs >= 0.01) {
+        return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            minimumFractionDigits: 4,
+            maximumFractionDigits: 4,
+        }).format(value);
+    }
+    // For very small values, find the first significant digit position
+    // and show 4 significant digits from there.
+    const log = Math.floor(Math.log10(abs));       // e.g. -4 for 0.00012
+    const decimals = Math.min(-log + 3, 12);        // 4 sig digits past leading zeros
+    return new Intl.NumberFormat("en-US", {
+        style: "currency",
+        currency: "USD",
+        minimumFractionDigits: decimals,
+        maximumFractionDigits: decimals,
+    }).format(value);
 }
