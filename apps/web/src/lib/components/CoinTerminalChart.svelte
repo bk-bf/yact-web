@@ -538,12 +538,9 @@
         }
 
         const requestId = ++chartFetchRequestId;
-        void fetch(
-            `/api/coins/${coin.id}/chart?range=${range}`,
-            {
-                cache: "default",
-            },
-        )
+        void fetch(`/api/coins/${coin.id}/chart?range=${range}`, {
+            cache: "default",
+        })
             .then(async (response) => {
                 if (!response.ok) {
                     let errorText = `Chart request failed with status ${response.status}`;
@@ -674,24 +671,46 @@
         if (!browser || chartSeriesByRange["24h"]?.prices.length) {
             return;
         }
-        void fetch(`/api/coins/${coin.id}/chart?range=24h`, { cache: "default" })
+        void fetch(`/api/coins/${coin.id}/chart?range=24h`, {
+            cache: "default",
+        })
             .then(async (response) => {
                 if (!response.ok) return;
-                const payload = (await response.json()) as { prices?: number[]; volumes?: number[]; timestamps?: number[] };
-                const prices = payload.prices?.filter((v) => Number.isFinite(v)) ?? [];
-                if (prices.length < 2 || chartSeriesByRange["24h"]?.prices.length) return;
-                const volumes = payload.volumes?.filter((v) => Number.isFinite(v)) ?? [];
-                const timestamps = payload.timestamps?.filter((v) => Number.isFinite(v)) ?? [];
+                const payload = (await response.json()) as {
+                    prices?: number[];
+                    volumes?: number[];
+                    timestamps?: number[];
+                };
+                const prices =
+                    payload.prices?.filter((v) => Number.isFinite(v)) ?? [];
+                if (
+                    prices.length < 2 ||
+                    chartSeriesByRange["24h"]?.prices.length
+                )
+                    return;
+                const volumes =
+                    payload.volumes?.filter((v) => Number.isFinite(v)) ?? [];
+                const timestamps =
+                    payload.timestamps?.filter((v) => Number.isFinite(v)) ?? [];
                 chartSeriesByRange = {
                     ...chartSeriesByRange,
                     "24h": {
                         prices,
-                        volumes: volumes.length > 1 ? volumes : toFallbackSeries(prices, coin.totalVolume24h).volumes,
-                        timestamps: timestamps.length === prices.length ? timestamps : buildSyntheticTimestamps(prices.length, 24),
+                        volumes:
+                            volumes.length > 1
+                                ? volumes
+                                : toFallbackSeries(prices, coin.totalVolume24h)
+                                      .volumes,
+                        timestamps:
+                            timestamps.length === prices.length
+                                ? timestamps
+                                : buildSyntheticTimestamps(prices.length, 24),
                     },
                 };
             })
-            .catch(() => {/* silent — 24h pre-warm is best-effort */});
+            .catch(() => {
+                /* silent — 24h pre-warm is best-effort */
+            });
     });
 </script>
 
