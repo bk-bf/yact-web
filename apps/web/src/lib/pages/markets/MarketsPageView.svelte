@@ -670,14 +670,5 @@
         </div>
     {/if}
 
-    <div class="m3-button-row" style="margin-top: 1rem;">
-        <!-- TODO(T-004, see .docs/features/open/ROADMAP.md): Replace watchlist workspace shortcut placeholder with real watchlist workflow entry point. -->
-        <M3Button href="/watchlist" tone="tonal"
-            >Open Watchlist Workspace</M3Button
-        >
-        <!-- TODO(T-010, see .docs/features/open/ROADMAP.md): Replace refresh placeholder link with true refresh control/state action. -->
-        <M3Button href="/" tone="outlined">Refresh Top 100</M3Button>
-    </div>
-
     <p class="market-footnote">Live source: {viewData.source}</p>
 </section>
