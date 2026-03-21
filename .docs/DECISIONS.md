@@ -1,4 +1,4 @@
-<!-- LOC cap: 678 (source: 6778, ratio: 0.10, updated: 2026-03-20) -->
+<!-- LOC cap: 678 (source: 6778, ratio: 0.10, updated: 2026-03-21) -->
 # DECISIONS
 
 ## ADR-001: Bootstrap Monorepo With Separate Web and Analytics Runtimes
@@ -136,7 +136,7 @@ Adopt a phased hybrid strategy for coin detail:
 **Status**: Accepted
 
 ### Context
-BUG-002 showed persistent markets flicker despite iterative fixes. Symptoms included transient zero-state regressions and compact-value display oscillation during hydration and coin->home navigation. Investigation indicated overlapping mutation paths for market-facing UI state.
+BUG-002 showed persistent markets flicker despite iterative fixes. Symptoms included transient zero-state regressions during hydration and coin->home navigation. Investigation indicated overlapping mutation paths for market-facing UI state.
 
 ### Decision
 For route-critical data (example: markets summary on `/`), enforce one owner-of-truth path for first render and hydration:
@@ -148,3 +148,21 @@ For route-critical data (example: markets summary on `/`), enforce one owner-of-
 ### Consequences
 - Pros: fewer race conditions, deterministic render ownership, easier incident triage.
 - Cons: less flexibility for ad-hoc optimization experiments during active incidents.
+
+## ADR-009: Prioritize Route Transition Over In-Flight Auxiliary Fetches
+
+**Date**: 2026-03-21  
+**Status**: Accepted
+
+### Context
+Client navigation latency and zero-state regressions were amplified by overlapping coin-detail auxiliary fetches, snapshot polling, and home-route markets recovery attempts.
+
+### Decision
+- Keep `/` client navigation non-blocking by returning immediate fallback shell and recovering markets post-mount.
+- Add abort-signal plumbing for coin-detail critical/auxiliary fetches and cancel on route exit.
+- Keep shell sticky global state monotonic/non-regressive (do not apply empty fallback globals).
+- Bridge shell markets sync responses to page recovery via `yact:markets-sync` browser event.
+
+### Consequences
+- Pros: route transitions remain fast under load, fewer stale in-flight writes after route exit, improved recovery from aborted first markets fetch.
+- Cons: additional state-ownership complexity between shell and page recovery paths, requiring stronger instrumentation and incident correlation.

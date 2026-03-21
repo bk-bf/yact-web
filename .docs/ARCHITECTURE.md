@@ -1,4 +1,4 @@
-<!-- LOC cap: 678 (source: 6778, ratio: 0.10, updated: 2026-03-20) -->
+<!-- LOC cap: 678 (source: 6778, ratio: 0.10, updated: 2026-03-21) -->
 # ARCHITECTURE
 
 ## System Overview
@@ -60,21 +60,21 @@ Placeholder governance currently implemented:
 ## Data Flow
 
 Markets flow:
-1. Route load is the primary owner for markets-page payload (`/api/markets`), for both SSR and client navigation.
-2. Markets page view should render directly from route-provided payload plus a structural fallback only.
-3. Shared shell polling (topbar/headlines) must not regress page-owned market summary state during hydration/navigation windows.
-4. Any secondary refresh path must use non-regressive merge behavior (never replace known-good market payload with empty/degraded fallback).
+1. SSR route load fetches `/api/markets` for first render.
+2. Browser route navigation to `/` returns an immediate empty shell and defers recovery to post-mount fetch in the markets page view.
+3. Shared shell polling (`/api/markets?_ts`, `/api/headlines?_ts`) updates sticky surfaces and emits `yact:markets-sync` browser events for page recovery handoff.
+4. Sticky-bar global state uses meaningful-data guards to avoid zero-fallback regressions during hydration/navigation windows.
 
-Incident note (2026-03-21): BUG-002 remains open for transient markets flicker and compact-value oscillation, indicating unresolved state-ownership overlap in hydration/navigation windows.
+Incident note (2026-03-21): BUG-002 remains open only for intermittent transient zero-state regression during refresh/logo navigation windows. Compact-value oscillation is fixed.
 
 Operational guardrail:
 - Do not switch loading architecture modes (cache/no-cache, SSR/client branching, composable replacement) within the same incident unless the before/after evidence bundle confirms elimination of the prior overlap.
 
 Coin detail flow:
-1. Server render fetches critical coin payload (`/api/coins/{id}` + `/api/coins/{id}/chart?range=7d`) for first paint; browser-side route transitions return immediate fallback shell.
-2. Client refresh fetches critical coin and chart data (~50-80ms), updates UI immediately without waiting.
-3. Markets and headlines fetch asynchronously in parallel background tasks; UI updates progressively as each completes.
-4. Auxiliary backfill retries recover rail modules if initial market or headline fetch fails.
+1. Route load fetches critical coin payload (`/api/coins/{id}` + `/api/coins/{id}/chart?range=7d`) for first paint.
+2. Client refresh uses abortable critical + auxiliary fetches and cancels immediately when leaving `/currencies/*`.
+3. Headlines and markets auxiliary modules fetch asynchronously after critical payload update and merge progressively.
+4. Auxiliary markets retries are intentionally lightweight to reduce contention with route transitions.
 5. Loader-level in-memory TTL caching reduces repeat fetch pressure for hot endpoints during short navigation windows.
 
 This progressive rendering approach ensures the coin price, name, and chart appear within ~50-100ms, while heavier auxiliary data (markets, headlines) fetches without blocking initial render.
@@ -84,6 +84,12 @@ TTL cache policy (web loader layer):
 - `/api/coins/{id}/chart?range=7d`: 20s
 - `/api/markets`: 20s
 - `/api/headlines`: 30s
+
+## Client Diagnostics
+
+- Browser console is relayed to `POST /api/debug/client-logs` through `src/hooks.client.ts`.
+- Global UI interaction events (click/submit/navigation start/end) are emitted as `[ui-event]` console entries from the shared layout.
+- Incident capture automation is available via `scripts/capture-web-incident.sh`.
 
 ## Removed Legacy In Web Repo
 

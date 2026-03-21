@@ -7,7 +7,7 @@
 - **Status**: Open (Partially fixed)
 - **Severity**: High
 - **First appeared**: 2026-03-21
-- **Related roadmap task**: None
+- **Related roadmap task**: T-018
 - **Area**: UI
 - **Summary**: Core navigation blocking and compact-value formatting oscillation are fixed, but transient zero-data state still appears on hard refresh and logo navigation (`/currencies/[id] -> /`, and sometimes `/ -> /` via logo).
 - **Partial fix**:

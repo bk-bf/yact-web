@@ -1,77 +1,73 @@
-<!-- LOC cap: 82 (source: 410, ratio: 0.20, updated: 2026-03-19) -->
+<!-- LOC cap: 82 (source: 410, ratio: 0.20, updated: 2026-03-21) -->
 # PHILOSOPHY
 
 ## Product Thesis
 
-Most crypto tools are dashboards for data display, not interpretation.
-This product treats interpretation as a first-class feature through explicit analytical lenses and transparent probability outputs.
+YACT Web is a fast, operator-friendly market terminal that consumes backend REST snapshots and keeps UI behavior predictable under unstable upstream conditions.
 
 ## Target User Profile
 
 Primary users:
-- Self-directed retail researchers
-- Systematic discretionary traders
-- Crypto-native users who already use multiple tools and want one integrated analysis layer
+- Operators and developers validating mining freshness and UI correctness
+- Users monitoring top markets and coin detail metrics with low-friction navigation
+- Teams debugging data-quality regressions using incident capture and console relay
 
 Secondary users:
-- Small funds and newsletter operators needing repeatable framework outputs
+- Contributors extending UI routes and BFF proxy behavior
 
 ## Design Principles
 
-1. Interpretability over opacity
-- Every signal must include how it was computed.
+1. Route responsiveness first
+- Navigation must remain fast even when API calls are slow or aborted.
 
-2. Probability, not certainty
-- Outputs are probabilistic and always paired with confidence and sample size.
+2. Non-regressive state updates
+- Never replace known-good market UI state with empty fallback payloads.
 
-3. Frameworks as selectable lenses
-- Users should switch perspective intentionally (cycle, momentum, bear-survival, etc).
+3. Progressive rendering over blocking
+- Critical data first, auxiliary panels later, with explicit loading boundaries.
 
-4. Composability over one-model dogma
-- Multiple lenses can overlap and disagree.
+4. REST contract discipline
+- Web should consume stable backend contracts without duplicating persistence logic.
 
-5. Transparent uncertainty
-- Sparse historical data must reduce confidence visibly.
+5. Diagnostics by default
+- Console relay, debug endpoints, and incident bundles are first-class tools.
 
-6. Open-source core
-- Methods should be auditable and forkable.
+6. Small, reversible changes
+- During incidents, apply minimal patches with before/after evidence.
 
-7. Build for utility first
-- Personal daily usefulness is the first quality filter.
+7. Scripted local workflow
+- Prefer repository scripts for dev, checks, and incident capture.
 
 ## Scope Constraints
 
 In scope for MVP:
-- Halving cycle lens
-- Metric hit-rate scorecards
-- Watchlist lens application
-- Lens overlap visualization
+- Markets home page and coin detail route correctness
+- Sticky topbar/global summary behavior and headlines surfacing
+- Watchlist workspace route and core shell navigation
+- Debug/incident workflows for runtime regressions
 
 Out of scope for MVP:
-- Full automated Elliott Wave labeling
-- Execution bots or auto-trading
-- High-frequency intraday prediction
+- Trading execution or portfolio automation
+- On-web persistence/mining ownership (lives in yact-server)
 - Institutional compliance workflows
 
 ## UX Direction
 
-- TradingView-like trading terminal visual language
-- Deep black surfaces as primary background context
-- Neon-green highlight color for primary actions and positive market semantics
-- Dense-but-readable information architecture
-- Defaults that explain signal context, not only metric values
-- Fast interaction loops for coin-to-coin comparison
+- Terminal-style information density with readable hierarchy
+- Stable numeric formatting across SSR and client hydration
+- Fast route transitions with visible progress cues
+- Clear separation between shell-level and page-level state ownership
 - Detailed implementation tokens and component rules are defined in `.docs/UI_STYLE.md`
 
 ## Risk Posture
 
-- Avoid deterministic language about future price
-- Keep confidence calibration conservative
-- Expose historical drift when metric behavior changes over time
+- Assume intermittent upstream/API variability and canceled browser requests
+- Prefer safe fallback rendering without masking true state regressions
+- Treat hydration/navigation race conditions as high-severity UX defects
 
 ## Success Definition
 
-The product succeeds if users can answer:
-- Which signals matter right now for this asset?
-- How reliable have these signals been historically?
-- What changes when I switch analytical lens?
+The web app succeeds when users and operators can answer:
+- Is navigation immediate across markets and coin routes?
+- Are displayed market values stable and non-regressive?
+- Can regressions be diagnosed quickly from local logs and capture bundles?

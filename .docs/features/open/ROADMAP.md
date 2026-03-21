@@ -1,4 +1,4 @@
-<!-- LOC cap: 678 (source: 6778, ratio: 0.10, updated: 2026-03-20) -->
+<!-- LOC cap: 678 (source: 6778, ratio: 0.10, updated: 2026-03-21) -->
 # ROADMAP
 
 ## Open
@@ -10,6 +10,11 @@ TODO mapping rule for placeholder code:
 - Use `TODO(T-NNN, see .docs/features/open/ROADMAP.md): ...` so every placeholder links to a roadmap task.
 
 ### Phase 1 - Core Navigation + Coin Breakdown First (Week 1)
+
+- [ ] **T-018**: Resolve BUG-002 zero-state regression in hydration/logo navigation windows
+  - Deliverables: monotonic state write rules across shell and page, instrumentation showing assignment provenance around `/api/debug/client-logs`, and validated no-regression behavior for `/currencies/[id] -> /` and `/ -> /` logo clicks
+  - Manual verification: run incident capture and reproduce both navigation paths 5x without sticky headbar or summary cards dropping to zero
+  - Exit criteria: no transient zero-state in repeated repro cycles and BUG-002 can move to closed with evidence bundle
 
 - [ ] **T-017**: Wire topbar menu and market filter controls to real destinations
   - Deliverables: route-backed topbar items, filter state and URL wiring, and visible non-placeholder destination content
