@@ -385,11 +385,18 @@
         aria-busy={!isGlobalReady}
     >
         <div class="market-floating-stats" aria-label="Live market stats">
-            <FloatingMarketItem>Coins: {formatInteger(
+            <FloatingMarketItem
+                >Coins: {formatInteger(
                     displayGlobal.activeCryptocurrencies,
-                )}</FloatingMarketItem>
-            <FloatingMarketItem>Exchanges: {formatInteger(displayGlobal.totalExchanges)}</FloatingMarketItem>
-            <FloatingMarketItem>Market Cap: {formatCompactUsd(displayGlobal.totalMarketCapUsd)}
+                )}</FloatingMarketItem
+            >
+            <FloatingMarketItem
+                >Exchanges: {formatInteger(
+                    displayGlobal.totalExchanges,
+                )}</FloatingMarketItem
+            >
+            <FloatingMarketItem
+                >Market Cap: {formatCompactUsd(displayGlobal.totalMarketCapUsd)}
                 <span
                     class={displayGlobal.marketCapChangePercentage24hUsd >= 0
                         ? "positive"
@@ -397,15 +404,26 @@
                     >{formatSignedPct(
                         displayGlobal.marketCapChangePercentage24hUsd,
                     )}</span
-                ></FloatingMarketItem>
-            <FloatingMarketItem>24h Vol: {formatCompactUsd(displayGlobal.totalVolumeUsd)}</FloatingMarketItem>
-            <FloatingMarketItem>Dominance: BTC {formatOneDecimalPercent(
+                ></FloatingMarketItem
+            >
+            <FloatingMarketItem
+                >24h Vol: {formatCompactUsd(
+                    displayGlobal.totalVolumeUsd,
+                )}</FloatingMarketItem
+            >
+            <FloatingMarketItem
+                >Dominance: BTC {formatOneDecimalPercent(
                     displayGlobal.btcDominance,
-                )}%</FloatingMarketItem>
-            <FloatingMarketItem>ETH {formatOneDecimalPercent(
+                )}%</FloatingMarketItem
+            >
+            <FloatingMarketItem
+                >ETH {formatOneDecimalPercent(
                     displayGlobal.ethDominance,
-                )}%</FloatingMarketItem>
-            <FloatingMarketItem>Gas: {formatGasGwei(displayGlobal.gasGwei)} GWEI</FloatingMarketItem>
+                )}%</FloatingMarketItem
+            >
+            <FloatingMarketItem
+                >Gas: {formatGasGwei(displayGlobal.gasGwei)} GWEI</FloatingMarketItem
+            >
         </div>
 
         {#if topbarHeadlines.length > 0}

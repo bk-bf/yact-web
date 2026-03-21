@@ -212,194 +212,193 @@
 </script>
 
 <CoinRailCard title="Info">
-
     <InfoChipRow label="API ID">
         <button
-                class="info-pill info-pill-button"
-                type="button"
-                title={`Copy ${coin.apiId || coin.id}`}
-                onclick={() => copyInfoValue(coin.apiId || coin.id, "api-id")}
+            class="info-pill info-pill-button"
+            type="button"
+            title={`Copy ${coin.apiId || coin.id}`}
+            onclick={() => copyInfoValue(coin.apiId || coin.id, "api-id")}
+        >
+            <span>{coin.apiId || coin.id}</span>
+            <span
+                class="info-copy-icon"
+                aria-label={copiedInfoKey === "api-id"
+                    ? "Copied"
+                    : "Copy API ID"}
             >
-                <span>{coin.apiId || coin.id}</span>
-                <span
-                    class="info-copy-icon"
-                    aria-label={copiedInfoKey === "api-id"
-                        ? "Copied"
-                        : "Copy API ID"}
-                >
-                    {copiedInfoKey === "api-id" ? "✓" : "⧉"}
-                </span>
-            </button>
-        </InfoChipRow>
+                {copiedInfoKey === "api-id" ? "✓" : "⧉"}
+            </span>
+        </button>
+    </InfoChipRow>
 
     <InfoChipRow label="Contract">
         {#if coin.contracts.length > 0}
-                {#each coin.contracts.slice(0, 4) as entry}
-                    <button
-                        class="info-pill info-pill-button contract-pill"
-                        type="button"
-                        title={entry.address}
-                        onclick={() =>
-                            copyInfoValue(
-                                entry.address,
-                                `contract-${entry.address}`,
-                            )}
-                    >
-                        {#if entry.logoUrl}
-                            <img
-                                class="chain-logo-image"
-                                src={entry.logoUrl}
-                                alt={entry.chain}
-                                loading="lazy"
-                            />
-                        {:else}
-                            <span
-                                class="chain-logo"
-                                aria-hidden="true"
-                                title={entry.chain}
-                            >
-                                {chainMonogram(entry.chain)}
-                            </span>
-                        {/if}
-                        <span class="contract-address" title={entry.address}>
-                            {shortAddress(entry.address)}
-                        </span>
+            {#each coin.contracts.slice(0, 4) as entry}
+                <button
+                    class="info-pill info-pill-button contract-pill"
+                    type="button"
+                    title={entry.address}
+                    onclick={() =>
+                        copyInfoValue(
+                            entry.address,
+                            `contract-${entry.address}`,
+                        )}
+                >
+                    {#if entry.logoUrl}
+                        <img
+                            class="chain-logo-image"
+                            src={entry.logoUrl}
+                            alt={entry.chain}
+                            loading="lazy"
+                        />
+                    {:else}
                         <span
-                            class="info-copy-icon"
-                            aria-label={copiedInfoKey ===
-                            `contract-${entry.address}`
-                                ? "Copied"
-                                : "Copy contract address"}
+                            class="chain-logo"
+                            aria-hidden="true"
+                            title={entry.chain}
                         >
-                            {copiedInfoKey === `contract-${entry.address}`
-                                ? "✓"
-                                : "⧉"}
+                            {chainMonogram(entry.chain)}
                         </span>
-                    </button>
-                {/each}
-            {:else}
-                <span class="muted">--</span>
-            {/if}
-        </InfoChipRow>
+                    {/if}
+                    <span class="contract-address" title={entry.address}>
+                        {shortAddress(entry.address)}
+                    </span>
+                    <span
+                        class="info-copy-icon"
+                        aria-label={copiedInfoKey ===
+                        `contract-${entry.address}`
+                            ? "Copied"
+                            : "Copy contract address"}
+                    >
+                        {copiedInfoKey === `contract-${entry.address}`
+                            ? "✓"
+                            : "⧉"}
+                    </span>
+                </button>
+            {/each}
+        {:else}
+            <span class="muted">--</span>
+        {/if}
+    </InfoChipRow>
 
     <InfoChipRow label="Chains">
         {#if displayChainBadges.length > 0}
-                {#each displayChainBadges.slice(0, 8) as chainEntry}
-                    <span class="info-pill chain-pill" title={chainEntry.chain}>
-                        {#if chainEntry.logoUrl}
-                            <img
-                                class="chain-logo-image"
-                                src={chainEntry.logoUrl}
-                                alt={chainEntry.chain}
-                                loading="lazy"
-                            />
-                        {:else}
-                            <span class="chain-logo" aria-hidden="true">
-                                {chainMonogram(chainEntry.chain)}
-                            </span>
-                        {/if}
-                    </span>
-                {/each}
-            {:else}
-                <span class="muted">--</span>
-            {/if}
-        </InfoChipRow>
+            {#each displayChainBadges.slice(0, 8) as chainEntry}
+                <span class="info-pill chain-pill" title={chainEntry.chain}>
+                    {#if chainEntry.logoUrl}
+                        <img
+                            class="chain-logo-image"
+                            src={chainEntry.logoUrl}
+                            alt={chainEntry.chain}
+                            loading="lazy"
+                        />
+                    {:else}
+                        <span class="chain-logo" aria-hidden="true">
+                            {chainMonogram(chainEntry.chain)}
+                        </span>
+                    {/if}
+                </span>
+            {/each}
+        {:else}
+            <span class="muted">--</span>
+        {/if}
+    </InfoChipRow>
 
     <InfoChipRow label="Categories">
         {#if coin.categories.length > 0}
-                {#if coin.categories.length > 1}
-                    <label class="info-select-wrap">
-                        <select
-                            class="info-pill-select"
-                            aria-label="Select category"
-                            bind:value={selectedCategory}
-                        >
-                            {#each coin.categories as category}
-                                <option value={category}>{category}</option>
-                            {/each}
-                        </select>
-                    </label>
-                {:else}
-                    <span class="info-pill">{selectedCategory}</span>
-                {/if}
+            {#if coin.categories.length > 1}
+                <label class="info-select-wrap">
+                    <select
+                        class="info-pill-select"
+                        aria-label="Select category"
+                        bind:value={selectedCategory}
+                    >
+                        {#each coin.categories as category}
+                            <option value={category}>{category}</option>
+                        {/each}
+                    </select>
+                </label>
             {:else}
-                <span class="muted">--</span>
+                <span class="info-pill">{selectedCategory}</span>
             {/if}
-        </InfoChipRow>
+        {:else}
+            <span class="muted">--</span>
+        {/if}
+    </InfoChipRow>
 
     <InfoChipRow label="Website">
         {#if displayWebsiteLinks.length > 0}
-                {#each displayWebsiteLinks as websiteLink}
-                    <a
-                        class="info-pill info-link-pill"
-                        href={websiteLink.url}
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        {websiteLink.label}
-                    </a>
-                {/each}
-            {:else}
-                <span class="muted">--</span>
-            {/if}
-        </InfoChipRow>
+            {#each displayWebsiteLinks as websiteLink}
+                <a
+                    class="info-pill info-link-pill"
+                    href={websiteLink.url}
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    {websiteLink.label}
+                </a>
+            {/each}
+        {:else}
+            <span class="muted">--</span>
+        {/if}
+    </InfoChipRow>
 
     <InfoChipRow label="Explorers">
         {#if displayExplorers.length > 0}
-                {#each displayExplorers.slice(0, 4) as explorer}
-                    <a
-                        class="info-pill info-link-pill"
-                        href={explorer}
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        {hostLabel(explorer)}
-                    </a>
-                {/each}
-            {:else}
-                <span class="muted">--</span>
-            {/if}
-        </InfoChipRow>
+            {#each displayExplorers.slice(0, 4) as explorer}
+                <a
+                    class="info-pill info-link-pill"
+                    href={explorer}
+                    target="_blank"
+                    rel="noreferrer"
+                >
+                    {hostLabel(explorer)}
+                </a>
+            {/each}
+        {:else}
+            <span class="muted">--</span>
+        {/if}
+    </InfoChipRow>
 
     <InfoChipRow label="Community">
         {#if displayCommunityLinks.length > 0}
-                {#each displayCommunityLinks as communityLink}
-                    <a
-                        class="info-pill info-link-pill info-logo-pill"
-                        href={communityLink.url}
-                        target="_blank"
-                        rel="noreferrer"
-                    >
-                        <img
-                            class="info-link-logo"
-                            src={communityLink.logoUrl}
-                            alt={communityLink.label}
-                            loading="lazy"
-                        />
-                        <span>{communityLink.label}</span>
-                    </a>
-                {/each}
-            {:else}
-                <span class="muted">--</span>
-            {/if}
-        </InfoChipRow>
-
-    <InfoChipRow label="Search on">
-        {#each searchBrandLinks as link}
+            {#each displayCommunityLinks as communityLink}
                 <a
                     class="info-pill info-link-pill info-logo-pill"
-                    href={link.url}
+                    href={communityLink.url}
                     target="_blank"
                     rel="noreferrer"
                 >
                     <img
                         class="info-link-logo"
-                        src={link.logoUrl}
-                        alt={link.label}
+                        src={communityLink.logoUrl}
+                        alt={communityLink.label}
                         loading="lazy"
                     />
-                    <span>{link.label}</span>
+                    <span>{communityLink.label}</span>
                 </a>
             {/each}
+        {:else}
+            <span class="muted">--</span>
+        {/if}
+    </InfoChipRow>
+
+    <InfoChipRow label="Search on">
+        {#each searchBrandLinks as link}
+            <a
+                class="info-pill info-link-pill info-logo-pill"
+                href={link.url}
+                target="_blank"
+                rel="noreferrer"
+            >
+                <img
+                    class="info-link-logo"
+                    src={link.logoUrl}
+                    alt={link.label}
+                    loading="lazy"
+                />
+                <span>{link.label}</span>
+            </a>
+        {/each}
     </InfoChipRow>
 </CoinRailCard>
