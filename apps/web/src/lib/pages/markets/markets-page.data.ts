@@ -59,8 +59,8 @@ export type MarketsPageData = ReturnType<typeof normalizeMarketsPayload>;
 
 function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
     const safePayload = payload ?? {};
-    const safeHighlights = safePayload.highlights ?? {};
-    const safeGlobal = safePayload.global ?? {};
+    const safeHighlights: Partial<MarketHighlights> = safePayload.highlights ?? {};
+    const safeGlobal: Partial<GlobalMarketSummary> = safePayload.global ?? {};
 
     return {
         coins: Array.isArray(safePayload.coins) ? safePayload.coins : [],
