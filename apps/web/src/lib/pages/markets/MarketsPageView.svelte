@@ -449,7 +449,11 @@
                                 </svg>
                             </td>
                             <td>{formatStableCompactUsd(coin.marketCap)}</td>
-                            <td>{formatStableCompactUsd(coin.totalVolume24h)}</td>
+                            <td
+                                >{formatStableCompactUsd(
+                                    coin.totalVolume24h,
+                                )}</td
+                            >
                             <td>
                                 {compactNumber.format(coin.circulatingSupply)}
                                 {coin.symbol.toUpperCase()}
