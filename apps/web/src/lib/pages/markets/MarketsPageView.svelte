@@ -118,6 +118,21 @@
         return coins;
     });
 
+    const SORT_LABELS: Record<SortKey, string> = {
+        rank: "Market Cap",
+        name: "Name",
+        price: "Price",
+        change24h: "24h Change",
+        change7d: "7d Change",
+        marketCap: "Market Cap",
+        volume: "24h Volume",
+        supply: "Circulating Supply",
+    };
+
+    const sectionTitle = $derived(
+        `Top 100 Cryptocurrencies By ${SORT_LABELS[sortKey]}`,
+    );
+
     // Live price jitter — reactive entry list tracks viewData reactively.
     const jitter = createPriceJitter();
     const hover = createHoverGlow();
@@ -174,7 +189,7 @@
 />
 
 <section class="market-section">
-    <h2 class="m3-surface-title">Top 100 Cryptocurrencies By Market Cap</h2>
+    <h2 class="m3-surface-title">{sectionTitle}</h2>
     {#if viewData.error}
         <p class="error-text">Unable to load market data: {viewData.error}</p>
     {:else}

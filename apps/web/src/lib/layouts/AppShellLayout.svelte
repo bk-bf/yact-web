@@ -3,24 +3,15 @@
     import { navigating, page } from "$app/stores";
     import { setContext } from "svelte";
     import RouteProgress from "../components/RouteProgress.svelte";
+    import ViewSettingsMenu from "../components/ViewSettingsMenu.svelte";
     import { formatStableCompactUsd as formatCompactUsd } from "../utils/formatters";
     import {
         createViewSettings,
         VIEW_SETTINGS_KEY,
-        type OverviewStyleVariant,
     } from "../composables/useViewSettings.svelte";
 
     const viewSettings = createViewSettings();
     setContext(VIEW_SETTINGS_KEY, viewSettings);
-
-    const overviewStyleOptions: Array<{
-        value: OverviewStyleVariant;
-        label: string;
-    }> = [
-        { value: "separate", label: "Separate bubbles" },
-        { value: "unified", label: "One bubble" },
-        { value: "minimal", label: "Flat / minimal" },
-    ];
 
     interface GlobalMarketSummary {
         totalMarketCapUsd: number;
@@ -499,47 +490,7 @@
                 </nav>
 
                 <div class="nav-actions">
-                    <details class="settings-dropdown">
-                        <summary
-                            class="settings-pill"
-                            aria-label="View settings">⚙</summary
-                        >
-                        <div class="settings-panel">
-                            <fieldset class="settings-group">
-                                <legend>Overview style</legend>
-                                {#each overviewStyleOptions as opt}
-                                    <label class="settings-radio">
-                                        <input
-                                            type="radio"
-                                            name="overview-style"
-                                            value={opt.value}
-                                            checked={viewSettings.overviewStyle ===
-                                                opt.value}
-                                            onchange={() => {
-                                                viewSettings.overviewStyle =
-                                                    opt.value;
-                                            }}
-                                        />
-                                        {opt.label}
-                                    </label>
-                                {/each}
-                            </fieldset>
-                            <fieldset class="settings-group">
-                                <legend>Market cap pill</legend>
-                                <label class="settings-toggle">
-                                    <input
-                                        type="checkbox"
-                                        checked={viewSettings.showMarketCapPill}
-                                        onchange={() => {
-                                            viewSettings.showMarketCapPill =
-                                                !viewSettings.showMarketCapPill;
-                                        }}
-                                    />
-                                    Show pill in overview heading
-                                </label>
-                            </fieldset>
-                        </div>
-                    </details>
+                    <ViewSettingsMenu settings={viewSettings} />
 
                     <div class="menu-actions">
                         <!-- TODO(T-010, see .docs/features/open/ROADMAP.md): Wire Sign In placeholder action to real authentication flow. -->
