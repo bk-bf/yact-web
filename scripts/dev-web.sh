@@ -26,4 +26,4 @@ else
 	echo "[dev-web] warning: curl not found, skipping API preflight check"
 fi
 
-npm run dev:web
+pnpm run dev:web

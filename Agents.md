@@ -53,6 +53,7 @@ cd /home/ubuntu/server/yact/yact-web
 
 - `./scripts/dev-web.sh` — starts the Svelte web app dev server.
 - `./scripts/check.sh` — runs the full check pipeline: `svelte-check` → `knip` → `vitest`.
+- Use `pnpm install` (not `npm install`) — this repo uses pnpm workspaces (`pnpm-workspace.yaml`).
 
 ## CI / check pipeline (`./scripts/check.sh`)
 
