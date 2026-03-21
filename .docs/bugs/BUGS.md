@@ -4,25 +4,31 @@
 ## Open
 
 ### BUG-002: Markets hydration/navigation flicker (value-style oscillation and transient zero-state)
-- **Status**: Open
+- **Status**: Open (Partially fixed)
 - **Severity**: High
 - **First appeared**: 2026-03-21
 - **Related roadmap task**: None
 - **Area**: UI
-- **Summary**: Markets route can still flicker during hydration and coin->home navigation, including temporary regression to zero-valued cards and compact-value display oscillation (`$2.5T` / `$2.50T`).
+- **Summary**: Core navigation blocking and compact-value formatting oscillation are fixed, but transient zero-data state still appears on hard refresh and logo navigation (`/currencies/[id] -> /`, and sometimes `/ -> /` via logo).
+- **Partial fix**:
+  1. **Commit**: `2909ffd9da5fea50d9a0e4154fa0c0f39421822d`
+  2. **Fixed in commit**: route transition delay caused by data fetching/polling contention.
+  3. **Fixed in follow-up**: compact value style oscillation (`$2.5T` vs `$2.50T`).
+  4. **Still open**: transient zero-data rendering in sticky headbar and/or market summary during refresh/logo navigation.
 - **Reproduction steps**:
   1. Open `/currencies/bitcoin`.
   2. Click logo to navigate back to `/`.
   3. Observe market summary cards and compact reference line for first 1-3s.
-  4. Repeat with hard reload and inspect network order for `/api/markets`, `/api/debug/snapshot-meta`, `/api/headlines`, `/api/debug/client-logs`.
+  4. Repeat with hard reload and inspect network order for `/api/markets`, `/api/headlines?_ts=...`, and `/api/debug/client-logs`.
+  5. Optional: while already on `/`, click logo again and verify sticky headbar does not regress to zero values.
 - **Expected**: Stable first paint from route data with no zero-state regression and no compact-value oscillation.
-- **Actual**: Transient state/style oscillation remains despite prior cache removal and route-loader unification attempts.
-- **Root cause (working hypothesis)**: Overlapping ownership of market-facing state across route payload, page-level update paths, and app-shell polling assignments.
+- **Actual**: Navigation delay and compact oscillation are resolved, but zero-data state still intermittently appears around the `POST /api/debug/client-logs` window, between successful `/api/markets` and `/api/headlines?_ts=...` requests.
+- **Root cause (working hypothesis)**: Remaining issue is a state-adoption race in shell/page ownership during hydration and post-navigation polling windows, not an API availability failure.
 - **Fix plan**:
-  1. Produce one event timeline with payload provenance from loader to rendered assignment.
-  2. Enforce single owner for market summary state during hydration window.
-  3. Move secondary poll-driven updates behind explicit freshness gates and non-regressive merge rules.
-  4. Re-verify with identical probe bundle before/after patch.
+  1. Add focused timing/provenance logs for state writes to sticky headbar and markets page immediately before/after `POST /api/debug/client-logs`.
+  2. Verify and enforce monotonic/non-regressive assignment rules for shell global state and page markets state.
+  3. Capture before/after incident bundles with the same reproduction path and correlate by timestamp.
+  4. Close only after repeated `/currencies/[id] -> /` and `/ -> /` logo clicks show no zero-state regression.
 
 ## Closed
 
