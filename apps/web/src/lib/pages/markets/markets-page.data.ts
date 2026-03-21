@@ -55,6 +55,10 @@ const EMPTY_HIGHLIGHTS: MarketHighlights = {
     topGainers: []
 };
 
+const MARKETS_CACHE_TTL_MS = 30_000;
+let cachedMarketsPageData: ReturnType<typeof normalizeMarketsPayload> | null = null;
+let cachedMarketsPageDataAt = 0;
+
 function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
     const safePayload = payload ?? {};
     return {
@@ -70,6 +74,16 @@ function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
 }
 
 export function createInitialMarketsPageData() {
+    if (
+        cachedMarketsPageData !== null &&
+        Date.now() - cachedMarketsPageDataAt < MARKETS_CACHE_TTL_MS
+    ) {
+        return {
+            ...cachedMarketsPageData,
+            stale: false,
+        };
+    }
+
     return normalizeMarketsPayload({
         stale: true
     });
@@ -87,7 +101,13 @@ export async function loadMarketsPageData(fetchFn: typeof fetch) {
             });
         }
 
-        return normalizeMarketsPayload(payload);
+        const normalized = normalizeMarketsPayload(payload);
+        if (normalized.coins.length > 0) {
+            cachedMarketsPageData = normalized;
+            cachedMarketsPageDataAt = Date.now();
+        }
+
+        return normalized;
     } catch {
         return normalizeMarketsPayload({
             stale: true

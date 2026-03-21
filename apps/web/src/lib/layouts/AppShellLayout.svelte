@@ -275,11 +275,7 @@
 
     <header class="terminal-header">
         <div class="top-nav-main">
-            <a
-                class="brand"
-                href="/"
-                aria-label="Go to markets home"
-            >
+            <a class="brand" href="/" aria-label="Go to markets home">
                 <span class="brand-badge">YACT</span>
                 <span class="brand-name">YACT</span>
             </a>
