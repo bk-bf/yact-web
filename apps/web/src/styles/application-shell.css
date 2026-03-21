@@ -472,10 +472,12 @@ a {
 .market-overview {
     margin-bottom: var(--space-2);
     display: grid;
-    gap: var(--space-4);
-    background: transparent;
-    border: 0;
-    padding: 0;
+    gap: var(--space-3);
+    background: rgba(10, 4, 22, 0.88);
+    border: 1px solid rgba(155, 75, 235, 0.6);
+    border-radius: 20px;
+    padding: var(--space-5);
+    box-shadow: 0 2px 20px rgba(100, 20, 180, 0.2);
 }
 
 .market-floating-bar {
@@ -582,23 +584,21 @@ a {
     display: grid;
     gap: var(--space-3);
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    border-bottom: none;
 }
 
 .overview-stat-card,
 .overview-list-card {
-    border: 1px solid rgba(155, 75, 235, 0.6);
-    border-radius: 20px;
+    border: 1px solid rgba(130, 55, 210, 0.3);
+    border-radius: 14px;
     padding: var(--space-5);
-    background: rgba(10, 4, 22, 0.88);
-    box-shadow: 0 2px 20px rgba(100, 20, 180, 0.2), inset 0 0 0 1px rgba(120, 50, 200, 0.08);
-    transition: border-color 0.22s ease, box-shadow 0.22s ease;
+    background: rgba(6, 2, 14, 0.7);
+    transition: border-color 0.22s ease, background 0.22s ease;
 }
 
 .overview-stat-card:hover,
 .overview-list-card:hover {
-    border-color: rgba(190, 100, 255, 0.8);
-    box-shadow: 0 4px 28px rgba(120, 30, 210, 0.32);
+    border-color: rgba(165, 85, 245, 0.55);
+    background: rgba(14, 5, 30, 0.85);
 }
 
 .overview-grid>article:last-child {
