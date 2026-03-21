@@ -3,8 +3,7 @@
     import { navigating } from "$app/stores";
     import CoinTerminalChart from "../../components/CoinTerminalChart.svelte";
     import {
-        loadCoinDetailCriticalOnlyData,
-        loadCoinDetailHeadlinesData,
+        loadCoinDetailPageData,
         loadCoinDetailMarketsAuxData,
     } from "./coin-detail-page.data";
     import { useProgressiveDataLoad } from "../../composables/useProgressiveDataLoad.svelte";
@@ -71,10 +70,16 @@
 
         isRefreshingCoinData = true;
 
-        // Load critical data (coin + chart) first
+        // Markets aux is independent of coin/chart/headlines — start it immediately.
+        const marketsPromise = loadCoinDetailMarketsAuxData(
+            fetch,
+            abortController.signal,
+        );
+
+        // Unified pipeline: coin + chart + headlines all in parallel (same as route load).
         try {
             await progressive.loadCritical(() =>
-                loadCoinDetailCriticalOnlyData(
+                loadCoinDetailPageData(
                     fetch,
                     coin.id,
                     abortController.signal,
@@ -85,26 +90,7 @@
                 return;
             }
 
-            const headlinesPromise = loadCoinDetailHeadlinesData(
-                fetch,
-                abortController.signal,
-            );
-            const marketsPromise = loadCoinDetailMarketsAuxData(
-                fetch,
-                abortController.signal,
-            );
-
-            // Then load auxiliary data (headlines, markets, etc.) in background with smart merging
-            await progressive.loadAuxiliary(async (current) => {
-                const headlines = await headlinesPromise;
-                return {
-                    ...current,
-                    headlines:
-                        headlines.length > 0 ? headlines : current.headlines,
-                };
-            });
-
-            // Keep markets-derived side panels non-blocking and independent from headline loading.
+            // Markets side panels are non-blocking and independent.
             void progressive.loadAuxiliary(async (current) => {
                 const aux = await marketsPromise;
                 return {

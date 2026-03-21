@@ -282,6 +282,44 @@ function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+// Single unified pipeline — used by both the route load function and client-side refresh.
+// Fetches coin breakdown, chart, and headlines in parallel so every entry point
+// (SSR, SPA navigation, refresh) follows the same loading latency profile.
+export async function loadCoinDetailPageData(
+    fetchFn: typeof fetch,
+    coinId: string,
+    signal?: AbortSignal,
+) {
+    const initialData = createInitialCoinDetailPageData(coinId);
+    const coinCacheTtlMs = 15_000;
+    const chartCacheTtlMs = 20_000;
+    const headlinesCacheTtlMs = 30_000;
+
+    const [coinResult, chartResult, headlinesResult] = await Promise.all([
+        fetchJsonWithTimeout<CoinBreakdownResponse>(fetchFn, `/api/coins/${coinId}`, 2500, coinCacheTtlMs, signal),
+        fetchJsonWithTimeout<CoinChartResponse>(fetchFn, `/api/coins/${coinId}/chart?range=7d`, 2500, chartCacheTtlMs, signal),
+        fetchJsonWithTimeout<HeadlinesResponse>(fetchFn, '/api/headlines', 2500, headlinesCacheTtlMs, signal),
+    ]);
+
+    const headlines = headlinesResult.ok && headlinesResult.data?.headlines
+        ? headlinesResult.data.headlines
+        : [];
+
+    if (!coinResult.ok || !coinResult.data?.coin) {
+        return { ...initialData, headlines };
+    }
+
+    const chartPayload = chartResult.ok ? chartResult.data ?? undefined : undefined;
+
+    return {
+        ...initialData,
+        coin: normalizeCoinBreakdown(coinResult.data.coin, coinId, chartPayload),
+        coinSnapshotTs: coinResult.data.snapshotTs ?? null,
+        stale: coinResult.data.stale ?? false,
+        headlines,
+    };
+}
+
 export async function loadCoinDetailHeadlinesData(
     fetchFn: typeof fetch,
     signal?: AbortSignal,

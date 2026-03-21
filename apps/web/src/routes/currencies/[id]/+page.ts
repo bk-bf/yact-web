@@ -1,7 +1,7 @@
 import { error } from '@sveltejs/kit';
 import type { PageLoad } from './$types';
 import {
-    loadCoinDetailCriticalData
+    loadCoinDetailPageData
 } from '../../../lib/pages/coin-detail/coin-detail-page.data';
 
 export const load: PageLoad = async ({ params, fetch }) => {
@@ -9,5 +9,5 @@ export const load: PageLoad = async ({ params, fetch }) => {
         throw error(400, 'Missing coin id.');
     }
 
-    return loadCoinDetailCriticalData(fetch, params.id);
+    return loadCoinDetailPageData(fetch, params.id);
 };
