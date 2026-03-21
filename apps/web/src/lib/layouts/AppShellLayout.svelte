@@ -428,7 +428,7 @@
 
         {#if topbarHeadlines.length > 0}
             <div class="news-pill-wrap" aria-label="Latest crypto headlines">
-                <span class="news-pill-label">📰 News</span>
+                <span class="news-pill-label">⭐ News</span>
                 <div class="news-ticker-overflow">
                     <div
                         class="news-ticker-inner"
