@@ -470,15 +470,12 @@ a {
 }
 
 .market-overview {
-    margin-bottom: var(--space-2);
+    margin-bottom: var(--space-4);
     display: grid;
     gap: var(--space-3);
-    background: rgba(10, 4, 22, 0.88);
-    border-left: 1px solid rgba(155, 75, 235, 0.6);
-    border-right: 1px solid rgba(155, 75, 235, 0.6);
-    border-radius: 0;
-    padding: var(--space-5) var(--space-5) var(--space-4);
-    box-shadow: 0 2px 20px rgba(100, 20, 180, 0.2);
+    background: transparent;
+    border: none;
+    padding: 0;
 }
 
 .market-floating-bar {
@@ -589,17 +586,19 @@ a {
 
 .overview-stat-card,
 .overview-list-card {
-    border: 1px solid rgba(130, 55, 210, 0.3);
-    border-radius: 14px;
+    border: 1px solid rgba(140, 65, 220, 0.5);
+    border-radius: 16px;
     padding: var(--space-5);
-    background: rgba(6, 2, 14, 0.7);
-    transition: border-color 0.22s ease, background 0.22s ease;
+    background: rgba(8, 3, 18, 0.85);
+    box-shadow: 0 2px 18px rgba(90, 15, 160, 0.18);
+    transition: border-color 0.22s ease, background 0.22s ease, box-shadow 0.22s ease;
 }
 
 .overview-stat-card:hover,
 .overview-list-card:hover {
-    border-color: rgba(165, 85, 245, 0.55);
-    background: rgba(14, 5, 30, 0.85);
+    border-color: rgba(175, 90, 255, 0.75);
+    background: rgba(14, 5, 30, 0.92);
+    box-shadow: 0 4px 28px rgba(120, 30, 210, 0.3);
 }
 
 .overview-grid>article:last-child {
