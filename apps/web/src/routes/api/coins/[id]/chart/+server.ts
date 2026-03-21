@@ -87,5 +87,11 @@ export async function GET({ fetch, params, url }) {
         stale: false,
         origin: chart.value.source,
         snapshotTs: chart.ts
+    }, {
+        headers: {
+            // Miner cycle is 5 min; 60s is safe to cache at the browser/CDN layer.
+            // max=chart is the longest-lived; 24h is the freshest — all share the same TTL.
+            'Cache-Control': 'public, max-age=60, stale-while-revalidate=120',
+        }
     });
 }
