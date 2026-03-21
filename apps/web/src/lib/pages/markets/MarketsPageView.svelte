@@ -13,6 +13,7 @@
         hasMeaningfulMarketsPayload,
         isMarketsDataCacheStale,
         loadMarketsPageData,
+        type MarketsPageData,
         setMarketsDataCache,
     } from "./markets-page.data";
 
@@ -24,7 +25,7 @@
     //   is empty, to avoid persistent zero-state lockups after slow navigation.
     // - Shared layout polling can update shell surfaces, not page-owned state.
     const fallbackData = createEmptyMarketsPageData();
-    let { data } = $props();
+    let { data }: { data: MarketsPageData } = $props();
     let recoveredData = $state<typeof fallbackData | null>(null);
 
     // Safeguard: ensure data has required structure, falling back if any field is missing
@@ -312,7 +313,19 @@
         return formatDetailedUsd(jitter.getValue(key, base));
     }
 
+    type OverviewStyleVariant = "separate" | "unified" | "minimal";
+
+    const overviewStyleOptions: Array<{
+        value: OverviewStyleVariant;
+        label: string;
+    }> = [
+        { value: "separate", label: "Separate Bubbles" },
+        { value: "unified", label: "One Bubble" },
+        { value: "minimal", label: "Flat Black" },
+    ];
+
     let showOverview = $state(true);
+    let overviewStyle = $state<OverviewStyleVariant>("separate");
 </script>
 
 <svelte:head>
@@ -320,10 +333,27 @@
 </svelte:head>
 
 {#if showOverview}
+    <div class="market-overview-style-switcher" role="toolbar" aria-label="Overview style variants">
+        {#each overviewStyleOptions as option}
+            <button
+                type="button"
+                class:active={overviewStyle === option.value}
+                class="table-filter-item market-overview-style-toggle"
+                aria-pressed={overviewStyle === option.value}
+                onclick={() => {
+                    overviewStyle = option.value;
+                }}
+            >
+                {option.label}
+            </button>
+        {/each}
+    </div>
+
     <MarketOverviewPanel
         {viewData}
         {jitter}
         {hover}
+        {overviewStyle}
         {formatJitterUsd}
         {formatStableCompactUsd}
         {formatTwoDecimals}

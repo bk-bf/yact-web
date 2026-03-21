@@ -2,10 +2,13 @@
     import type { MarketsPageData } from "./markets-page.data";
     import { isCoinJitterEligible } from "../../effects/usePriceJitter.svelte";
 
+    type OverviewStyleVariant = "separate" | "unified" | "minimal";
+
     const {
         viewData,
         jitter,
         hover,
+        overviewStyle,
         formatJitterUsd,
         formatStableCompactUsd,
         formatTwoDecimals,
@@ -28,6 +31,7 @@
             enter: (id: string) => void;
             leave: () => void;
         };
+        overviewStyle: OverviewStyleVariant;
         formatJitterUsd: (key: string, base: number) => string;
         formatStableCompactUsd: (v: number | null | undefined) => string;
         formatTwoDecimals: (v: number | null | undefined) => string;
@@ -42,7 +46,7 @@
     } = $props();
 </script>
 
-<section class="market-overview">
+<section class={`market-overview market-overview--${overviewStyle}`}>
     <div class="market-overview-head">
         <div>
             <h1>Cryptocurrency Prices by Market Cap</h1>
