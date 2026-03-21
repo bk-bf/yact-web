@@ -9,11 +9,12 @@
 - **First appeared**: 2026-03-21
 - **Related roadmap task**: T-018
 - **Area**: UI
-- **Summary**: All primary symptoms resolved. Route-transition delay, compact-value oscillation, zero-state on hard reload, and frequent zero-state on logo navigation are all fixed. A rare residual zero-state flash on `/currencies/[id] -> /` navigation remains — occurs seldom enough that active investigation is deferred to monitoring.
+- **Summary**: All primary symptoms resolved. Route-transition delay, compact-value oscillation, zero-state on hard reload, and frequent zero-state on logo navigation are all fixed. A rare residual zero-state flash on `/currencies/[id] -> /` navigation remains — occurs seldom enough that active investigation is deferred to monitoring. The same zero-state pattern was also present in the coin chart component (range switches briefly rendering a flat horizontal line) and has been fixed with the same guard pattern.
 - **Fixes applied (2026-03-21)**:
   1. Module-level stale-while-revalidate cache in `markets-page.data.ts` (`getMarketsDataCache`/`setMarketsDataCache`): serves cached meaningful data instantly on SvelteKit navigation and revalidates in the background.
   2. `hasMeaningfulGlobal` guard in `AppShellLayout.svelte`: shell sticky-bar state only updates when incoming data is meaningful; prevents empty fallback from overwriting good state.
   3. `RouteProgress.svelte` component: shared purple top-of-page loading bar active on route transitions and initial page load (500ms `$effect` timer).
+  4. `lastMeaningfulSeries` guard in `CoinTerminalChart.svelte`: same pattern applied to charts. `chartSeries` served a flat 2-point `[currentPrice, currentPrice]` placeholder while an uncached range was loading. Now tracks the last series with ≥2 real data points and returns it as the fallback instead, so the previous range's real chart remains visible while the new range fetches. A seed `$effect` pre-populates it from the server-pushed 7d payload on mount so the guard is non-null before the first fetch completes. `chartFetchInFlight` state adds an `opacity: 0.5` CSS transition on the SVG during in-flight fetches.
 - **Residual**: Very rare zero-state flash on `/currencies/[id] -> /` navigation only. Not reproducible on demand; guards are working in the vast majority of cases.
 - **Monitoring condition**: Reopen and escalate severity if zero-state becomes reproducible on demand or occurs more than once per 20 navigations.
 
