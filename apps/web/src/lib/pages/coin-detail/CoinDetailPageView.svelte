@@ -289,7 +289,11 @@
         </aside>
 
         <main class="coin-main-panel">
-            <FilterBar items={coinTabs} role="tablist" ariaLabel="Coin sections" />
+            <FilterBar
+                items={coinTabs}
+                role="tablist"
+                ariaLabel="Coin sections"
+            />
 
             <CoinTerminalChart {coin} />
             <CoinAboutCard {coin} />

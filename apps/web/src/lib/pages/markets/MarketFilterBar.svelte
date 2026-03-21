@@ -1,7 +1,7 @@
 <script lang="ts">
     // Placeholder filter bar — buttons are not yet wired to filtering state.
     // See TODO(T-007, .docs/features/open/ROADMAP.md) for implementation plan.
-    import FilterBar from '$lib/components/FilterBar.svelte';
+    import FilterBar from "$lib/components/FilterBar.svelte";
 
     const filters = [
         { label: "Top 100", active: true },
