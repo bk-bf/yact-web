@@ -24,6 +24,7 @@
 
 body {
     margin: 0;
+    overflow-x: hidden;
     font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
     color: var(--tv-text-primary);
     background:
@@ -954,10 +955,13 @@ a {
 .market-table-wrap {
     overflow: visible;
     position: relative;
+    /* Never let the table push beyond the content column width */
+    max-width: 100%;
 }
 
 .market-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
 }
@@ -968,6 +972,52 @@ a {
     border-bottom: 1px solid var(--m3-outline-variant);
     white-space: nowrap;
     text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Rank — fixed narrow */
+.market-table th:nth-child(1),
+.market-table td:nth-child(1) {
+    width: 4rem;
+}
+
+/* Coin name — no explicit width: takes all remaining space in fixed layout */
+
+/* Price */
+.market-table th:nth-child(3),
+.market-table td:nth-child(3) {
+    width: 9rem;
+}
+
+/* 24h */
+.market-table th:nth-child(4),
+.market-table td:nth-child(4) {
+    width: 6rem;
+}
+
+/* 7d sparkline */
+.market-table th:nth-child(5),
+.market-table td:nth-child(5) {
+    width: 9rem;
+}
+
+/* Market Cap */
+.market-table th:nth-child(6),
+.market-table td:nth-child(6) {
+    width: 8rem;
+}
+
+/* Volume (24h) */
+.market-table th:nth-child(7),
+.market-table td:nth-child(7) {
+    width: 9rem;
+}
+
+/* Circulating Supply */
+.market-table th:nth-child(8),
+.market-table td:nth-child(8) {
+    width: 11rem;
 }
 
 .market-table thead th {
@@ -1070,10 +1120,26 @@ a {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    min-width: 0; /* allow flex child to shrink below content size */
 }
 
 .coin-name img {
+    flex-shrink: 0;
     border-radius: 999px;
+}
+
+.coin-row-anchor {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.coin-row-anchor span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .coin-terminal {
