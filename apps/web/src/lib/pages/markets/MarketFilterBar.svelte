@@ -1,6 +1,8 @@
 <script lang="ts">
     // Placeholder filter bar — buttons are not yet wired to filtering state.
     // See TODO(T-007, .docs/features/open/ROADMAP.md) for implementation plan.
+    import FilterBar from '$lib/components/FilterBar.svelte';
+
     const filters = [
         { label: "Top 100", active: true },
         { label: "Trending" },
@@ -18,16 +20,4 @@
     ];
 </script>
 
-<div class="table-filter-bar" role="toolbar" aria-label="Market filters">
-    <div class="table-filter-left">
-        {#each filters as filter}
-            <button
-                type="button"
-                class="table-filter-item"
-                class:active={filter.active}
-            >
-                {filter.label}
-            </button>
-        {/each}
-    </div>
-</div>
+<FilterBar items={filters} role="toolbar" ariaLabel="Market filters" />

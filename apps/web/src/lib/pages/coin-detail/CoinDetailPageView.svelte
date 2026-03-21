@@ -22,6 +22,15 @@
     import CoinMomentumCard from "./CoinMomentumCard.svelte";
     import CoinNewsCard from "./CoinNewsCard.svelte";
     import CoinMoversCard from "./CoinMoversCard.svelte";
+    import FilterBar from "../../components/FilterBar.svelte";
+
+    const coinTabs = [
+        { label: "Chart", active: true },
+        { label: "Markets" },
+        { label: "News" },
+        { label: "Yield" },
+        { label: "About" },
+    ];
 
     let { data } = $props();
     const settings = getContext<ViewSettings>(VIEW_SETTINGS_KEY);
@@ -280,19 +289,7 @@
         </aside>
 
         <main class="coin-main-panel">
-            <div
-                class="coin-terminal-tabs coin-terminal-tabs-center"
-                role="tablist"
-                aria-label="Coin sections"
-            >
-                <button class="coin-terminal-tab active" type="button"
-                    >Chart</button
-                >
-                <button class="coin-terminal-tab" type="button">Markets</button>
-                <button class="coin-terminal-tab" type="button">News</button>
-                <button class="coin-terminal-tab" type="button">Yield</button>
-                <button class="coin-terminal-tab" type="button">About</button>
-            </div>
+            <FilterBar items={coinTabs} role="tablist" ariaLabel="Coin sections" />
 
             <CoinTerminalChart {coin} />
             <CoinAboutCard {coin} />
