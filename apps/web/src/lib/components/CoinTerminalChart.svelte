@@ -1,5 +1,13 @@
 <script lang="ts">
     import { browser } from "$app/environment";
+    import { getContext } from "svelte";
+    import {
+        VIEW_SETTINGS_KEY,
+        type ViewSettings,
+    } from "../composables/useViewSettings.svelte";
+    import LightweightChart from "./LightweightChart.svelte";
+
+    const settings = getContext<ViewSettings>(VIEW_SETTINGS_KEY);
 
     type ChartMode = "line" | "candles";
     type ChartRange = "24h" | "7d" | "1m" | "3m" | "ytd" | "1y" | "max";
@@ -799,228 +807,255 @@
             </div>
         </div>
 
-        <div class="coin-widget-wrap" aria-label={`${coin.name} custom chart`}>
-            <svg
-                bind:this={chartSvg}
-                viewBox={`0 0 ${chartWidth} ${chartHeight}`}
-                class={`coin-custom-chart${chartFetchInFlight ? " chart-loading" : ""}`}
-                role="img"
-                aria-label={`${coin.name} price and volume chart`}
-                onpointermove={updateHoverFromPointer}
-                onpointerleave={clearHover}
+        {#if settings?.chartEngine === "lightweight"}
+            <div
+                class="coin-widget-wrap lw-wrap"
+                aria-label={`${coin.name} chart`}
             >
-                <defs>
-                    <linearGradient
-                        id={`priceFill-${coin.id}`}
-                        x1="0"
-                        y1="0"
-                        x2="0"
-                        y2="1"
-                    >
-                        <stop
-                            offset="0%"
-                            stop-color={isPositive
-                                ? "rgba(32, 214, 141, 0.24)"
-                                : "rgba(255, 77, 87, 0.24)"}
-                        />
-                        <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
-                    </linearGradient>
-                </defs>
-
-                <rect
-                    x={plotLeft}
-                    y={plotTop}
-                    width={plotWidth}
-                    height={priceHeight}
-                    class="coin-chart-plot-bg"
+                <LightweightChart
+                    prices={filteredChartPrices}
+                    volumes={filteredChartVolumes}
+                    timestamps={filteredChartTimestamps}
+                    {chartMode}
+                    candleBuckets={chartRangeConfig[chartRange].candleBuckets}
+                    currentPrice={currentPriceValue}
+                    {isPositive}
+                    loading={chartFetchInFlight}
+                    coinId={coin.id}
+                    coinName={coin.name}
                 />
+            </div>
+        {:else}
+            <div
+                class="coin-widget-wrap"
+                aria-label={`${coin.name} custom chart`}
+            >
+                <svg
+                    bind:this={chartSvg}
+                    viewBox={`0 0 ${chartWidth} ${chartHeight}`}
+                    class={`coin-custom-chart${chartFetchInFlight ? " chart-loading" : ""}`}
+                    role="img"
+                    aria-label={`${coin.name} price and volume chart`}
+                    onpointermove={updateHoverFromPointer}
+                    onpointerleave={clearHover}
+                >
+                    <defs>
+                        <linearGradient
+                            id={`priceFill-${coin.id}`}
+                            x1="0"
+                            y1="0"
+                            x2="0"
+                            y2="1"
+                        >
+                            <stop
+                                offset="0%"
+                                stop-color={isPositive
+                                    ? "rgba(32, 214, 141, 0.24)"
+                                    : "rgba(255, 77, 87, 0.24)"}
+                            />
+                            <stop offset="100%" stop-color="rgba(0, 0, 0, 0)" />
+                        </linearGradient>
+                    </defs>
 
-                {#each yLevels as level}
+                    <rect
+                        x={plotLeft}
+                        y={plotTop}
+                        width={plotWidth}
+                        height={priceHeight}
+                        class="coin-chart-plot-bg"
+                    />
+
+                    {#each yLevels as level}
+                        <line
+                            x1={plotLeft}
+                            x2={plotLeft + plotWidth}
+                            y1={plotTop +
+                                ((scaledMax - level) /
+                                    (scaledMax - scaledMin || 1)) *
+                                    priceHeight}
+                            y2={plotTop +
+                                ((scaledMax - level) /
+                                    (scaledMax - scaledMin || 1)) *
+                                    priceHeight}
+                            class="coin-chart-grid-line"
+                        />
+                        <text
+                            x={rightLabelX}
+                            y={plotTop +
+                                ((scaledMax - level) /
+                                    (scaledMax - scaledMin || 1)) *
+                                    priceHeight +
+                                4}
+                            class="coin-chart-axis-label"
+                            text-anchor="end"
+                        >
+                            {compactUsd.format(level)}
+                        </text>
+                    {/each}
+
+                    {#if chartMode === "line"}
+                        <path
+                            d={areaPath}
+                            class="coin-chart-area"
+                            fill={`url(#priceFill-${coin.id})`}
+                        />
+                        <path
+                            d={linePath}
+                            class={`coin-chart-line ${isPositive ? "positive" : "negative"}`}
+                        />
+                    {:else}
+                        {#each candles as candle, index}
+                            {@const candleStep =
+                                plotWidth / Math.max(candles.length, 1)}
+                            {@const cx = plotLeft + candleStep * (index + 0.5)}
+                            {@const openY =
+                                plotTop +
+                                ((scaledMax - candle.open) /
+                                    (scaledMax - scaledMin || 1)) *
+                                    priceHeight}
+                            {@const closeY =
+                                plotTop +
+                                ((scaledMax - candle.close) /
+                                    (scaledMax - scaledMin || 1)) *
+                                    priceHeight}
+                            {@const highY =
+                                plotTop +
+                                ((scaledMax - candle.high) /
+                                    (scaledMax - scaledMin || 1)) *
+                                    priceHeight}
+                            {@const lowY =
+                                plotTop +
+                                ((scaledMax - candle.low) /
+                                    (scaledMax - scaledMin || 1)) *
+                                    priceHeight}
+                            {@const bodyY = Math.min(openY, closeY)}
+                            {@const bodyH = Math.max(
+                                1.5,
+                                Math.abs(closeY - openY),
+                            )}
+                            <line
+                                x1={cx}
+                                x2={cx}
+                                y1={highY}
+                                y2={lowY}
+                                class={`coin-candle-wick ${candle.close >= candle.open ? "up" : "down"}`}
+                            />
+                            <rect
+                                x={cx - candleStep * 0.28}
+                                y={bodyY}
+                                width={candleStep * 0.56}
+                                height={bodyH}
+                                class={`coin-candle-body ${candle.close >= candle.open ? "up" : "down"}`}
+                            />
+                        {/each}
+                    {/if}
+
+                    {#if hoverX !== null && hoverPointY !== null}
+                        <line
+                            x1={hoverX}
+                            x2={hoverX}
+                            y1={plotTop}
+                            y2={volumeTop + volumeHeight}
+                            class="coin-hover-crosshair"
+                        />
+                        <circle
+                            cx={hoverX}
+                            cy={hoverPointY}
+                            r="4.2"
+                            class="coin-hover-dot"
+                        />
+                    {/if}
+
                     <line
                         x1={plotLeft}
                         x2={plotLeft + plotWidth}
-                        y1={plotTop +
-                            ((scaledMax - level) /
-                                (scaledMax - scaledMin || 1)) *
-                                priceHeight}
-                        y2={plotTop +
-                            ((scaledMax - level) /
-                                (scaledMax - scaledMin || 1)) *
-                                priceHeight}
-                        class="coin-chart-grid-line"
+                        y1={currentPriceY}
+                        y2={currentPriceY}
+                        class="coin-current-line"
+                    />
+                    <rect
+                        x={plotLeft + plotWidth + 4}
+                        y={currentPriceY - 12}
+                        width="88"
+                        height="24"
+                        rx="6"
+                        class={`coin-current-pill ${isPositive ? "positive" : "negative"}`}
                     />
                     <text
-                        x={rightLabelX}
-                        y={plotTop +
-                            ((scaledMax - level) /
-                                (scaledMax - scaledMin || 1)) *
-                                priceHeight +
-                            4}
-                        class="coin-chart-axis-label"
-                        text-anchor="end"
+                        x={plotLeft + plotWidth + 60}
+                        y={currentPriceY}
+                        text-anchor="middle"
+                        class="coin-current-pill-text"
                     >
-                        {compactUsd.format(level)}
+                        <tspan dy="0.32em"
+                            >{compactUsd.format(currentPriceValue)}</tspan
+                        >
                     </text>
-                {/each}
 
-                {#if chartMode === "line"}
-                    <path
-                        d={areaPath}
-                        class="coin-chart-area"
-                        fill={`url(#priceFill-${coin.id})`}
+                    <rect
+                        x={plotLeft}
+                        y={volumeTop}
+                        width={plotWidth}
+                        height={volumeHeight}
+                        class="coin-volume-bg"
                     />
-                    <path
-                        d={linePath}
-                        class={`coin-chart-line ${isPositive ? "positive" : "negative"}`}
-                    />
-                {:else}
-                    {#each candles as candle, index}
-                        {@const candleStep =
-                            plotWidth / Math.max(candles.length, 1)}
-                        {@const cx = plotLeft + candleStep * (index + 0.5)}
-                        {@const openY =
-                            plotTop +
-                            ((scaledMax - candle.open) /
-                                (scaledMax - scaledMin || 1)) *
-                                priceHeight}
-                        {@const closeY =
-                            plotTop +
-                            ((scaledMax - candle.close) /
-                                (scaledMax - scaledMin || 1)) *
-                                priceHeight}
-                        {@const highY =
-                            plotTop +
-                            ((scaledMax - candle.high) /
-                                (scaledMax - scaledMin || 1)) *
-                                priceHeight}
-                        {@const lowY =
-                            plotTop +
-                            ((scaledMax - candle.low) /
-                                (scaledMax - scaledMin || 1)) *
-                                priceHeight}
-                        {@const bodyY = Math.min(openY, closeY)}
-                        {@const bodyH = Math.max(1.5, Math.abs(closeY - openY))}
-                        <line
-                            x1={cx}
-                            x2={cx}
-                            y1={highY}
-                            y2={lowY}
-                            class={`coin-candle-wick ${candle.close >= candle.open ? "up" : "down"}`}
-                        />
+                    {#each filteredChartVolumes as volume, idx}
+                        {@const barWidth =
+                            plotWidth / filteredChartVolumes.length}
+                        {@const barH = (volume / volumeMax) * volumeHeight}
                         <rect
-                            x={cx - candleStep * 0.28}
-                            y={bodyY}
-                            width={candleStep * 0.56}
-                            height={bodyH}
-                            class={`coin-candle-body ${candle.close >= candle.open ? "up" : "down"}`}
+                            x={plotLeft + idx * barWidth + 0.4}
+                            y={volumeTop + (volumeHeight - barH)}
+                            width={Math.max(0.8, barWidth - 0.8)}
+                            height={barH}
+                            class={`coin-volume-bar ${hoveredIndex === idx ? "hovered" : ""}`}
                         />
                     {/each}
-                {/if}
 
-                {#if hoverX !== null && hoverPointY !== null}
+                    {#each xTickLabels as label, idx}
+                        <text
+                            x={plotLeft +
+                                (plotWidth * idx) /
+                                    Math.max(xTickLabels.length - 1, 1)}
+                            y={401}
+                            text-anchor={idx === 0
+                                ? "start"
+                                : idx === xTickLabels.length - 1
+                                  ? "end"
+                                  : "middle"}
+                            class="coin-chart-time-label"
+                        >
+                            {label}
+                        </text>
+                    {/each}
+
                     <line
-                        x1={hoverX}
-                        x2={hoverX}
-                        y1={plotTop}
-                        y2={volumeTop + volumeHeight}
-                        class="coin-hover-crosshair"
+                        x1={plotLeft}
+                        x2={plotLeft + plotWidth}
+                        y1={overviewTop + overviewHeight + 1}
+                        y2={overviewTop + overviewHeight + 1}
+                        class="coin-overview-baseline"
                     />
-                    <circle
-                        cx={hoverX}
-                        cy={hoverPointY}
-                        r="4.2"
-                        class="coin-hover-dot"
-                    />
+                    <path d={overviewPath} class="coin-overview-line" />
+                </svg>
+
+                {#if hoverTooltipX !== null && hoverTooltipY !== null && hoverPrice !== null && hoverVolume !== null}
+                    <div
+                        class="coin-hover-tooltip"
+                        style={`left: ${(hoverTooltipX / chartWidth) * 100}%; top: ${(hoverTooltipY / chartHeight) * 100}%;`}
+                    >
+                        <p class="coin-hover-tooltip-date">{hoverDateLabel}</p>
+                        <p class="coin-hover-tooltip-row">
+                            <span>Price</span>
+                            <strong>{compactUsd.format(hoverPrice)}</strong>
+                        </p>
+                        <p class="coin-hover-tooltip-row">
+                            <span>Vol</span>
+                            <strong>{compactUsd.format(hoverVolume)}</strong>
+                        </p>
+                    </div>
                 {/if}
-
-                <line
-                    x1={plotLeft}
-                    x2={plotLeft + plotWidth}
-                    y1={currentPriceY}
-                    y2={currentPriceY}
-                    class="coin-current-line"
-                />
-                <rect
-                    x={plotLeft + plotWidth + 4}
-                    y={currentPriceY - 12}
-                    width="88"
-                    height="24"
-                    rx="6"
-                    class={`coin-current-pill ${isPositive ? "positive" : "negative"}`}
-                />
-                <text
-                    x={plotLeft + plotWidth + 60}
-                    y={currentPriceY}
-                    text-anchor="middle"
-                    class="coin-current-pill-text"
-                >
-                    <tspan dy="0.32em"
-                        >{compactUsd.format(currentPriceValue)}</tspan
-                    >
-                </text>
-
-                <rect
-                    x={plotLeft}
-                    y={volumeTop}
-                    width={plotWidth}
-                    height={volumeHeight}
-                    class="coin-volume-bg"
-                />
-                {#each filteredChartVolumes as volume, idx}
-                    {@const barWidth = plotWidth / filteredChartVolumes.length}
-                    {@const barH = (volume / volumeMax) * volumeHeight}
-                    <rect
-                        x={plotLeft + idx * barWidth + 0.4}
-                        y={volumeTop + (volumeHeight - barH)}
-                        width={Math.max(0.8, barWidth - 0.8)}
-                        height={barH}
-                        class={`coin-volume-bar ${hoveredIndex === idx ? "hovered" : ""}`}
-                    />
-                {/each}
-
-                {#each xTickLabels as label, idx}
-                    <text
-                        x={plotLeft +
-                            (plotWidth * idx) /
-                                Math.max(xTickLabels.length - 1, 1)}
-                        y={401}
-                        text-anchor={idx === 0
-                            ? "start"
-                            : idx === xTickLabels.length - 1
-                              ? "end"
-                              : "middle"}
-                        class="coin-chart-time-label"
-                    >
-                        {label}
-                    </text>
-                {/each}
-
-                <line
-                    x1={plotLeft}
-                    x2={plotLeft + plotWidth}
-                    y1={overviewTop + overviewHeight + 1}
-                    y2={overviewTop + overviewHeight + 1}
-                    class="coin-overview-baseline"
-                />
-                <path d={overviewPath} class="coin-overview-line" />
-            </svg>
-
-            {#if hoverTooltipX !== null && hoverTooltipY !== null && hoverPrice !== null && hoverVolume !== null}
-                <div
-                    class="coin-hover-tooltip"
-                    style={`left: ${(hoverTooltipX / chartWidth) * 100}%; top: ${(hoverTooltipY / chartHeight) * 100}%;`}
-                >
-                    <p class="coin-hover-tooltip-date">{hoverDateLabel}</p>
-                    <p class="coin-hover-tooltip-row">
-                        <span>Price</span>
-                        <strong>{compactUsd.format(hoverPrice)}</strong>
-                    </p>
-                    <p class="coin-hover-tooltip-row">
-                        <span>Vol</span>
-                        <strong>{compactUsd.format(hoverVolume)}</strong>
-                    </p>
-                </div>
-            {/if}
-        </div>
+            </div>
+        {/if}
     </div>
 </article>

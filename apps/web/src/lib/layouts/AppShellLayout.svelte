@@ -1,7 +1,18 @@
 <script lang="ts">
     import { browser } from "$app/environment";
     import { navigating, page } from "$app/stores";
+    import { setContext } from "svelte";
     import RouteProgress from "../components/RouteProgress.svelte";
+    import ViewSettingsMenu from "../components/ViewSettingsMenu.svelte";
+    import FloatingMarketItem from "./FloatingMarketItem.svelte";
+    import { formatStableCompactUsd as formatCompactUsd } from "../utils/formatters";
+    import {
+        createViewSettings,
+        VIEW_SETTINGS_KEY,
+    } from "../composables/useViewSettings.svelte";
+
+    const viewSettings = createViewSettings();
+    setContext(VIEW_SETTINGS_KEY, viewSettings);
 
     interface GlobalMarketSummary {
         totalMarketCapUsd: number;
@@ -101,6 +112,16 @@
         ).slice(0, 5),
     );
 
+    const tickerDuration = $derived(
+        topbarHeadlines.length === 0
+            ? 30
+            : Math.max(
+                  20,
+                  topbarHeadlines.reduce((acc, h) => acc + h.title.length, 0) /
+                      8,
+              ),
+    );
+
     function hasMeaningfulGlobal(global: GlobalMarketSummary): boolean {
         return (
             global.totalMarketCapUsd > 0 ||
@@ -140,28 +161,6 @@
             return "--";
         }
         return value.toFixed(1);
-    }
-
-    function formatCompactUsd(value: number | null | undefined): string {
-        if (value === null || value === undefined || !Number.isFinite(value)) {
-            return "--";
-        }
-
-        const abs = Math.abs(value);
-        if (abs >= 1_000_000_000_000) {
-            return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
-        }
-        if (abs >= 1_000_000_000) {
-            return `$${(value / 1_000_000_000).toFixed(2)}B`;
-        }
-        if (abs >= 1_000_000) {
-            return `$${(value / 1_000_000).toFixed(2)}M`;
-        }
-        if (abs >= 1_000) {
-            return `$${(value / 1_000).toFixed(2)}K`;
-        }
-
-        return `$${value.toFixed(2)}`;
     }
 
     function formatInteger(value: number | null | undefined): string {
@@ -386,15 +385,17 @@
         aria-busy={!isGlobalReady}
     >
         <div class="market-floating-stats" aria-label="Live market stats">
-            <span class="market-floating-item"
+            <FloatingMarketItem
                 >Coins: {formatInteger(
                     displayGlobal.activeCryptocurrencies,
-                )}</span
+                )}</FloatingMarketItem
             >
-            <span class="market-floating-item"
-                >Exchanges: {formatInteger(displayGlobal.totalExchanges)}</span
+            <FloatingMarketItem
+                >Exchanges: {formatInteger(
+                    displayGlobal.totalExchanges,
+                )}</FloatingMarketItem
             >
-            <span class="market-floating-item"
+            <FloatingMarketItem
                 >Market Cap: {formatCompactUsd(displayGlobal.totalMarketCapUsd)}
                 <span
                     class={displayGlobal.marketCapChangePercentage24hUsd >= 0
@@ -403,62 +404,62 @@
                     >{formatSignedPct(
                         displayGlobal.marketCapChangePercentage24hUsd,
                     )}</span
-                ></span
+                ></FloatingMarketItem
             >
-            <span class="market-floating-item"
-                >24h Vol: {formatCompactUsd(displayGlobal.totalVolumeUsd)}</span
+            <FloatingMarketItem
+                >24h Vol: {formatCompactUsd(
+                    displayGlobal.totalVolumeUsd,
+                )}</FloatingMarketItem
             >
-            <span class="market-floating-item"
+            <FloatingMarketItem
                 >Dominance: BTC {formatOneDecimalPercent(
                     displayGlobal.btcDominance,
-                )}%</span
+                )}%</FloatingMarketItem
             >
-            <span class="market-floating-item"
+            <FloatingMarketItem
                 >ETH {formatOneDecimalPercent(
                     displayGlobal.ethDominance,
-                )}%</span
+                )}%</FloatingMarketItem
             >
-            <span class="market-floating-item"
-                >Gas: {formatGasGwei(displayGlobal.gasGwei)} GWEI</span
+            <FloatingMarketItem
+                >Gas: {formatGasGwei(displayGlobal.gasGwei)} GWEI</FloatingMarketItem
             >
         </div>
 
-        <details class="floating-headlines-dropdown">
-            <summary class="market-floating-item floating-headlines-pill">
-                Headlines
-            </summary>
-
-            <div
-                class="floating-headlines-panel"
-                aria-label="Top crypto headlines"
-            >
-                {#if topbarHeadlines.length === 0}
-                    <p class="floating-headlines-empty">
-                        No headlines available right now.
-                    </p>
-                {:else}
-                    <ul class="floating-headlines-list">
-                        {#each topbarHeadlines as headline}
-                            <li>
-                                <a
-                                    href={headline.url}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    class="floating-headline-link"
-                                >
-                                    {headline.title}
-                                </a>
-                                <span class="floating-headline-meta"
-                                    >{headline.source} • {formatHeadlineDate(
-                                        headline.publishedAt,
-                                    )}</span
-                                >
-                            </li>
+        {#if topbarHeadlines.length > 0}
+            <div class="news-pill-wrap" aria-label="Latest crypto headlines">
+                <span class="news-pill-label">� News</span>
+                <div class="news-ticker-overflow">
+                    <div
+                        class="news-ticker-inner"
+                        style="animation-duration: {tickerDuration}s"
+                        aria-live="off"
+                    >
+                        {#each [...topbarHeadlines, ...topbarHeadlines] as headline}
+                            <a
+                                class="news-ticker-item"
+                                href={headline.url}
+                                target="_blank"
+                                rel="noreferrer">{headline.title}</a
+                            >
+                            <span class="news-ticker-sep" aria-hidden="true"
+                                >◆</span
+                            >
                         {/each}
-                    </ul>
-                {/if}
+                    </div>
+                </div>
             </div>
-        </details>
+        {:else}
+            <div
+                class="news-pill-wrap news-pill-empty"
+                aria-label="No news available"
+            >
+                <span class="news-pill-label">� News</span>
+                <span class="news-ticker-placeholder"
+                    >No headlines right now</span
+                >
+            </div>
+        {/if}
     </section>
 
     <header class="terminal-header">
@@ -493,14 +494,21 @@
                     >
                 </nav>
 
-                <div class="menu-actions">
-                    <!-- TODO(T-010, see .docs/features/open/ROADMAP.md): Wire Sign In placeholder action to real authentication flow. -->
-                    <button class="menu-action filled" type="button"
-                        >Sign In</button
-                    >
+                <div class="nav-actions">
+                    <ViewSettingsMenu settings={viewSettings} />
+
+                    <div class="menu-actions">
+                        <!-- TODO(T-010, see .docs/features/open/ROADMAP.md): Wire Sign In placeholder action to real authentication flow. -->
+                        <button class="menu-action filled" type="button"
+                            >Sign In</button
+                        >
+                    </div>
                 </div>
+                <!-- /nav-actions -->
             </div>
+            <!-- /top-nav-right -->
         </div>
+        <!-- /top-nav-main -->
     </header>
 
     {@render children?.()}

@@ -24,6 +24,7 @@
 
 body {
     margin: 0;
+    overflow-x: hidden;
     font-family: 'Source Sans 3', 'Segoe UI', sans-serif;
     color: var(--tv-text-primary);
     background:
@@ -52,9 +53,10 @@ a {
 }
 
 .terminal-header {
-    margin-bottom: var(--space-6);
-    border-bottom: 1px solid var(--color-divider);
-    background: transparent;
+    margin-bottom: var(--space-4);
+    background: linear-gradient(180deg, rgba(14, 5, 26, 0.92) 0%, rgba(7, 3, 12, 0.72) 100%);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
 }
 
 .top-nav-main {
@@ -63,13 +65,12 @@ a {
     justify-content: space-between;
     gap: var(--space-4);
     padding: var(--space-4);
-    border-bottom: 1px solid var(--tv-border);
 }
 
 .top-nav-right {
     display: inline-flex;
     align-items: center;
-    gap: 0;
+    gap: var(--space-2);
 }
 
 .brand {
@@ -88,6 +89,12 @@ a {
     background: var(--color-brand-bg);
     padding: 0.25rem 0.45rem;
     border-radius: 999px;
+    box-shadow: 0 0 8px rgba(179, 85, 255, 0.22);
+    transition: box-shadow 0.2s ease;
+}
+
+.brand:hover .brand-badge {
+    box-shadow: 0 0 16px rgba(179, 85, 255, 0.5);
 }
 
 .brand-name {
@@ -108,8 +115,10 @@ a {
     padding: 0.28rem 0.75rem;
     background: transparent;
     color: var(--color-text-nav);
+    font-size: 0.875rem;
     font-weight: 600;
     cursor: pointer;
+    transition: color 0.15s ease;
 }
 
 .menu-links .menu-link:last-child {
@@ -118,6 +127,7 @@ a {
 
 .menu-link:hover {
     color: var(--color-accent-text);
+    text-shadow: 0 0 8px rgba(176, 38, 255, 0.25);
 }
 
 .floating-headlines-dropdown {
@@ -207,6 +217,201 @@ a {
     padding: 0.4rem 0;
 }
 
+/* ── Settings dropdown ── */
+.settings-dropdown {
+    position: relative;
+    flex: 0 0 auto;
+    margin-right: var(--space-2);
+}
+
+.settings-pill {
+    list-style: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 2rem;
+    background: rgba(90, 15, 160, 0.12);
+    border: 1px solid rgba(150, 50, 230, 0.45);
+    border-radius: 6px;
+    padding: 0 0.65rem;
+    color: var(--tv-highlight-soft);
+    cursor: pointer;
+    font-size: 1rem;
+    font-weight: 600;
+    user-select: none;
+    transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.settings-pill::-webkit-details-marker {
+    display: none;
+}
+
+.settings-pill:hover {
+    background: rgba(110, 25, 200, 0.22);
+    border-color: rgba(170, 70, 255, 0.72);
+    box-shadow: 0 0 14px rgba(120, 20, 210, 0.3);
+    color: var(--tv-highlight-soft);
+}
+
+.settings-dropdown[open] .settings-pill {
+    background: rgba(110, 25, 200, 0.22);
+    border-color: rgba(170, 70, 255, 0.72);
+    box-shadow: 0 0 14px rgba(120, 20, 210, 0.3);
+    color: var(--tv-highlight-soft);
+    text-decoration: none;
+}
+
+.settings-panel {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    right: 0;
+    width: 18rem;
+    border: 1px solid var(--color-headlines-panel-border);
+    background: var(--color-headlines-panel-bg);
+    border-radius: 0.6rem;
+    padding: 0.75rem 1rem;
+    box-shadow: 0 12px 24px var(--shadow-1);
+    z-index: 120;
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+}
+
+.settings-group {
+    border: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+}
+
+.settings-group legend {
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--color-headlines-meta);
+    margin-bottom: 0.25rem;
+}
+
+.settings-radio,
+.settings-toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.875rem;
+    color: var(--color-headlines-text);
+    cursor: pointer;
+}
+
+.settings-radio input,
+.settings-toggle input {
+    accent-color: var(--color-accent-text);
+    cursor: pointer;
+}
+
+/* ── News Ticker pill ── */
+.news-pill-wrap {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    border: 1px solid rgba(160, 60, 240, 0.45);
+    border-radius: 999px;
+    overflow: hidden;
+    background: rgba(30, 8, 60, 0.6);
+    max-width: min(440px, 34vw);
+    min-width: 180px;
+    height: 1.75rem;
+}
+
+.news-pill-label {
+    flex: 0 0 auto;
+    padding: 0 0.85rem;
+    font-size: 0.8rem;
+    font-weight: 700;
+    color: var(--color-accent-text);
+    border-right: 1px solid rgba(160, 60, 240, 0.35);
+    background: rgba(100, 20, 180, 0.3);
+    white-space: nowrap;
+    height: 100%;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.news-ticker-overflow {
+    flex: 1 1 auto;
+    overflow: hidden;
+    position: relative;
+    height: 100%;
+    min-width: 0;
+}
+
+.news-ticker-inner {
+    display: inline-flex;
+    align-items: center;
+    white-space: nowrap;
+    animation: scroll-ticker linear infinite;
+    will-change: transform;
+    height: 100%;
+}
+
+.news-ticker-inner:hover {
+    animation-play-state: paused;
+}
+
+.news-ticker-item {
+    display: inline-flex;
+    align-items: center;
+    padding: 0 0.6rem;
+    font-size: 0.78rem;
+    color: var(--color-headlines-text);
+    white-space: nowrap;
+    text-decoration: none;
+    transition: color 0.15s;
+}
+
+.news-ticker-item:hover {
+    color: var(--color-accent-text);
+    text-decoration: underline;
+}
+
+.news-ticker-sep {
+    color: rgba(160, 60, 240, 0.55);
+    font-size: 0.75rem;
+    padding: 0 0.15rem;
+    flex-shrink: 0;
+}
+
+.news-pill-empty .news-ticker-placeholder {
+    padding: 0 0.75rem;
+    font-size: 0.78rem;
+    color: var(--color-headlines-meta);
+}
+
+@keyframes scroll-ticker {
+    from {
+        transform: translateX(0);
+    }
+
+    to {
+        transform: translateX(-50%);
+    }
+}
+
+.nav-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.nav-actions {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
 .menu-actions {
     display: flex;
     gap: 0;
@@ -214,8 +419,8 @@ a {
 
 .menu-action {
     border: 0;
-    border-left: 1px solid var(--color-border-strong);
     padding: 0.3rem 0.8rem;
+    font-size: 0.875rem;
     font-weight: 700;
     background: transparent;
     color: var(--color-text-nav);
@@ -223,9 +428,22 @@ a {
 }
 
 .menu-action.filled {
-    background: transparent;
-    border-left-color: var(--color-action-border);
-    color: var(--tv-highlight);
+    display: inline-flex;
+    align-items: center;
+    height: 2rem;
+    background: rgba(90, 15, 160, 0.12);
+    border: 1px solid rgba(150, 50, 230, 0.45);
+    border-radius: 6px;
+    padding: 0 0.8rem;
+    color: var(--tv-highlight-soft);
+    transition: background 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
+}
+
+.menu-action.filled:hover {
+    background: rgba(110, 25, 200, 0.22);
+    border-color: rgba(170, 70, 255, 0.72);
+    box-shadow: 0 0 14px rgba(120, 20, 210, 0.3);
+    filter: brightness(1);
 }
 
 .menu-action.outlined {
@@ -268,15 +486,24 @@ a {
     display: flex;
     gap: 0;
     flex-wrap: wrap;
+    border-left: 1px solid var(--color-border-strong);
+    padding-left: var(--space-2);
+    margin-left: var(--space-1);
 }
 
 .route-link {
     border: 0;
-    border-left: 1px solid var(--color-border-strong);
-    padding: 0.25rem 0.75rem;
+    padding: 0.28rem 0.75rem;
+    font-size: 0.875rem;
     font-weight: 600;
     color: var(--color-route-text);
     background: transparent;
+    transition: color 0.15s ease;
+}
+
+.route-link:hover {
+    color: var(--color-accent-text);
+    text-shadow: 0 0 8px rgba(176, 38, 255, 0.25);
 }
 
 .route-link[aria-current='page'] {
@@ -307,6 +534,20 @@ a {
 .m3-surface-title {
     font-size: 1.45rem;
     margin-bottom: var(--space-2);
+}
+
+@keyframes text-fade-in {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+.text-transition-in {
+    animation: text-fade-in 0.4s ease both;
 }
 
 .m3-surface-subtitle {
@@ -363,12 +604,21 @@ a {
 }
 
 .market-overview {
-    margin-bottom: var(--space-5);
+    margin-bottom: var(--space-4);
     display: grid;
-    gap: var(--space-4);
-    background: transparent;
-    border: 0;
-    padding: 0;
+    gap: var(--space-3);
+}
+
+.market-overview-style-switcher {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    flex-wrap: wrap;
+    margin: 0 0 var(--space-3);
+}
+
+.market-overview-style-toggle {
+    min-height: 2rem;
 }
 
 .market-floating-bar {
@@ -380,10 +630,12 @@ a {
     gap: 0.9rem;
     overflow: visible;
     margin-bottom: 0;
-    border-bottom: 1px solid var(--color-divider);
+    border-bottom: 1px solid rgba(160, 60, 240, 0.4);
     background: var(--color-floating-bg);
-    backdrop-filter: blur(4px);
-    padding: 0.46rem 0.2rem;
+    backdrop-filter: blur(10px);
+    padding: 0.46rem 0.6rem;
+    box-shadow: 0 2px 20px rgba(120, 20, 200, 0.22);
+    border-radius: 0 0 14px 14px;
 }
 
 .market-floating-stats {
@@ -400,10 +652,19 @@ a {
     display: inline-flex;
     align-items: center;
     white-space: nowrap;
-    padding: 0 0.24rem;
+    padding: 0.15rem 0.5rem;
     color: var(--color-floating-text);
     font-size: 0.82rem;
     font-weight: 600;
+    border-radius: 6px;
+    transition: color 0.18s ease, background 0.18s ease;
+    cursor: default;
+}
+
+.market-floating-item:hover {
+    color: var(--color-accent-text);
+    background: rgba(120, 30, 200, 0.15);
+    text-shadow: 0 0 8px rgba(179, 85, 255, 0.25);
 }
 
 .market-overview-head {
@@ -411,8 +672,6 @@ a {
     justify-content: space-between;
     align-items: flex-start;
     gap: var(--space-4);
-    padding-bottom: var(--space-3);
-    border-bottom: 1px solid var(--color-divider);
 }
 
 .market-overview-head h1 {
@@ -431,17 +690,25 @@ a {
     align-items: center;
     gap: 0.55rem;
     margin: 0 0.28rem;
-    padding: 0.18rem 0.58rem;
-    border: 1px solid var(--color-pill-active-border);
+    padding: 0.22rem 0.72rem;
+    border: 1px solid rgba(140, 70, 220, 0.7);
     border-radius: 999px;
-    background: var(--color-headlines-panel-bg);
+    background: rgba(20, 5, 40, 0.7);
     color: var(--color-headlines-text);
     font-variant-numeric: tabular-nums;
+    cursor: default;
+    transition: border-color 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+}
+
+.market-overview-pill:hover {
+    border-color: rgba(180, 100, 255, 0.9);
+    background: rgba(35, 10, 65, 0.85);
+    box-shadow: 0 0 14px rgba(140, 50, 220, 0.35);
 }
 
 .market-overview-pill-value {
     font-weight: 700;
-    color: inherit;
+    color: var(--tv-text-primary);
 }
 
 .market-overview-pill-change {
@@ -456,21 +723,116 @@ a {
 
 .overview-grid {
     display: grid;
-    gap: 0;
+    gap: var(--space-3);
     grid-template-columns: repeat(4, minmax(0, 1fr));
-    border-bottom: 1px solid var(--color-divider);
 }
 
 .overview-stat-card,
 .overview-list-card {
-    border: 0;
-    border-right: 1px solid var(--color-divider);
-    padding: var(--space-4);
-    background: transparent;
+    border-radius: 24px;
+    padding: var(--space-3) var(--space-4);
+    transition:
+        border-color 0.2s ease,
+        background 0.2s ease,
+        box-shadow 0.2s ease,
+        transform 0.2s ease;
 }
 
-.overview-grid>article:last-child {
-    border-right: 0;
+.market-overview--separate .overview-stat-card,
+.market-overview--separate .overview-list-card {
+    border: 1px solid rgba(232, 236, 242, 0.2);
+    background: transparent;
+    box-shadow: 0 10px 30px rgba(96, 18, 170, 0.16);
+}
+
+.market-overview--unified .overview-grid {
+    gap: 0;
+    background: rgba(2, 2, 5, 0.98);
+    border: 1px solid rgba(232, 236, 242, 0.2);
+    border-radius: 32px;
+    box-shadow: 0 12px 34px rgba(96, 18, 170, 0.18);
+    overflow: hidden;
+}
+
+.market-overview--unified .overview-stat-card,
+.market-overview--unified .overview-list-card {
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    box-shadow: none;
+}
+
+.market-overview--minimal .overview-stat-card,
+.market-overview--minimal .overview-list-card {
+    border: none;
+    background: transparent;
+    box-shadow: none;
+}
+
+.market-overview--minimal .hover-glow-active,
+.market-overview--minimal .hover-glow-positive,
+.market-overview--minimal .hover-glow-negative {
+    text-shadow: none;
+}
+
+.market-overview--minimal .price-tick-up,
+.market-overview--minimal .price-tick-down {
+    animation: none;
+}
+
+.market-overview--minimal .overview-stat-card:hover,
+.market-overview--minimal .overview-list-card:hover {
+    border-color: transparent;
+    background: rgba(2, 2, 5, 0.98);
+    box-shadow: none;
+    transform: none;
+}
+
+.market-overview--separate .overview-stat-card:hover,
+.market-overview--separate .overview-list-card:hover,
+.market-overview--unified .overview-stat-card:hover,
+.market-overview--unified .overview-list-card:hover {
+    border-color: rgba(248, 250, 252, 0.34);
+    background: rgba(10, 6, 16, 0.55);
+    box-shadow: 0 16px 36px rgba(120, 40, 200, 0.24);
+    transform: translateY(-2px);
+}
+
+.market-overview--unified .overview-stat-card:hover,
+.market-overview--unified .overview-list-card:hover {
+    box-shadow: none;
+    transform: none;
+}
+
+.market-overview--unified .overview-list-card:hover,
+.market-overview--unified .overview-stat-card:hover {
+    border-radius: 0;
+}
+
+.market-overview--minimal .overview-grid {
+    gap: var(--space-3);
+}
+
+.market-overview--separate .overview-grid,
+.market-overview--minimal .overview-grid {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
+}
+
+.market-overview--separate .market-overview-pill,
+.market-overview--unified .market-overview-pill {
+    border: 1px solid rgba(140, 70, 220, 0.7);
+    background: rgba(20, 5, 40, 0.7);
+}
+
+.market-overview--separate .market-overview-pill:hover,
+.market-overview--unified .market-overview-pill:hover {
+    border-color: rgba(180, 100, 255, 0.9);
+    background: rgba(35, 10, 65, 0.85);
+    box-shadow: 0 0 14px rgba(140, 50, 220, 0.35);
 }
 
 .overview-stat-card h3,
@@ -528,16 +890,27 @@ a {
 }
 
 .inline-link {
-    border: 0;
     background: transparent;
+    border: 1px solid transparent;
     color: var(--color-inline-link);
-    font-size: 0.8rem;
+    font-size: 0.72rem;
+    font-weight: 600;
     cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.22rem;
+    padding: 0.2rem 0.45rem;
+    border-radius: 999px;
+    transition: color 0.18s ease, border-color 0.18s ease;
+}
+
+.inline-link:hover {
+    color: var(--color-accent-text);
+    border-color: rgba(140, 60, 220, 0.5);
 }
 
 .table-filter-bar {
-    margin: 0.15rem 0 var(--space-4);
-    border-bottom: 1px solid var(--color-divider);
+    margin: 0.15rem 0 var(--space-3);
     padding: 0.4rem 0;
     display: flex;
     justify-content: space-between;
@@ -550,27 +923,40 @@ a {
 .table-filter-right {
     display: inline-flex;
     align-items: center;
-    gap: 0;
+    gap: 0.3rem;
+    flex-wrap: nowrap;
 }
 
 .table-filter-item,
 .table-filter-action {
-    border: 0;
-    border-right: 1px solid var(--color-border-strong);
-    background: transparent;
+    border: 1px solid rgba(90, 45, 145, 0.45);
+    border-radius: 999px;
+    background: rgba(15, 5, 30, 0.5);
     color: var(--color-inline-link);
-    padding: 0.34rem 0.72rem;
-    font-size: 0.83rem;
+    padding: 0.28rem 0.82rem;
+    font-size: 0.82rem;
     font-weight: 600;
     white-space: nowrap;
     cursor: pointer;
+    transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease;
+}
+
+.table-filter-item:hover,
+.table-filter-action:hover {
+    border-color: rgba(155, 80, 240, 0.7);
+    background: rgba(35, 10, 65, 0.65);
+    color: var(--color-accent-text);
 }
 
 .table-filter-item.active {
+    border-color: var(--color-accent-text);
+    background: rgba(55, 15, 95, 0.75);
     color: var(--color-accent-text);
-    text-decoration: underline;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 6px;
+    text-decoration: none;
+}
+
+.table-filter-right .table-filter-action {
+    border-color: rgba(90, 45, 145, 0.45);
 }
 
 .market-footnote {
@@ -580,19 +966,16 @@ a {
     opacity: 0.8;
 }
 
-.table-filter-right .table-filter-action {
-    border-right: 0;
-    border-left: 1px solid var(--color-border-strong);
-    color: var(--color-filter-action-text);
-}
-
 .market-table-wrap {
     overflow: visible;
     position: relative;
+    /* Never let the table push beyond the content column width */
+    max-width: 100%;
 }
 
 .market-table {
     width: 100%;
+    table-layout: fixed;
     border-collapse: separate;
     border-spacing: 0;
 }
@@ -603,17 +986,97 @@ a {
     border-bottom: 1px solid var(--m3-outline-variant);
     white-space: nowrap;
     text-align: left;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Rank — fixed narrow */
+.market-table th:nth-child(1),
+.market-table td:nth-child(1) {
+    width: 4rem;
+}
+
+/* Coin name — no explicit width: takes all remaining space in fixed layout */
+
+/* Price */
+.market-table th:nth-child(3),
+.market-table td:nth-child(3) {
+    width: 9rem;
+}
+
+/* 24h */
+.market-table th:nth-child(4),
+.market-table td:nth-child(4) {
+    width: 6rem;
+}
+
+/* 7d sparkline */
+.market-table th:nth-child(5),
+.market-table td:nth-child(5) {
+    width: 9rem;
+}
+
+/* Market Cap */
+.market-table th:nth-child(6),
+.market-table td:nth-child(6) {
+    width: 8rem;
+}
+
+/* Volume (24h) */
+.market-table th:nth-child(7),
+.market-table td:nth-child(7) {
+    width: 9rem;
+}
+
+/* Circulating Supply */
+.market-table th:nth-child(8),
+.market-table td:nth-child(8) {
+    width: 11rem;
 }
 
 .market-table thead th {
     position: sticky;
-    top: calc(2.12rem + env(safe-area-inset-top, 0px));
+    top: calc(2.55rem + env(safe-area-inset-top, 0px));
     z-index: 30;
     font-size: 0.82rem;
     text-transform: uppercase;
     letter-spacing: 0.06em;
     color: var(--color-table-head-text);
     background: var(--color-table-head-bg);
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(120, 40, 200, 0.25);
+}
+
+.market-table thead th.th--sorted {
+    color: var(--color-accent-text);
+}
+
+.sort-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: inherit;
+    font: inherit;
+    text-transform: inherit;
+    letter-spacing: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35em;
+    white-space: nowrap;
+}
+
+.sort-btn:hover {
+    color: var(--color-accent-text);
+}
+
+.sort-icon {
+    font-size: 0.8em;
+    opacity: 0.35;
+    transition: opacity 0.15s ease;
+}
+
+.th--sorted .sort-icon {
+    opacity: 1;
 }
 
 @media (max-width: 1100px) {
@@ -671,10 +1134,27 @@ a {
     display: flex;
     align-items: center;
     gap: var(--space-2);
+    min-width: 0;
+    /* allow flex child to shrink below content size */
 }
 
 .coin-name img {
+    flex-shrink: 0;
     border-radius: 999px;
+}
+
+.coin-row-anchor {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    overflow: hidden;
+}
+
+.coin-row-anchor span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .coin-terminal {
@@ -779,36 +1259,7 @@ a {
     font-variant-numeric: tabular-nums;
 }
 
-.coin-terminal-tabs {
-    display: flex;
-    align-items: center;
-    gap: 0;
-    border-bottom: 1px solid var(--color-divider);
-    overflow-x: auto;
-}
 
-.coin-terminal-tabs-center {
-    border: 0;
-    margin-bottom: var(--space-3);
-}
-
-.coin-terminal-tab {
-    border: 0;
-    border-right: 1px solid var(--color-border-strong);
-    background: transparent;
-    color: var(--color-text-nav);
-    padding: 0.55rem 0.9rem;
-    font-weight: 600;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.coin-terminal-tab.active {
-    color: var(--color-accent-text);
-    text-decoration: underline;
-    text-decoration-thickness: 2px;
-    text-underline-offset: 7px;
-}
 
 .coin-terminal-layout {
     display: grid;
@@ -865,6 +1316,52 @@ a {
     padding-top: var(--space-3);
     margin-top: var(--space-3);
 }
+
+/* ── Style variants ──────────────────────────────────── */
+/* separate: each card is a standalone raised tile */
+.coin-terminal--separate .coin-rail-card,
+.coin-terminal--separate .coin-chart-card,
+.coin-terminal--separate .coin-about-card {
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--radius-card, 10px);
+    background: var(--color-card-bg);
+    padding: var(--space-3);
+}
+
+.coin-terminal--separate .coin-left-rail>*+*,
+.coin-terminal--separate .coin-right-rail>*+*,
+.coin-terminal--separate .coin-main-panel>*+* {
+    border-top: 0;
+    padding-top: 0;
+    margin-top: var(--space-3);
+}
+
+/* one: shared outer border per column */
+.coin-terminal--one .coin-left-rail,
+.coin-terminal--one .coin-right-rail,
+.coin-terminal--one .coin-main-panel {
+    border: 1px solid var(--color-card-border);
+    border-radius: var(--radius-card, 10px);
+    background: var(--color-card-bg);
+    padding: var(--space-3);
+}
+
+.coin-terminal--one .coin-left-rail {
+    padding-right: var(--space-3);
+}
+
+.coin-terminal--one .coin-main-panel {
+    border-left: 1px solid var(--color-card-border);
+    padding-left: var(--space-3);
+    padding-right: var(--space-3);
+}
+
+.coin-terminal--one .coin-right-rail {
+    border-left: 1px solid var(--color-card-border);
+    padding-left: var(--space-3);
+}
+
+/* minimal: everything flat (default, no extra rules needed) */
 
 .coin-rail-card h3,
 .coin-chart-card h3,
@@ -1022,10 +1519,9 @@ a {
 .coin-chart-shell {
     border: 0;
     position: relative;
+    z-index: 1;
     overflow: visible;
-    background:
-        radial-gradient(circle at 84% 14%, rgba(255, 255, 255, 0.04), transparent 46%),
-        linear-gradient(180deg, #050505, #030303 52%, #010101);
+    background: var(--tv-bg);
     padding: var(--space-3);
     padding-left: 0;
     padding-right: 0;
@@ -1044,6 +1540,8 @@ a {
     overflow-x: auto;
     overflow-y: hidden;
     scrollbar-width: thin;
+    position: relative;
+    z-index: 1;
 }
 
 .coin-chart-left,
@@ -1066,9 +1564,9 @@ a {
     align-items: center;
     gap: 0.2rem;
     padding: 0.2rem;
-    border: 1px solid #2b2b2b;
+    border: 1px solid rgba(150, 50, 230, 0.35);
     border-radius: 10px;
-    background: #0a0a0a;
+    background: rgba(90, 15, 160, 0.08);
     overflow: hidden;
 }
 
@@ -1080,13 +1578,18 @@ a {
 .coin-chip {
     border: 0;
     background: transparent;
-    color: #a8a8a8;
+    color: var(--tv-text-muted);
     padding: 0.44rem 0.78rem;
     font-size: 0.8rem;
     font-weight: 700;
     border-radius: 7px;
     cursor: pointer;
     letter-spacing: 0.01em;
+    transition: color 0.15s ease, background 0.15s ease;
+}
+
+.coin-chip:hover {
+    color: var(--color-accent-text);
 }
 
 .coin-chart-modes .coin-chip:last-child,
@@ -1096,15 +1599,15 @@ a {
 }
 
 .coin-chip.active {
-    color: #f2f2f2;
-    background: #171717;
+    color: var(--color-accent-text);
+    background: rgba(150, 50, 230, 0.18);
 }
 
 .coin-widget-wrap {
     border: 0;
     min-height: 34rem;
     position: relative;
-    background: linear-gradient(180deg, #050505 0%, #020202 100%);
+    background: var(--tv-bg);
     overflow: visible;
     margin-left: 0;
 }
@@ -1117,7 +1620,7 @@ a {
 }
 
 .coin-chart-plot-bg {
-    fill: #070707;
+    fill: var(--tv-bg);
 }
 
 .coin-chart-grid-line {
@@ -1278,7 +1781,12 @@ a {
 
 .coin-about-card p {
     margin: 0;
-    line-height: 1.55;
+    line-height: 1.65;
+    color: var(--tv-text-muted);
+}
+
+.coin-about-card p+p {
+    margin-top: var(--space-3);
 }
 
 .coin-links {
@@ -1563,6 +2071,22 @@ a {
     color: var(--color-text-nav);
 }
 
+/* ── Hover glow effects — applied via useHoverGlow composable ── */
+.hover-glow-active {
+    text-shadow: 0 0 8px rgba(200, 160, 255, 0.55);
+    transition: text-shadow 0.18s ease;
+}
+
+.hover-glow-positive {
+    text-shadow: 0 0 8px rgba(29, 223, 114, 0.65);
+    transition: text-shadow 0.18s ease;
+}
+
+.hover-glow-negative {
+    text-shadow: 0 0 8px rgba(255, 77, 87, 0.65);
+    transition: text-shadow 0.18s ease;
+}
+
 .positive {
     color: var(--m3-positive);
     font-weight: 700;
@@ -1597,6 +2121,85 @@ a {
     margin-bottom: var(--space-2);
 }
 
+/* ── Overview coin layout with logos ── */
+.overview-coin-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+}
+
+.overview-coin-logo {
+    width: 24px;
+    height: 24px;
+    border-radius: 999px;
+    flex: 0 0 auto;
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.overview-coin-right {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 0.06rem;
+}
+
+.overview-coin-change {
+    font-size: 0.74rem;
+    font-weight: 700;
+}
+
+/* ── Price tick animation ── */
+@keyframes price-tick-up {
+    0% {
+        opacity: 1;
+    }
+
+    15% {
+        opacity: 0.7;
+        color: var(--m3-positive);
+    }
+
+    50% {
+        color: var(--m3-positive);
+    }
+
+    100% {
+        opacity: 1;
+        color: inherit;
+    }
+}
+
+@keyframes price-tick-down {
+    0% {
+        opacity: 1;
+    }
+
+    15% {
+        opacity: 0.7;
+        color: var(--m3-negative);
+    }
+
+    50% {
+        color: var(--m3-negative);
+    }
+
+    100% {
+        opacity: 1;
+        color: inherit;
+    }
+}
+
+.price-tick-up {
+    animation: price-tick-up 0.55s ease-out;
+    font-variant-numeric: tabular-nums;
+}
+
+.price-tick-down {
+    animation: price-tick-down 0.55s ease-out;
+    font-variant-numeric: tabular-nums;
+}
+
 @media (max-width: 760px) {
 
     .market-floating-bar {
@@ -1619,12 +2222,7 @@ a {
     }
 
     .overview-grid>article {
-        border-right: 0;
-        border-bottom: 1px solid var(--color-divider);
-    }
-
-    .overview-grid>article:last-child {
-        border-bottom: 0;
+        border: none;
     }
 
     .top-nav-main {
