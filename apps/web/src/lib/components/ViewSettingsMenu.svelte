@@ -2,6 +2,7 @@
     import type {
         ViewSettings,
         OverviewStyleVariant,
+        ChartEngineVariant,
     } from "../composables/useViewSettings.svelte";
 
     const { settings }: { settings: ViewSettings } = $props();
@@ -13,6 +14,14 @@
         { value: "separate", label: "Separate bubbles" },
         { value: "unified", label: "One bubble" },
         { value: "minimal", label: "Flat / minimal" },
+    ];
+
+    const chartEngineOptions: Array<{
+        value: ChartEngineVariant;
+        label: string;
+    }> = [
+        { value: "lightweight", label: "Lightweight Charts" },
+        { value: "svg", label: "SVG (legacy)" },
     ];
 
     let open = $state(false);
@@ -73,6 +82,23 @@
                     />
                     Show pill in overview heading
                 </label>
+            </fieldset>
+            <fieldset class="settings-group">
+                <legend>Chart engine</legend>
+                {#each chartEngineOptions as opt (opt.value)}
+                    <label class="settings-radio">
+                        <input
+                            type="radio"
+                            name="chart-engine"
+                            value={opt.value}
+                            checked={settings.chartEngine === opt.value}
+                            onchange={() => {
+                                settings.chartEngine = opt.value;
+                            }}
+                        />
+                        {opt.label}
+                    </label>
+                {/each}
             </fieldset>
         </div>
     {/if}

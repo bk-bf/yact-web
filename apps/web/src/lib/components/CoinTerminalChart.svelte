@@ -1,5 +1,13 @@
 <script lang="ts">
     import { browser } from "$app/environment";
+    import { getContext } from "svelte";
+    import {
+        VIEW_SETTINGS_KEY,
+        type ViewSettings,
+    } from "../composables/useViewSettings.svelte";
+    import LightweightChart from "./LightweightChart.svelte";
+
+    const settings = getContext<ViewSettings>(VIEW_SETTINGS_KEY);
 
     type ChartMode = "line" | "candles";
     type ChartRange = "24h" | "7d" | "1m" | "3m" | "ytd" | "1y" | "max";
@@ -799,6 +807,22 @@
             </div>
         </div>
 
+        {#if settings?.chartEngine === "lightweight"}
+            <div class="coin-widget-wrap lw-wrap" aria-label={`${coin.name} chart`}>
+                <LightweightChart
+                    prices={filteredChartPrices}
+                    volumes={filteredChartVolumes}
+                    timestamps={filteredChartTimestamps}
+                    chartMode={chartMode}
+                    candleBuckets={chartRangeConfig[chartRange].candleBuckets}
+                    currentPrice={currentPriceValue}
+                    isPositive={isPositive}
+                    loading={chartFetchInFlight}
+                    coinId={coin.id}
+                    coinName={coin.name}
+                />
+            </div>
+        {:else}
         <div class="coin-widget-wrap" aria-label={`${coin.name} custom chart`}>
             <svg
                 bind:this={chartSvg}
@@ -1022,5 +1046,6 @@
                 </div>
             {/if}
         </div>
+        {/if}
     </div>
 </article>
