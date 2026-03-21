@@ -1,29 +1,21 @@
 <script lang="ts">
-    import { browser } from "$app/environment";
     import M3Button from "../../components/M3Button.svelte";
-    import {
-        createInitialMarketsPageData,
-        loadMarketsPageData,
-    } from "./markets-page.data";
-    import { useProgressiveDataLoad } from "../../composables/useProgressiveDataLoad.svelte";
+    import { createEmptyMarketsPageData } from "./markets-page.data";
 
-    const fallbackData = createInitialMarketsPageData();
-    let { data = fallbackData } = $props();
-    
+    const fallbackData = createEmptyMarketsPageData();
+    let { data } = $props();
+
     // Safeguard: ensure data has required structure, falling back if any field is missing
-    const safeData = $derived(
-        data && 
-        data.coins &&
-        data.global &&
-        data.highlights &&
-        data.highlights.trending !== undefined &&
-        data.highlights.topGainers !== undefined
+    const viewData = $derived(
+        data &&
+            data.coins &&
+            data.global &&
+            data.highlights &&
+            data.highlights.trending !== undefined &&
+            data.highlights.topGainers !== undefined
             ? data
-            : fallbackData
+            : fallbackData,
     );
-    
-    const progressive = useProgressiveDataLoad(() => safeData);
-    const viewData = $derived(progressive.getViewData() ?? fallbackData);
 
     const usd = new Intl.NumberFormat("en-US", {
         style: "currency",
@@ -73,36 +65,6 @@
 
     const sparklineWidth = 140;
     const sparklineHeight = 42;
-
-    function hasMeaningfulMarketData(payload: typeof fallbackData): boolean {
-        return (
-            payload.coins.length > 0 ||
-            payload.global.totalMarketCapUsd > 0 ||
-            payload.highlights.trending.length > 0 ||
-            payload.highlights.topGainers.length > 0
-        );
-    }
-
-    function isEmptyStalePayload(payload: typeof fallbackData): boolean {
-        return payload.stale && !hasMeaningfulMarketData(payload);
-    }
-
-    async function refreshMarketsData(): Promise<void> {
-        await progressive.loadCritical(async () => {
-            const next = await loadMarketsPageData(fetch);
-            const current = progressive.getViewData() ?? fallbackData;
-
-            const nextIsEmptyStale = isEmptyStalePayload(next);
-            const shouldPreserve = nextIsEmptyStale && hasMeaningfulMarketData(current);
-
-            if (shouldPreserve) {
-                console.info("[markets-refresh] preserving current state (stale response)");
-                return current;
-            }
-
-            return next;
-        });
-    }
 
     function sparklinePath(
         points: number[] | null | undefined,
@@ -174,83 +136,6 @@
         }
         return fullInteger.format(value);
     }
-
-    $effect(() => {
-        if (!browser) {
-            return;
-        }
-
-        void refreshMarketsData();
-    });
-
-    $effect(() => {
-        if (!browser) {
-            return;
-        }
-
-        let cancelled = false;
-        let lastSeenSnapshotTs = viewData.snapshotTs ?? null;
-
-        const pollSnapshotMeta = async () => {
-            try {
-                const response = await fetch(
-                    `/api/debug/snapshot-meta?_ts=${Date.now()}`,
-                    {
-                        cache: "no-store",
-                    },
-                );
-                if (!response.ok) {
-                    return;
-                }
-
-                const payload = (await response.json()) as {
-                    marketSnapshotTs?: number | null;
-                };
-
-                if (cancelled || !payload.marketSnapshotTs) {
-                    return;
-                }
-
-                if (lastSeenSnapshotTs === null) {
-                    lastSeenSnapshotTs = payload.marketSnapshotTs;
-                    return;
-                }
-
-                if (lastSeenSnapshotTs !== payload.marketSnapshotTs) {
-                    const previousTs = lastSeenSnapshotTs;
-                    lastSeenSnapshotTs = payload.marketSnapshotTs;
-                    console.info("[auto-ui-refresh]", {
-                        page: "markets",
-                        previousTs,
-                        nextTs: payload.marketSnapshotTs,
-                        reason: "market-db-updated",
-                    });
-                    await refreshMarketsData();
-                }
-            } catch (error) {
-                if (!cancelled) {
-                    console.warn("[auto-ui-refresh]", {
-                        page: "markets",
-                        phase: "poll-error",
-                        error:
-                            error instanceof Error
-                                ? error.message
-                                : String(error),
-                    });
-                }
-            }
-        };
-
-        void pollSnapshotMeta();
-        const timer = window.setInterval(() => {
-            void pollSnapshotMeta();
-        }, 15_000);
-
-        return () => {
-            cancelled = true;
-            window.clearInterval(timer);
-        };
-    });
 </script>
 
 <svelte:head>

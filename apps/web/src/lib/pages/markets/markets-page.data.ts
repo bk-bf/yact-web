@@ -55,18 +55,7 @@ const EMPTY_HIGHLIGHTS: MarketHighlights = {
     topGainers: []
 };
 
-const MARKETS_CACHE_TTL_MS = 15_000;
-const MARKETS_SNAPSHOT_MAX_AGE_MS = 60_000;
 type MarketsPageData = ReturnType<typeof normalizeMarketsPayload>;
-let cachedMarketsPageData: MarketsPageData | null = null;
-let cachedMarketsPageDataAt = 0;
-
-function isFreshSnapshot(snapshotTs: number | null): boolean {
-    if (snapshotTs === null) {
-        return false;
-    }
-    return Date.now() - snapshotTs < MARKETS_SNAPSHOT_MAX_AGE_MS;
-}
 
 function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
     const safePayload = payload ?? {};
@@ -82,53 +71,18 @@ function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
     };
 }
 
-export function createInitialMarketsPageData() {
-    if (
-        cachedMarketsPageData !== null &&
-        Date.now() - cachedMarketsPageDataAt < MARKETS_CACHE_TTL_MS &&
-        isFreshSnapshot(cachedMarketsPageData.snapshotTs)
-    ) {
-        return {
-            ...cachedMarketsPageData,
-            // Cached snapshot is for fast paint only; client refresh should still revalidate.
-            stale: true,
-        };
-    }
-
-    return normalizeMarketsPayload({
-        stale: true
-    });
+export function createEmptyMarketsPageData(): MarketsPageData {
+    return normalizeMarketsPayload(null);
 }
 
-export async function loadMarketsPageData(fetchFn: typeof fetch) {
-    try {
-        const response = await fetchFn('/api/markets');
-        const payload = (await response.json()) as Partial<MarketsResponse>;
-
-        if (!response.ok) {
-            return normalizeMarketsPayload({
-                ...payload,
-                stale: true
-            });
-        }
-
-        const normalized = normalizeMarketsPayload(payload);
-        if (normalized.coins.length > 0) {
-            cachedMarketsPageData = normalized;
-            cachedMarketsPageDataAt = Date.now();
-        }
-
-        return normalized;
-    } catch {
-        return normalizeMarketsPayload({
-            stale: true
-        });
-    }
-}
-
-export async function loadMarketsPageDataWithTimeout(
+/**
+ * Fetch markets data with timeout protection.
+ * Used by both SSR (on hard reload) and client navigation.
+ * Always returns populated data or empty structure, never null.
+ */
+export async function loadMarketsPageData(
     fetchFn: typeof fetch,
-    timeoutMs: number,
+    timeoutMs = 3500,
 ): Promise<MarketsPageData> {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -139,22 +93,10 @@ export async function loadMarketsPageDataWithTimeout(
         });
         const payload = (await response.json()) as Partial<MarketsResponse>;
 
-        if (!response.ok) {
-            return normalizeMarketsPayload({
-                ...payload,
-                stale: true,
-            });
-        }
-
-        const normalized = normalizeMarketsPayload(payload);
-        if (normalized.coins.length > 0) {
-            cachedMarketsPageData = normalized;
-            cachedMarketsPageDataAt = Date.now();
-        }
-
-        return normalized;
+        return normalizeMarketsPayload(response.ok ? payload : { ...payload, stale: true });
     } catch {
-        return createInitialMarketsPageData();
+        // Timeout, network error, or parse error → return empty structure
+        return createEmptyMarketsPageData();
     } finally {
         clearTimeout(timer);
     }
