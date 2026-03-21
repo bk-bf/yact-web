@@ -167,15 +167,18 @@ function toCommunityLinks(value: unknown): Array<{ label: string; url: string }>
     }
     return value
         .map((item) => {
-            if (!item || typeof item !== 'object') {
-                return null;
+            // Object form: { label, url }
+            if (item && typeof item === 'object') {
+                const label = typeof (item as { label?: unknown }).label === 'string' ? (item as { label: string }).label : '';
+                const url = typeof (item as { url?: unknown }).url === 'string' ? (item as { url: string }).url : '';
+                if (!url.trim()) return null;
+                return { label: label || 'Community', url };
             }
-            const label = typeof (item as { label?: unknown }).label === 'string' ? (item as { label: string }).label : '';
-            const url = typeof (item as { url?: unknown }).url === 'string' ? (item as { url: string }).url : '';
-            if (!url.trim()) {
-                return null;
+            // String form (e.g. raw URLs from server): accept full URLs only, skip bare handles
+            if (typeof item === 'string' && item.startsWith('http')) {
+                return { label: 'Community', url: item };
             }
-            return { label: label || 'Community', url };
+            return null;
         })
         .filter((item): item is { label: string; url: string } => item !== null);
 }
@@ -225,16 +228,18 @@ function normalizeCoinBreakdown(raw: unknown, coinId: string, chart?: CoinChartR
         circulatingSupply: toFiniteNumber(data.circulatingSupply),
         maxSupply: toNullableFiniteNumber(data.maxSupply),
         priceChangePercentage24h: toFiniteNumber(data.priceChangePercentage24h),
-        allTimeHigh: toFiniteNumber(data.allTimeHigh),
-        allTimeHighDate: toStringOrNull(data.allTimeHighDate),
-        allTimeLow: toFiniteNumber(data.allTimeLow),
-        allTimeLowDate: toStringOrNull(data.allTimeLowDate),
+        // Field name aliases: server stores ath/athDate/atl/atlDate (not allTimeHigh etc.)
+        allTimeHigh: toFiniteNumber(data.allTimeHigh ?? data.ath),
+        allTimeHighDate: toStringOrNull(data.allTimeHighDate ?? data.athDate),
+        allTimeLow: toFiniteNumber(data.allTimeLow ?? data.atl),
+        allTimeLowDate: toStringOrNull(data.allTimeLowDate ?? data.atlDate),
         categories: toStringArray(data.categories),
         description: toStringOrNull(data.description) ?? '',
         homepage: toStringOrNull(data.homepage),
         whitepaper: toStringOrNull(data.whitepaper),
         blockchainSite: toStringOrNull(data.blockchainSite),
-        websites: toStringArray(data.websites),
+        // Field name alias: server stores 'website' (array), frontend expects 'websites'
+        websites: toStringArray(data.websites ?? data.website),
         explorers: toStringArray(data.explorers),
         community: toCommunityLinks(data.community),
         contracts: toContracts(data.contracts),
