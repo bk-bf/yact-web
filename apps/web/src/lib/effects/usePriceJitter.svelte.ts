@@ -33,12 +33,10 @@ const STABLE_SYMBOLS = new Set([
     'susd', 'usdd', 'usds', 'pyusd', 'crvusd', 'fdusd', 'eurc', 'usdx',
 ]);
 
-export type JitterScale = 'coin' | 'macro';
-
 export interface JitterEntry {
     id: string;
     value: number;
-    scale?: JitterScale;
+    scale?: string;
     /** Milliseconds before the first tick. Defaults to random 500–7 500 ms. */
     initialDelay?: number;
 }
@@ -66,21 +64,6 @@ export function isCoinJitterEligible(coin: {
 }
 
 /**
- * Nudges a numeric value by a small random amount appropriate for its scale.
- */
-export function nudgeValue(value: number, scale: JitterScale = 'coin'): number {
-    if (scale === 'macro') {
-        // Market-cap / volume: shift last 5–6 digits (±~700 000)
-        return Math.max(0, value + Math.round((Math.random() * 2 - 1) * 700_000));
-    }
-    if (value >= 10_000) return Math.max(0.01, value + Math.round((Math.random() * 2 - 1) * 18));
-    if (value >= 1_000) return Math.max(0.01, value + Math.round((Math.random() * 2 - 1) * 4));
-    if (value >= 100) return Math.max(0.01, Math.round((value + (Math.random() * 2 - 1) * 0.9) * 100) / 100);
-    if (value >= 10) return Math.max(0.01, Math.round((value + (Math.random() * 2 - 1) * 0.12) * 100) / 100);
-    return Math.max(0.001, Math.round((value + (Math.random() * 2 - 1) * 0.015) * 1000) / 1000);
-}
-
-/**
  * Creates a reactive price-jitter state manager.
  *
  * Must be called synchronously during a Svelte component's script initialisation
@@ -89,24 +72,18 @@ export function nudgeValue(value: number, scale: JitterScale = 'coin'): number {
  * be the `$effect`'s return value for automatic cleanup on component destroy.
  */
 export function createPriceJitter() {
-    let _values = $state<Record<string, number>>({});
     let _flash = $state<Record<string, 'up' | 'down' | ''>>({});
 
     function tick(
         id: string,
-        baseValue: number,
-        scale: JitterScale,
         cancelRef: { cancelled: boolean },
     ): void {
         setTimeout(() => {
             if (cancelRef.cancelled) return;
-            const current = _values[id] ?? baseValue;
-            const next = nudgeValue(current, scale);
-            const dir: 'up' | 'down' = next >= current ? 'up' : 'down';
-            _values[id] = next;
+            const dir: 'up' | 'down' = Math.random() >= 0.5 ? 'up' : 'down';
             _flash[id] = dir;
             setTimeout(() => { if (!cancelRef.cancelled) _flash[id] = ''; }, 480);
-            tick(id, next, scale, cancelRef);
+            tick(id, cancelRef);
         }, 4_000 + Math.random() * 9_500);
     }
 
@@ -116,7 +93,7 @@ export function createPriceJitter() {
             const delay = e.initialDelay ?? (500 + Math.random() * 7_000);
             setTimeout(() => {
                 if (!cancelRef.cancelled) {
-                    tick(e.id, e.value, e.scale ?? 'coin', cancelRef);
+                    tick(e.id, cancelRef);
                 }
             }, delay);
         }
@@ -124,15 +101,13 @@ export function createPriceJitter() {
     }
 
     return {
-        /** Reactive map of jitter-adjusted values, keyed by entry id. */
-        get values(): Record<string, number> { return _values; },
         /** Reactive map of flash direction ('up' | 'down' | ''), keyed by id. */
         get flash(): Record<string, 'up' | 'down' | ''> { return _flash; },
         /** Begin jittering the given entries. Returns a stop/cleanup function. */
         start,
-        /** Current jitter-adjusted value or `fallback` if not yet ticked. */
+        /** Returns the base value unchanged (no nudging). */
         getValue(id: string, fallback: number): number {
-            return _values[id] ?? fallback;
+            return fallback;
         },
         /** Current flash direction for an entry ('up' | 'down' | ''). */
         getFlash(id: string): 'up' | 'down' | '' {

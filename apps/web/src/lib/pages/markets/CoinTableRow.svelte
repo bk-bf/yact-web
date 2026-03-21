@@ -1,8 +1,6 @@
 <script lang="ts">
     import type { MarketCoin } from "../../types/market";
-    import {
-        isCoinJitterEligible,
-    } from "../../effects/usePriceJitter.svelte";
+    import { isCoinJitterEligible } from "../../effects/usePriceJitter.svelte";
     import {
         usd,
         percent,
@@ -58,9 +56,7 @@
             ? formatJitterUsd(coin.id, coin.currentPrice)
             : usd.format(coin.currentPrice)}
     </td>
-    <td
-        class={coin.priceChangePercentage24h >= 0 ? "positive" : "negative"}
-    >
+    <td class={coin.priceChangePercentage24h >= 0 ? "positive" : "negative"}>
         {percent.format(coin.priceChangePercentage24h / 100)}
     </td>
     <td>

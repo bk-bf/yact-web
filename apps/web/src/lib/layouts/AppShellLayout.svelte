@@ -2,6 +2,7 @@
     import { browser } from "$app/environment";
     import { navigating, page } from "$app/stores";
     import RouteProgress from "../components/RouteProgress.svelte";
+    import { formatStableCompactUsd as formatCompactUsd } from "../utils/formatters";
 
     interface GlobalMarketSummary {
         totalMarketCapUsd: number;
@@ -150,28 +151,6 @@
             return "--";
         }
         return value.toFixed(1);
-    }
-
-    function formatCompactUsd(value: number | null | undefined): string {
-        if (value === null || value === undefined || !Number.isFinite(value)) {
-            return "--";
-        }
-
-        const abs = Math.abs(value);
-        if (abs >= 1_000_000_000_000) {
-            return `$${(value / 1_000_000_000_000).toFixed(2)}T`;
-        }
-        if (abs >= 1_000_000_000) {
-            return `$${(value / 1_000_000_000).toFixed(2)}B`;
-        }
-        if (abs >= 1_000_000) {
-            return `$${(value / 1_000_000).toFixed(2)}M`;
-        }
-        if (abs >= 1_000) {
-            return `$${(value / 1_000).toFixed(2)}K`;
-        }
-
-        return `$${value.toFixed(2)}`;
     }
 
     function formatInteger(value: number | null | undefined): string {

@@ -7,6 +7,7 @@
         loadCoinDetailMarketsAuxData,
     } from "./coin-detail-page.data";
     import { useProgressiveDataLoad } from "../../composables/useProgressiveDataLoad.svelte";
+    import { formatStableCompactUsd } from "../../utils/formatters";
 
     let { data } = $props();
     const progressive = useProgressiveDataLoad(() => data);
@@ -15,13 +16,6 @@
     const usd = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
-        maximumFractionDigits: 2,
-    });
-
-    const compactUsd = new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-        notation: "compact",
         maximumFractionDigits: 2,
     });
 
@@ -335,7 +329,7 @@
     );
     const fdvLabel = $derived(
         hasFiniteMaxSupply
-            ? compactUsd.format(coin.maxSupply * coin.currentPrice)
+            ? formatStableCompactUsd(coin.maxSupply * coin.currentPrice)
             : coin.maxSupply === null
               ? "∞"
               : "--",
@@ -862,12 +856,14 @@
                 <ul class="coin-rail-list">
                     <li>
                         <span>Market cap</span><strong
-                            >{compactUsd.format(coin.marketCap)}</strong
+                            >{formatStableCompactUsd(coin.marketCap)}</strong
                         >
                     </li>
                     <li>
                         <span>Volume (24h)</span><strong
-                            >{compactUsd.format(coin.totalVolume24h)}</strong
+                            >{formatStableCompactUsd(
+                                coin.totalVolume24h,
+                            )}</strong
                         >
                     </li>
                     <li>
