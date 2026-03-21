@@ -139,7 +139,9 @@
     const hover = createHoverGlow();
     const titleTransition = createTextTransition(450);
 
-    $effect(() => { titleTransition.notify(sectionTitle); });
+    $effect(() => {
+        titleTransition.notify(sectionTitle);
+    });
 
     // Progressive row rendering: render the first 20 rows immediately (above
     // the fold) then expand to all rows over two animation frames. This lets
@@ -193,7 +195,11 @@
 />
 
 <section class="market-section">
-    <h2 class={`m3-surface-title${titleTransition.animating ? ' text-transition-in' : ''}`}>{sectionTitle}</h2>
+    <h2
+        class={`m3-surface-title${titleTransition.animating ? " text-transition-in" : ""}`}
+    >
+        {sectionTitle}
+    </h2>
     {#if viewData.error}
         <p class="error-text">Unable to load market data: {viewData.error}</p>
     {:else}
