@@ -111,13 +111,18 @@
             if (!isMarketsDataCacheStale()) return;
             if (cancelled) return;
 
-            console.info("[tier-2-refresh] markets: stale tab returned, fetching fresh data");
+            console.info(
+                "[tier-2-refresh] markets: stale tab returned, fetching fresh data",
+            );
             void loadMarketsPageData(fetch, 5000).then((next) => {
                 if (cancelled) return;
                 if (!hasMeaningfulMarketsPayload(next)) return;
                 setMarketsDataCache(next);
                 recoveredData = next;
-                console.info("[tier-2-refresh] markets: updated", { coins: next.coins.length, source: next.source });
+                console.info("[tier-2-refresh] markets: updated", {
+                    coins: next.coins.length,
+                    source: next.source,
+                });
                 window.dispatchEvent(
                     new CustomEvent("yact:global-ready", {
                         detail: next.global,

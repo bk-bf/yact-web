@@ -692,11 +692,16 @@
                 return;
             if (cancelled || isRefreshingCoinData) return;
 
-            console.info("[tier-2-refresh] coin-detail: stale tab returned, refreshing", { coinId: coin.id });
+            console.info(
+                "[tier-2-refresh] coin-detail: stale tab returned, refreshing",
+                { coinId: coin.id },
+            );
             void refreshCoinData().then(() => {
                 if (!cancelled) {
                     lastCoinDetailRefreshAt = Date.now();
-                    console.info("[tier-2-refresh] coin-detail: updated", { coinId: coin.id });
+                    console.info("[tier-2-refresh] coin-detail: updated", {
+                        coinId: coin.id,
+                    });
                 }
             });
         };
