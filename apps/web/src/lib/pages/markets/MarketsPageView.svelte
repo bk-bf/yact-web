@@ -284,7 +284,7 @@
 
     // ── Live price jitter — managed by usePriceJitter composable ──────────
     const jitter = createPriceJitter();
-    const hover  = createHoverGlow();
+    const hover = createHoverGlow();
 
     $effect(() => {
         if (!browser) return;
@@ -333,7 +333,11 @@
 </svelte:head>
 
 {#if showOverview}
-    <div class="market-overview-style-switcher" role="toolbar" aria-label="Overview style variants">
+    <div
+        class="market-overview-style-switcher"
+        role="toolbar"
+        aria-label="Overview style variants"
+    >
         {#each overviewStyleOptions as option}
             <button
                 type="button"
