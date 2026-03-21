@@ -54,6 +54,70 @@
         },
     );
 
+    // Table sort state.
+    type SortKey =
+        | "rank"
+        | "name"
+        | "price"
+        | "change24h"
+        | "change7d"
+        | "marketCap"
+        | "volume"
+        | "supply";
+    type SortDir = "asc" | "desc";
+    let sortKey = $state<SortKey>("rank");
+    let sortDir = $state<SortDir>("asc");
+
+    function toggleSort(key: SortKey) {
+        if (sortKey === key) {
+            sortDir = sortDir === "desc" ? "asc" : "desc";
+        } else {
+            sortKey = key;
+            sortDir = "desc";
+        }
+    }
+
+    function sparkline7dChange(sparkline: number[]): number {
+        if (!sparkline || sparkline.length < 2) return 0;
+        const first = sparkline[0];
+        if (first === 0) return 0;
+        return (sparkline[sparkline.length - 1] - first) / first;
+    }
+
+    const sortedCoins = $derived.by(() => {
+        const coins = [...viewData.coins];
+        const dir = sortDir === "asc" ? 1 : -1;
+        coins.sort((a, b) => {
+            switch (sortKey) {
+                case "name":
+                    return dir * a.name.localeCompare(b.name);
+                case "price":
+                    return dir * (a.currentPrice - b.currentPrice);
+                case "change24h":
+                    return (
+                        dir *
+                        (a.priceChangePercentage24h -
+                            b.priceChangePercentage24h)
+                    );
+                case "change7d":
+                    return (
+                        dir *
+                        (sparkline7dChange(a.sparkline7d) -
+                            sparkline7dChange(b.sparkline7d))
+                    );
+                case "marketCap":
+                    return dir * (a.marketCap - b.marketCap);
+                case "volume":
+                    return dir * (a.totalVolume24h - b.totalVolume24h);
+                case "supply":
+                    return dir * (a.circulatingSupply - b.circulatingSupply);
+                default:
+                    return dir * (a.marketCapRank - b.marketCapRank);
+            }
+        });
+        return coins;
+    });
+
     // Live price jitter — reactive entry list tracks viewData reactively.
     const jitter = createPriceJitter();
     const hover = createHoverGlow();
@@ -120,18 +184,47 @@
             <table class="market-table">
                 <thead>
                     <tr>
-                        <th>Rank</th>
-                        <th>Coin</th>
-                        <th>Price</th>
-                        <th>24h</th>
-                        <th>7d</th>
-                        <th>Market Cap</th>
-                        <th>Volume (24h)</th>
-                        <th>Circulating Supply</th>
+                        {#snippet sortTh(
+                            key:
+                                | "rank"
+                                | "name"
+                                | "price"
+                                | "change24h"
+                                | "change7d"
+                                | "marketCap"
+                                | "volume"
+                                | "supply",
+                            label: string,
+                        )}
+                            <th class={sortKey === key ? "th--sorted" : ""}>
+                                <button
+                                    class="sort-btn"
+                                    onclick={() => toggleSort(key)}
+                                >
+                                    {label}<span
+                                        class="sort-icon"
+                                        aria-hidden="true"
+                                        >{sortKey === key
+                                            ? sortDir === "asc"
+                                                ? "▲"
+                                                : "▼"
+                                            : "⇅"}</span
+                                    >
+                                </button>
+                            </th>
+                        {/snippet}
+                        {@render sortTh("rank", "Rank")}
+                        {@render sortTh("name", "Coin")}
+                        {@render sortTh("price", "Price")}
+                        {@render sortTh("change24h", "24h")}
+                        {@render sortTh("change7d", "7d")}
+                        {@render sortTh("marketCap", "Market Cap")}
+                        {@render sortTh("volume", "Volume (24h)")}
+                        {@render sortTh("supply", "Circulating Supply")}
                     </tr>
                 </thead>
                 <tbody>
-                    {#each viewData.coins.slice(0, renderedCount) as coin}
+                    {#each sortedCoins.slice(0, renderedCount) as coin}
                         <CoinTableRow {coin} {jitter} />
                     {/each}
                 </tbody>
