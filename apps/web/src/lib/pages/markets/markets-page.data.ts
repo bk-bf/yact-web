@@ -99,15 +99,29 @@ export function hasMeaningfulMarketsPayload(payload: ReturnType<typeof normalize
 // Module-level cache — persists across SvelteKit client-side navigations.
 // Written by +page.ts and MarketsPageView on every successful fetch.
 // Read by +page.ts to serve stale data instantly and avoid zero-state flash.
+//
+// Tier 2 staleness: data older than MARKETS_CACHE_TTL_MS is considered stale
+// and will trigger a background refresh on next tab visibility.
+const MARKETS_CACHE_TTL_MS = 3 * 60 * 1000; // 3 minutes
+
 let _marketsDataCache: MarketsPageData | null = null;
+let _marketsDataCachedAt = 0;
 
 export function getMarketsDataCache(): MarketsPageData | null {
+    if (!_marketsDataCache) return null;
+    if (Date.now() - _marketsDataCachedAt > MARKETS_CACHE_TTL_MS) return null;
     return _marketsDataCache;
+}
+
+export function isMarketsDataCacheStale(): boolean {
+    if (!_marketsDataCache) return true;
+    return Date.now() - _marketsDataCachedAt > MARKETS_CACHE_TTL_MS;
 }
 
 export function setMarketsDataCache(data: MarketsPageData): void {
     if (hasMeaningfulMarketsPayload(data)) {
         _marketsDataCache = data;
+        _marketsDataCachedAt = Date.now();
     }
 }
 

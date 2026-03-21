@@ -5,6 +5,7 @@
         coerceMarketsPageData,
         createEmptyMarketsPageData,
         hasMeaningfulMarketsPayload,
+        isMarketsDataCacheStale,
         loadMarketsPageData,
         setMarketsDataCache,
     } from "./markets-page.data";
@@ -94,6 +95,42 @@
         window.addEventListener("yact:markets-sync", onMarketsSync);
         return () => {
             window.removeEventListener("yact:markets-sync", onMarketsSync);
+        };
+    });
+
+    // Tier 2 refresh: when the user returns to a stale tab (>3 min since last
+    // fetch), silently refresh the coin table, summary cards, and headlines.
+    // Does not show a loading state — updates quietly in the background.
+    $effect(() => {
+        if (!browser) return;
+
+        let cancelled = false;
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState !== "visible") return;
+            if (!isMarketsDataCacheStale()) return;
+            if (cancelled) return;
+
+            void loadMarketsPageData(fetch, 5000).then((next) => {
+                if (cancelled) return;
+                if (!hasMeaningfulMarketsPayload(next)) return;
+                setMarketsDataCache(next);
+                recoveredData = next;
+                window.dispatchEvent(
+                    new CustomEvent("yact:global-ready", {
+                        detail: next.global,
+                    }),
+                );
+            });
+        };
+
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => {
+            cancelled = true;
+            document.removeEventListener(
+                "visibilitychange",
+                onVisibilityChange,
+            );
         };
     });
 

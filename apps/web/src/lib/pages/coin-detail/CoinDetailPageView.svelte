@@ -570,7 +570,9 @@
         }
 
         lastInitialRefreshCoinId = data.coin.id;
-        void refreshCoinData();
+        void refreshCoinData().then(() => {
+            lastCoinDetailRefreshAt = Date.now();
+        });
     });
 
     $effect(() => {
@@ -668,6 +670,40 @@
         return () => {
             cancelled = true;
             window.clearInterval(timer);
+        };
+    });
+
+    // Tier 2 refresh: when the user returns to a stale tab (>3 min since last
+    // full data load), silently re-run the unified pipeline (coin + chart +
+    // headlines in parallel). Tier 3 fields (description, contracts, ATH, etc.)
+    // are included in the same fetch and update quietly — no separate request
+    // needed since coin breakdown is a single endpoint.
+    const COIN_DETAIL_TIER2_TTL_MS = 3 * 60 * 1000; // 3 minutes
+    let lastCoinDetailRefreshAt = $state(Date.now());
+
+    $effect(() => {
+        if (!browser) return;
+
+        let cancelled = false;
+
+        const onVisibilityChange = () => {
+            if (document.visibilityState !== "visible") return;
+            if (Date.now() - lastCoinDetailRefreshAt < COIN_DETAIL_TIER2_TTL_MS)
+                return;
+            if (cancelled || isRefreshingCoinData) return;
+
+            void refreshCoinData().then(() => {
+                if (!cancelled) lastCoinDetailRefreshAt = Date.now();
+            });
+        };
+
+        document.addEventListener("visibilitychange", onVisibilityChange);
+        return () => {
+            cancelled = true;
+            document.removeEventListener(
+                "visibilitychange",
+                onVisibilityChange,
+            );
         };
     });
 </script>
