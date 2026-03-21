@@ -19,6 +19,31 @@
 
 ## Closed
 
+### BUG-004: Contract / chain display blank for EVM tokens
+- **Status**: Closed
+- **Severity**: Low
+- **First appeared**: 2026-03-21
+- **Fixed**: 2026-03-21
+- **Area**: Data
+- **Summary**: The Info panel showed `--` for Contract and Chains on EVM tokens even when the server had a contract address stored.
+- **Root cause**: The server stores a singular `contract` string field. `normalizeCoinBreakdown` in `coin-detail-page.data.ts` called `toContracts(data.contracts)` which expects a structured `{chain, address, logoUrl}[]` array — `data.contracts` was always `undefined`, and `data.contract` was never read.
+- **Resolution**: Added an IIFE in `normalizeCoinBreakdown` that synthesises `[{ chain, address, logoUrl: null }]` from the singular `contract` string and `chains[0]` when no structured `contracts[]` exists.
+
+### BUG-003: Coin detail info fields showing `--` despite server having data
+- **Status**: Closed
+- **Severity**: Medium
+- **First appeared**: 2026-03-21
+- **Fixed**: 2026-03-21
+- **Area**: Data
+- **Summary**: ATH, ATL, website, and community links all displayed `--` on the coin detail page even though the data was populated in the server store and present in the BFF response.
+- **Root cause**: Three independent field-name mismatches in `normalizeCoinBreakdown` (`coin-detail-page.data.ts`):
+  1. Server stores `ath`/`athDate`/`atl`/`atlDate`; normalization read `allTimeHigh`/`allTimeHighDate`/`allTimeLow`/`allTimeLowDate` — always `undefined`.
+  2. Server stores `website` (array); normalization read `websites` — always `undefined`.
+  3. Server stores `community` as a plain URL string array; `toCommunityLinks` only handled `{label, url}` objects — silently dropped all entries.
+- **Resolution**:
+  1. Aliases in `normalizeCoinBreakdown`: `data.ath ?? data.allTimeHigh`, `data.website ?? data.websites`, etc.
+  2. `toCommunityLinks` updated to accept both `{label, url}` objects and bare URL strings (http-prefixed values only).
+
 ### BUG-001: MAX range persisted YTD-like series from web-side fallback snapshots
 - **Status**: Closed
 - **Severity**: High
