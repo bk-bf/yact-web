@@ -242,7 +242,16 @@ function normalizeCoinBreakdown(raw: unknown, coinId: string, chart?: CoinChartR
         websites: toStringArray(data.websites ?? data.website),
         explorers: toStringArray(data.explorers),
         community: toCommunityLinks(data.community),
-        contracts: toContracts(data.contracts),
+        // Server stores a singular 'contract' string; synthesize structured contracts[] from it.
+        contracts: (() => {
+            const structured = toContracts(data.contracts);
+            if (structured.length > 0) return structured;
+            const addr = toStringOrNull(data.contract as unknown);
+            if (!addr) return [];
+            const chains = toStringArray(data.chains);
+            const chain = chains.find((c) => c.trim().length > 0) ?? 'unknown';
+            return [{ chain, address: addr, logoUrl: null }];
+        })(),
         chains: toStringArray(data.chains),
         coingeckoUrl: toStringOrNull(data.coingeckoUrl) ?? `https://www.coingecko.com/en/coins/${encodeURIComponent(id)}`,
         coinmarketcapUrl: toStringOrNull(data.coinmarketcapUrl) ?? `https://coinmarketcap.com/currencies/${encodeURIComponent(id)}/`,
