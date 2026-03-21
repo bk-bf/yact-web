@@ -74,3 +74,53 @@ The pipeline runs three stages in order:
 **Adding tests:** drop `*.test.ts` or `*.spec.ts` files anywhere under `apps/web/src/`. Vitest picks them up automatically.
 
 **ESLint note:** ESLint is intentionally skipped — `svelte-check` covers Svelte-specific and TypeScript diagnostics, and the Svelte VS Code extension provides in-editor lint feedback. Add ESLint only if rule-based lint gates become necessary.
+
+## Page Data Loading Pattern
+
+Every route must use a **single unified pipeline function** for all data loading. This is a hard rule — violation causes the reload vs navigation loading gap (symptoms: sections that appear on navigation but are blank on hard reload, or vice versa).
+
+### Rule
+
+Define one `loadXxxPageData(fetchFn, ...params, signal?)` function per page in a `xxx-page.data.ts` file. Call it from **both**:
+1. `+page.ts` `load` function (SSR + SPA navigation)
+2. The client-side `refreshCoinData`-style `$effect` inside the page view component
+
+### Structure for a new page
+
+```
+src/lib/pages/my-page/
+  my-page.data.ts       ← single pipeline + cache + types
+  MyPageView.svelte     ← imports from my-page.data.ts only
+src/routes/my-page/
+  +page.ts              ← calls loadMyPageData(fetch, params...)
+  +page.svelte          ← renders <MyPageView {data} />
+```
+
+**`my-page.data.ts` pipeline function:**
+- Fetch all sections the page renders in a single `Promise.all` — never serialize independent requests.
+- Apply per-endpoint `cacheTtlMs` so repeated client refreshes are cheap.
+- Return a fully normalized shape; never return raw API payloads.
+- Accept an optional `signal?: AbortSignal` so the view can cancel on route exit.
+
+**`+page.ts`:**
+```ts
+export const load: PageLoad = async ({ params, fetch }) => {
+    return loadMyPageData(fetch, params.id);
+};
+```
+
+**`MyPageView.svelte` client refresh:**
+```ts
+// Uses the same function — not a hand-rolled subset of fetches.
+await progressive.loadCritical(() =>
+    loadMyPageData(fetch, coin.id, abortController.signal)
+);
+```
+
+### What is allowed to be separate
+
+Only data that is **genuinely optional** and has an independent retry/timeout budget (e.g. markets trending panels) may use its own `loadAuxiliary` call after the main pipeline resolves. Everything rendered in the page's primary visible area must be in the unified pipeline.
+
+### Reference implementation
+
+`apps/web/src/lib/pages/coin-detail/coin-detail-page.data.ts` → `loadCoinDetailPageData`
