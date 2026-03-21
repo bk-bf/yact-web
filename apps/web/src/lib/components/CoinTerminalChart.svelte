@@ -62,7 +62,7 @@
     };
 
     let chartMode = $state<ChartMode>("line");
-    let chartRange = $state<ChartRange>("24h");
+    let chartRange = $state<ChartRange>("7d");
     let chartRangeErrorByRange = $state<
         Partial<Record<ChartRange, string | null>>
     >({});
@@ -533,15 +533,15 @@
         }
 
         const range = chartRange;
-        if (range !== "max" && chartSeriesByRange[range]?.prices.length) {
+        if (chartSeriesByRange[range]?.prices.length) {
             return;
         }
 
         const requestId = ++chartFetchRequestId;
         void fetch(
-            `/api/coins/${coin.id}/chart?range=${range}&_ts=${Date.now()}`,
+            `/api/coins/${coin.id}/chart?range=${range}`,
             {
-                cache: "no-store",
+                cache: "default",
             },
         )
             .then(async (response) => {
@@ -666,6 +666,32 @@
                         error instanceof Error ? error.message : String(error),
                 });
             });
+    });
+
+    // Pre-warm the 24h range in the background so clicking it shows data instantly.
+    // Uses cache: "default" so the browser deduplicates against the BFF Cache-Control headers.
+    $effect(() => {
+        if (!browser || chartSeriesByRange["24h"]?.prices.length) {
+            return;
+        }
+        void fetch(`/api/coins/${coin.id}/chart?range=24h`, { cache: "default" })
+            .then(async (response) => {
+                if (!response.ok) return;
+                const payload = (await response.json()) as { prices?: number[]; volumes?: number[]; timestamps?: number[] };
+                const prices = payload.prices?.filter((v) => Number.isFinite(v)) ?? [];
+                if (prices.length < 2 || chartSeriesByRange["24h"]?.prices.length) return;
+                const volumes = payload.volumes?.filter((v) => Number.isFinite(v)) ?? [];
+                const timestamps = payload.timestamps?.filter((v) => Number.isFinite(v)) ?? [];
+                chartSeriesByRange = {
+                    ...chartSeriesByRange,
+                    "24h": {
+                        prices,
+                        volumes: volumes.length > 1 ? volumes : toFallbackSeries(prices, coin.totalVolume24h).volumes,
+                        timestamps: timestamps.length === prices.length ? timestamps : buildSyntheticTimestamps(prices.length, 24),
+                    },
+                };
+            })
+            .catch(() => {/* silent — 24h pre-warm is best-effort */});
     });
 </script>
 
