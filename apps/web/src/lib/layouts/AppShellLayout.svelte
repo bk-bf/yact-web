@@ -56,6 +56,7 @@
 
     let sharedGlobal = $state<GlobalMarketSummary | null>(null);
     let sharedHeadlines = $state<CryptoHeadline[]>([]);
+    let activeNavigationKey = $state<string | null>(null);
 
     function formatHeadlineDate(value: string): string {
         const date = new Date(value);
@@ -188,6 +189,98 @@
             cancelled = true;
             window.clearInterval(timer);
         };
+    });
+
+    $effect(() => {
+        if (!browser) {
+            return;
+        }
+
+        const onClick = (event: MouseEvent) => {
+            const target = event.target as Element | null;
+            if (!target) {
+                return;
+            }
+
+            const interactive = target.closest(
+                'a, button, [role="button"], input[type="button"], input[type="submit"]',
+            ) as HTMLElement | null;
+
+            if (!interactive) {
+                return;
+            }
+
+            const tag = interactive.tagName.toLowerCase();
+            const label =
+                (interactive.getAttribute("aria-label") ??
+                    interactive.textContent ??
+                    "")
+                    .replace(/\s+/g, " ")
+                    .trim()
+                    .slice(0, 120) || null;
+            const href =
+                tag === "a"
+                    ? (interactive as HTMLAnchorElement).getAttribute("href")
+                    : null;
+
+            console.info("[ui-event]", {
+                type: "click",
+                path: $page.url.pathname,
+                tag,
+                label,
+                href,
+            });
+        };
+
+        const onSubmit = (event: SubmitEvent) => {
+            const form = event.target as HTMLFormElement | null;
+            if (!form) {
+                return;
+            }
+
+            console.info("[ui-event]", {
+                type: "submit",
+                path: $page.url.pathname,
+                action: form.getAttribute("action") || null,
+                method: (form.getAttribute("method") || "get").toLowerCase(),
+            });
+        };
+
+        document.addEventListener("click", onClick, true);
+        document.addEventListener("submit", onSubmit, true);
+
+        return () => {
+            document.removeEventListener("click", onClick, true);
+            document.removeEventListener("submit", onSubmit, true);
+        };
+    });
+
+    $effect(() => {
+        if (!browser) {
+            return;
+        }
+
+        if ($navigating?.to?.url) {
+            const key = `${$navigating.from?.url.pathname ?? "<unknown>"}->${$navigating.to.url.pathname}`;
+            if (activeNavigationKey !== key) {
+                activeNavigationKey = key;
+                console.info("[ui-event]", {
+                    type: "navigation-start",
+                    from: $navigating.from?.url.pathname ?? null,
+                    to: $navigating.to.url.pathname,
+                    willUnload: $navigating.willUnload ?? false,
+                });
+            }
+            return;
+        }
+
+        if (activeNavigationKey !== null) {
+            console.info("[ui-event]", {
+                type: "navigation-end",
+                path: $page.url.pathname,
+            });
+            activeNavigationKey = null;
+        }
     });
 </script>
 
