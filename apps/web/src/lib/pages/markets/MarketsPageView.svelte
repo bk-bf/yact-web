@@ -51,6 +51,13 @@
 
                 if (hasMeaningfulMarketsPayload(next)) {
                     recoveredData = next;
+                    // Fix BUG-002: notify the shell immediately so it can update
+                    // sharedGlobal without waiting for its 30s polling cycle.
+                    window.dispatchEvent(
+                        new CustomEvent("yact:global-ready", {
+                            detail: next.global,
+                        }),
+                    );
                     return;
                 }
 

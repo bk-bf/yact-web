@@ -64,6 +64,19 @@
         minute: "2-digit",
     });
 
+    // Fallback sentinel used when real data is not yet available.
+    // All numeric fields are NaN so format helpers render "--" rather than "0".
+    const NULL_GLOBAL: GlobalMarketSummary = {
+        totalMarketCapUsd: NaN,
+        totalVolumeUsd: NaN,
+        marketCapChangePercentage24hUsd: NaN,
+        btcDominance: NaN,
+        ethDominance: NaN,
+        totalExchanges: NaN,
+        activeCryptocurrencies: NaN,
+        gasGwei: null,
+    };
+
     let sharedGlobal = $state<GlobalMarketSummary | null>(null);
     let sharedHeadlines = $state<CryptoHeadline[]>([]);
     let activeNavigationKey = $state<string | null>(null);
@@ -76,6 +89,16 @@
             (pageGlobalForShell && hasMeaningfulGlobal(pageGlobalForShell)
                 ? pageGlobalForShell
                 : null),
+    );
+    // displayGlobal is always non-null so the headbar never disappears.
+    const displayGlobal = $derived(effectiveGlobal ?? NULL_GLOBAL);
+    const isGlobalReady = $derived(effectiveGlobal !== null);
+    const topbarHeadlines = $derived(
+        (
+            sharedHeadlines.length > 0
+                ? sharedHeadlines
+                : (($page.data?.headlines as CryptoHeadline[] | undefined) ?? [])
+        ).slice(0, 5),
     );
 
     function hasMeaningfulGlobal(global: GlobalMarketSummary): boolean {
@@ -146,6 +169,13 @@
             return "--";
         }
         return integerNumber.format(value);
+    }
+
+    function formatSignedPct(value: number | null | undefined): string {
+        if (value === null || value === undefined || !Number.isFinite(value)) {
+            return "--";
+        }
+        return signedPercent.format(value / 100);
     }
 
     $effect(() => {
@@ -229,6 +259,26 @@
         return () => {
             cancelled = true;
             window.clearInterval(timer);
+        };
+    });
+
+    // Fix BUG-002: listen for global data dispatched by page-level recovery fetches
+    // so the headbar updates immediately without waiting for the 30s shell poll.
+    $effect(() => {
+        if (!browser) {
+            return;
+        }
+
+        const onGlobalReady = (event: Event) => {
+            const global = (event as CustomEvent<GlobalMarketSummary>).detail;
+            if (global && hasMeaningfulGlobal(global)) {
+                sharedGlobal = global;
+            }
+        };
+
+        window.addEventListener("yact:global-ready", onGlobalReady);
+        return () => {
+            window.removeEventListener("yact:global-ready", onGlobalReady);
         };
     });
 
@@ -335,97 +385,92 @@
         <span class="route-progress-bar"></span>
     </div>
 
-    {#if effectiveGlobal}
-        {@const topbarHeadlines = (
-            sharedHeadlines.length > 0
-                ? sharedHeadlines
-                : ($page.data?.headlines ?? [])
-        ).slice(0, 5)}
-        <section class="market-floating-bar" aria-label="Pinned market stats">
-            <div class="market-floating-stats" aria-label="Live market stats">
-                <span class="market-floating-item"
-                    >Coins: {formatInteger(
-                        effectiveGlobal.activeCryptocurrencies,
+    <section
+        class={`market-floating-bar${isGlobalReady ? "" : " market-floating-bar--loading"}`}
+        aria-label="Pinned market stats"
+        aria-busy={!isGlobalReady}
+    >
+        <div class="market-floating-stats" aria-label="Live market stats">
+            <span class="market-floating-item"
+                >Coins: {formatInteger(
+                    displayGlobal.activeCryptocurrencies,
+                )}</span
+            >
+            <span class="market-floating-item"
+                >Exchanges: {formatInteger(
+                    displayGlobal.totalExchanges,
+                )}</span
+            >
+            <span class="market-floating-item"
+                >Market Cap: {formatCompactUsd(
+                    displayGlobal.totalMarketCapUsd,
+                )}
+                <span
+                    class={displayGlobal.marketCapChangePercentage24hUsd >= 0
+                        ? "positive"
+                        : "negative"}
+                    >{formatSignedPct(
+                        displayGlobal.marketCapChangePercentage24hUsd,
                     )}</span
-                >
-                <span class="market-floating-item"
-                    >Exchanges: {formatInteger(
-                        effectiveGlobal.totalExchanges,
-                    )}</span
-                >
-                <span class="market-floating-item"
-                    >Market Cap: {formatCompactUsd(
-                        effectiveGlobal.totalMarketCapUsd,
-                    )}
-                    <span
-                        class={effectiveGlobal.marketCapChangePercentage24hUsd >=
-                        0
-                            ? "positive"
-                            : "negative"}
-                        >{signedPercent.format(
-                            effectiveGlobal.marketCapChangePercentage24hUsd /
-                                100,
-                        )}</span
-                    ></span
-                >
-                <span class="market-floating-item"
-                    >24h Vol: {formatCompactUsd(
-                        effectiveGlobal.totalVolumeUsd,
-                    )}</span
-                >
-                <span class="market-floating-item"
-                    >Dominance: BTC {formatOneDecimalPercent(
-                        effectiveGlobal.btcDominance,
-                    )}%</span
-                >
-                <span class="market-floating-item"
-                    >ETH {formatOneDecimalPercent(
-                        effectiveGlobal.ethDominance,
-                    )}%</span
-                >
-                <span class="market-floating-item"
-                    >Gas: {formatGasGwei(effectiveGlobal.gasGwei)} GWEI</span
-                >
+                ></span
+            >
+            <span class="market-floating-item"
+                >24h Vol: {formatCompactUsd(
+                    displayGlobal.totalVolumeUsd,
+                )}</span
+            >
+            <span class="market-floating-item"
+                >Dominance: BTC {formatOneDecimalPercent(
+                    displayGlobal.btcDominance,
+                )}%</span
+            >
+            <span class="market-floating-item"
+                >ETH {formatOneDecimalPercent(
+                    displayGlobal.ethDominance,
+                )}%</span
+            >
+            <span class="market-floating-item"
+                >Gas: {formatGasGwei(displayGlobal.gasGwei)} GWEI</span
+            >
+        </div>
+
+        <details class="floating-headlines-dropdown">
+            <summary class="market-floating-item floating-headlines-pill">
+                Headlines
+            </summary>
+
+            <div
+                class="floating-headlines-panel"
+                aria-label="Top crypto headlines"
+            >
+                {#if topbarHeadlines.length === 0}
+                    <p class="floating-headlines-empty">
+                        No headlines available right now.
+                    </p>
+                {:else}
+                    <ul class="floating-headlines-list">
+                        {#each topbarHeadlines as headline}
+                            <li>
+                                <a
+                                    href={headline.url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    class="floating-headline-link"
+                                >
+                                    {headline.title}
+                                </a>
+                                <span class="floating-headline-meta"
+                                    >{headline.source} • {formatHeadlineDate(
+                                        headline.publishedAt,
+                                    )}</span
+                                >
+                            </li>
+                        {/each}
+                    </ul>
+                {/if}
             </div>
-
-            <details class="floating-headlines-dropdown">
-                <summary class="market-floating-item floating-headlines-pill">
-                    Headlines
-                </summary>
-
-                <div
-                    class="floating-headlines-panel"
-                    aria-label="Top crypto headlines"
-                >
-                    {#if topbarHeadlines.length === 0}
-                        <p class="floating-headlines-empty">
-                            No headlines available right now.
-                        </p>
-                    {:else}
-                        <ul class="floating-headlines-list">
-                            {#each topbarHeadlines as headline}
-                                <li>
-                                    <a
-                                        href={headline.url}
-                                        target="_blank"
-                                        rel="noreferrer"
-                                        class="floating-headline-link"
-                                    >
-                                        {headline.title}
-                                    </a>
-                                    <span class="floating-headline-meta"
-                                        >{headline.source} • {formatHeadlineDate(
-                                            headline.publishedAt,
-                                        )}</span
-                                    >
-                                </li>
-                            {/each}
-                        </ul>
-                    {/if}
-                </div>
-            </details>
-        </section>
-    {/if}
+        </details>
+    </section>
 
     <header class="terminal-header">
         <div class="top-nav-main">
