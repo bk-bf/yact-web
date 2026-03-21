@@ -63,6 +63,7 @@
             <h1>Cryptocurrency Prices by Market Cap</h1>
             <p class="market-overview-subtitle">
                 The global crypto market cap today is
+                <!-- svelte-ignore a11y_no_static_element_interactions -- hover-glow only, no keyboard interaction needed -->
                 <span
                     class={[
                         showPill ? "market-overview-pill" : "",
@@ -179,6 +180,7 @@
                 >
                     {#snippet right()}
                         <div class="overview-coin-right">
+                            <!-- svelte-ignore a11y_no_static_element_interactions -- hover-glow only, no keyboard interaction needed -->
                             <span
                                 class={[
                                     "overview-coin-value",
@@ -204,6 +206,7 @@
                                       )
                                     : fullUsd.format(coin.currentPrice)}
                             </span>
+                            <!-- svelte-ignore a11y_no_static_element_interactions -- hover-glow only, no keyboard interaction needed -->
                             <span
                                 class={[
                                     coin.priceChangePercentage24h >= 0
@@ -241,6 +244,7 @@
                     meta={fullUsd.format(coin.currentPrice)}
                 >
                     {#snippet right()}
+                        <!-- svelte-ignore a11y_no_static_element_interactions -- hover-glow only, no keyboard interaction needed -->
                         <span
                             class={[
                                 "overview-coin-value",
