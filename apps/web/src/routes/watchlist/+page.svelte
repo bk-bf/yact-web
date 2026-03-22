@@ -4,11 +4,14 @@
     import M3Button from "../../lib/components/M3Button.svelte";
     import { useProgressiveDataLoad } from "../../lib/composables/useProgressiveDataLoad.svelte";
     import { loadWatchlistPageData } from "../../lib/pages/watchlist/watchlist-page.data";
+    import { createWatchlistIds } from "../../lib/composables/useWatchlistIds.svelte";
 
     let { data } = $props();
     const progressive = useProgressiveDataLoad(() => data);
     const viewData = $derived(progressive.getViewData());
+    const watchlistIds = createWatchlistIds();
 
+    // Keep existing inline formatters (not refactoring per task constraints)
     const usd = new Intl.NumberFormat("en-US", {
         style: "currency",
         currency: "USD",
@@ -28,9 +31,6 @@
         signDisplay: "always",
     });
 
-    const btc = $derived(viewData.items[0]);
-    const eth = $derived(viewData.items[1]);
-
     function formatPrice(value: number): string {
         return value > 0 ? usd.format(value) : "--";
     }
@@ -43,67 +43,126 @@
         return value > 0 ? compactUsd.format(value) : "--";
     }
 
-    $effect(() => {
-        if (!browser) {
-            return;
-        }
+    let newCoinId = $state("");
 
-        void progressive.loadCritical(() => loadWatchlistPageData(fetch));
+    function handleAdd(): void {
+        const trimmed = newCoinId.trim();
+        if (!trimmed) return;
+        watchlistIds.addId(trimmed);
+        newCoinId = "";
+    }
+
+    function handleRemove(id: string): void {
+        watchlistIds.removeId(id);
+    }
+
+    // Re-fetch whenever IDs change (reactive: getIds() reads $state).
+    // Also fires on initial mount, replacing the old single-run $effect.
+    $effect(() => {
+        if (!browser) return;
+        const currentIds = watchlistIds.getIds();
+        void progressive.loadCritical(() => loadWatchlistPageData(fetch, currentIds));
     });
 </script>
 
 <svelte:head>
-    <title>YACT Watchlist Preview</title>
+    <title>YACT Watchlist</title>
 </svelte:head>
 
-<M3Surface
-    title="Watchlist Surface Preview"
-    subtitle="This route exists to manually verify reusable M3 tokens and component styling across multiple pages."
-    tonal={true}
->
-    <div class="grid-two">
-        <!-- TODO(T-004, see .docs/features/open/ROADMAP.md): Replace placeholder BTC card with real watchlist module fed by live data. -->
-        <article class="m3-surface padded elevated">
-            <h3>BTC Core Signals</h3>
-            <p>
-                Tracking halving-cycle context with baseline probability
-                signals.
-            </p>
-            <span class="metric-chip"
-                >Price: {formatPrice(btc.currentPrice)}</span
-            >
-            <span class="metric-chip"
-                >24h: {formatPercent(btc.priceChangePercentage24h)}</span
-            >
-            <span class="metric-chip"
-                >Volume: {formatVolume(btc.totalVolume24h)}</span
-            >
-        </article>
-
-        <!-- TODO(T-004, see .docs/features/open/ROADMAP.md): Replace placeholder ETH card with real watchlist module fed by live data. -->
-        <article class="m3-surface padded">
-            <h3>ETH Momentum Signals</h3>
-            <p>
-                Short-term trend and liquidity context for watchlist comparison.
-            </p>
-            <span class="metric-chip"
-                >Price: {formatPrice(eth.currentPrice)}</span
-            >
-            <span class="metric-chip"
-                >24h: {formatPercent(eth.priceChangePercentage24h)}</span
-            >
-            <span class="metric-chip"
-                >Volume: {formatVolume(eth.totalVolume24h)}</span
-            >
-        </article>
+<M3Surface title="My Watchlist" tonal={true}>
+    <div class="watchlist-add-row">
+        <input
+            type="text"
+            class="watchlist-add-input"
+            placeholder="Coin ID (e.g. solana)"
+            bind:value={newCoinId}
+            onkeydown={(e) => { if (e.key === "Enter") handleAdd(); }}
+        />
+        <button class="m3-button outlined" onclick={handleAdd}>Add coin</button>
     </div>
+
+    {#if viewData.items.length === 0}
+        <p class="watchlist-empty">No coins in watchlist. Add one above.</p>
+    {:else}
+        <div class="watchlist-list">
+            {#each viewData.items as coin (coin.id)}
+                <div class="watchlist-row">
+                    <span class="coin-identity">
+                        <strong>{coin.name}</strong>
+                        <span class="coin-symbol">{coin.symbol.toUpperCase()}</span>
+                    </span>
+                    <span class="metric-chip">Price: {formatPrice(coin.currentPrice)}</span>
+                    <span class="metric-chip">24h: {formatPercent(coin.priceChangePercentage24h)}</span>
+                    <span class="metric-chip">Volume: {formatVolume(coin.totalVolume24h)}</span>
+                    <button
+                        class="m3-button outlined watchlist-remove-btn"
+                        onclick={() => handleRemove(coin.id)}
+                        aria-label="Remove {coin.name} from watchlist"
+                    >
+                        Remove
+                    </button>
+                </div>
+            {/each}
+        </div>
+    {/if}
 
     <div class="m3-button-row" style="margin-top: 1rem;">
-        <!-- TODO(T-004, see .docs/features/open/ROADMAP.md): Replace back navigation placeholder with final watchlist-to-markets flow. -->
         <M3Button href="/" tone="filled">Back To Markets</M3Button>
-        <!-- TODO(T-004, see .docs/features/open/ROADMAP.md): Replace route-check placeholder with real watchlist refresh/sync action. -->
-        <M3Button href="/watchlist" tone="outlined"
-            >Refresh Route Check</M3Button
-        >
     </div>
 </M3Surface>
+
+<style>
+    .watchlist-add-row {
+        display: flex;
+        gap: 0.5rem;
+        align-items: center;
+        margin-bottom: 1rem;
+    }
+
+    .watchlist-add-input {
+        flex: 1;
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        border: 1px solid currentColor;
+        font-size: inherit;
+        background: transparent;
+        color: inherit;
+    }
+
+    .watchlist-list {
+        display: flex;
+        flex-direction: column;
+        gap: 0.5rem;
+    }
+
+    .watchlist-row {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 0.5rem;
+        padding: 0.5rem 0;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .coin-identity {
+        min-width: 10rem;
+        display: flex;
+        gap: 0.4rem;
+        align-items: baseline;
+    }
+
+    .coin-symbol {
+        opacity: 0.6;
+        font-size: 0.85em;
+    }
+
+    .watchlist-remove-btn {
+        margin-left: auto;
+    }
+
+    .watchlist-empty {
+        opacity: 0.6;
+        font-style: italic;
+        margin: 1rem 0;
+    }
+</style>
