@@ -78,7 +78,7 @@
                         .join(" ") || undefined}
                     onmouseenter={() => hover.enter("pill")}
                     onmouseleave={() => hover.leave()}
-                
+                >
                     <strong class="market-overview-pill-value"
                         >{formatJitterUsd(
                             "globalMarketCap",
