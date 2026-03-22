@@ -53,13 +53,15 @@
 
     let { children } = $props();
 
-    const primaryNav = [
-        "Cryptocurrencies",
-        "Exchanges",
-        "Community",
-        "Products",
-        "Learn",
-    ];
+    const navRoutes: Record<string, string | null> = {
+        Cryptocurrencies: "/",
+        Exchanges: null,
+        Community: null,
+        Products: null,
+        Learn: null,
+    };
+
+    const primaryNav = Object.keys(navRoutes);
 
     const integerNumber = new Intl.NumberFormat("en-US");
 
@@ -428,7 +430,7 @@
 
         {#if topbarHeadlines.length > 0}
             <div class="news-pill-wrap" aria-label="Latest crypto headlines">
-                <span class="news-pill-label">⭐ News</span>
+                <span class="news-pill-label">📰 News</span>
                 <div class="news-ticker-overflow">
                     <div
                         class="news-ticker-inner"
@@ -454,7 +456,7 @@
                 class="news-pill-wrap news-pill-empty"
                 aria-label="No news available"
             >
-                <span class="news-pill-label">� News</span>
+                <span class="news-pill-label">📰 News</span>
                 <span class="news-ticker-placeholder"
                     >No headlines right now</span
                 >
@@ -471,8 +473,15 @@
 
             <nav class="menu-links" aria-label="Primary market menu">
                 {#each primaryNav as navItem}
-                    <!-- TODO(T-007, see .docs/features/open/ROADMAP.md): Replace placeholder top-nav menu item with real route and data-backed destination. -->
-                    <button class="menu-link" type="button">{navItem}</button>
+                    {#if navRoutes[navItem] !== null}
+                        <a
+                            class="menu-link"
+                            href={navRoutes[navItem]}
+                            aria-current={$page.url.pathname === navRoutes[navItem] ? "page" : undefined}
+                        >{navItem}</a>
+                    {:else}
+                        <button class="menu-link" type="button" disabled aria-disabled="true">{navItem}</button>
+                    {/if}
                 {/each}
             </nav>
 

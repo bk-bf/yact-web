@@ -69,6 +69,14 @@
     let sortKey = $state<SortKey>("rank");
     let sortDir = $state<SortDir>("asc");
 
+    // Ephemeral filter selection — page-level state, not persisted anywhere.
+    let activeFilter = $state("Top 100");
+
+    function handleFilterSelect(label: string) {
+        activeFilter = label;
+        renderedCount = 20; // reset progressive render on filter change
+    }
+
     function toggleSort(key: SortKey) {
         if (sortKey === key) {
             sortDir = sortDir === "desc" ? "asc" : "desc";
@@ -119,6 +127,22 @@
         return coins;
     });
 
+    const filteredCoins = $derived.by(() => {
+        if (activeFilter === "Top 100" || activeFilter === "All") {
+            return sortedCoins;
+        }
+        if (activeFilter === "Trending") {
+            const trendingIds = new Set(
+                viewData.highlights.trending.map((c) => c.id)
+            );
+            return trendingIds.size > 0
+                ? sortedCoins.filter((coin) => trendingIds.has(coin.id))
+                : sortedCoins;
+        }
+        // Other filters not yet implemented server-side — show all rows as passthrough.
+        return sortedCoins;
+    });
+
     const SORT_LABELS: Record<SortKey, string> = {
         rank: "Market Cap",
         name: "Name",
@@ -150,7 +174,7 @@
     // each fresh navigation re-batches from the top.
     let renderedCount = $state(20);
     $effect(() => {
-        const total = viewData.coins.length;
+        const total = filteredCoins.length;
         if (total === 0 || renderedCount >= total) return;
         const raf = requestAnimationFrame(() => {
             renderedCount = Math.min(renderedCount + 40, total);
@@ -203,7 +227,7 @@
     {#if viewData.error}
         <p class="error-text">Unable to load market data: {viewData.error}</p>
     {:else}
-        <MarketFilterBar />
+        <MarketFilterBar {activeFilter} onfilter={handleFilterSelect} />
 
         <div class="market-table-wrap">
             <table class="market-table">
@@ -249,7 +273,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {#each sortedCoins.slice(0, renderedCount) as coin}
+                    {#each filteredCoins.slice(0, renderedCount) as coin}
                         <CoinTableRow {coin} {jitter} />
                     {/each}
                 </tbody>
