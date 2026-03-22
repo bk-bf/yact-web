@@ -130,6 +130,20 @@ a {
     text-shadow: 0 0 8px rgba(176, 38, 255, 0.25);
 }
 
+.menu-link[aria-current='page'] {
+    color: var(--color-accent-text);
+    text-decoration: underline;
+    text-decoration-thickness: 2px;
+    text-underline-offset: 6px;
+}
+
+.menu-link:disabled,
+.menu-link[aria-disabled='true'] {
+    opacity: 0.45;
+    cursor: default;
+    pointer-events: none;
+}
+
 .floating-headlines-dropdown {
     position: relative;
     flex: 0 0 auto;
