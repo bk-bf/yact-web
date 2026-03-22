@@ -91,7 +91,7 @@
     } | null>(null);
     let chartFetchInFlight = $state(false);
     let chartFetchRequestId = 0;
-    let chartSvg: SVGSVGElement | null = null;
+    let chartSvg = $state<SVGSVGElement | null>(null);
     let hoveredIndex = $state<number | null>(null);
 
     const chartWidth = 1000;

@@ -1,3 +1,7 @@
+// Exported so the useWatchlistIds composable can import defaults from here,
+// avoiding a circular dependency (composable → data file, not data file → composable).
+export const DEFAULT_WATCHLIST_IDS: readonly string[] = ["bitcoin", "ethereum"];
+
 interface WatchlistCoin {
     id: string;
     symbol: string;
@@ -23,13 +27,11 @@ export interface WatchlistPageData {
     error?: string;
 }
 
-const WATCHLIST_IDS = ["bitcoin", "ethereum"];
-
-function placeholderCoin(id: string, symbol: string, name: string): WatchlistCoin {
+function placeholderCoin(id: string): WatchlistCoin {
     return {
         id,
-        symbol,
-        name,
+        symbol: id.toUpperCase().slice(0, 8),
+        name: id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, " "),
         currentPrice: 0,
         priceChangePercentage24h: 0,
         totalVolume24h: 0,
@@ -37,22 +39,13 @@ function placeholderCoin(id: string, symbol: string, name: string): WatchlistCoi
     };
 }
 
-const WATCHLIST_PLACEHOLDERS: WatchlistCoin[] = [
-    placeholderCoin("bitcoin", "BTC", "Bitcoin"),
-    placeholderCoin("ethereum", "ETH", "Ethereum"),
-];
-
-function normalizeWatchlistData(payload: Partial<MarketsResponse> | null): WatchlistPageData {
+function normalizeWatchlistData(
+    payload: Partial<MarketsResponse> | null,
+    ids: readonly string[],
+): WatchlistPageData {
     const coins = Array.isArray(payload?.coins) ? payload.coins : [];
     const map = new Map(coins.map((coin) => [coin.id, coin]));
-
-    const items = WATCHLIST_IDS.map((id, index) => {
-        const next = map.get(id);
-        if (next) {
-            return next;
-        }
-        return WATCHLIST_PLACEHOLDERS[index];
-    });
+    const items = ids.map((id) => map.get(id) ?? placeholderCoin(id));
 
     return {
         items,
@@ -62,21 +55,26 @@ function normalizeWatchlistData(payload: Partial<MarketsResponse> | null): Watch
     };
 }
 
-export function createInitialWatchlistPageData(): WatchlistPageData {
-    return normalizeWatchlistData({ stale: true });
+export function createInitialWatchlistPageData(
+    ids: readonly string[] = DEFAULT_WATCHLIST_IDS,
+): WatchlistPageData {
+    return normalizeWatchlistData({ stale: true }, ids);
 }
 
-export async function loadWatchlistPageData(fetchFn: typeof fetch): Promise<WatchlistPageData> {
+export async function loadWatchlistPageData(
+    fetchFn: typeof fetch,
+    ids: readonly string[] = DEFAULT_WATCHLIST_IDS,
+): Promise<WatchlistPageData> {
     try {
         const response = await fetchFn("/api/markets");
         const payload = (await response.json()) as Partial<MarketsResponse>;
 
         if (!response.ok) {
-            return normalizeWatchlistData({ ...payload, stale: true });
+            return normalizeWatchlistData({ ...payload, stale: true }, ids);
         }
 
-        return normalizeWatchlistData(payload);
+        return normalizeWatchlistData(payload, ids);
     } catch {
-        return createInitialWatchlistPageData();
+        return createInitialWatchlistPageData(ids);
     }
 }
