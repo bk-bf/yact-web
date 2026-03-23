@@ -1,5 +1,5 @@
 <!-- LOC cap: 80 (updated: 2026-03-23) -->
-# Agents.md — yact-web
+# AGENTS.md — yact-web
 
 ## Agent rules
 
