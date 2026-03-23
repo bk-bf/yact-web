@@ -1,7 +1,5 @@
 # Worktree directories (git worktree add)
-topbar-filter-0p88/
-watchlist-crud-h1eg/
-visual-style/
+features/
 
 # Temporary ignores
 .github/

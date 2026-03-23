@@ -63,4 +63,4 @@ Only read these when the task genuinely requires them. Do not load speculatively
 
 ## Repo structure note
 
-This repo lives at `yact-web/`. Feature branch worktrees are at `yact-web/<branch>/` and share these same rules.
+This repo lives at `yact-web/`. Feature branch worktrees are at `yact-web/features/<branch>/` and share these same rules.
