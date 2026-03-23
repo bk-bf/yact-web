@@ -38,7 +38,7 @@ Required workflow:
 Guardrail: do not switch loading architecture modes in the same incident without a before/after evidence bundle.
 
 ```bash
-cd /home/ubuntu/server/yact/yact-web/main
+cd /home/ubuntu/server/yact/yact-web
 ./scripts/capture-web-incident.sh
 ```
 
@@ -48,12 +48,12 @@ Only read these when the task genuinely requires them. Do not load speculatively
 
 | File | Read when… |
 |------|------------|
-| `yact-dev-docs/main/web/ARCHITECTURE.md` | adding/changing a route, BFF endpoint, data-loading pattern, or backend dependency |
-| `yact-dev-docs/main/web/DECISIONS.md` | a design choice has an existing ADR — check before proposing an alternative approach |
-| `yact-dev-docs/main/web/DESIGN.md` | creating or modifying any UI component, colour, typography, or layout |
-| `yact-dev-docs/main/web/PHILOSOPHY.md` | evaluating a trade-off that affects route responsiveness or state update strategy |
-| `yact-dev-docs/main/web/features/open/ROADMAP.md` | asked to implement a planned feature |
-| `yact-dev-docs/main/web/bugs/BUGS.md` | investigating a known or recurring bug |
+| `yact-dev-docs/web/ARCHITECTURE.md` | adding/changing a route, BFF endpoint, data-loading pattern, or backend dependency |
+| `yact-dev-docs/web/DECISIONS.md` | a design choice has an existing ADR — check before proposing an alternative approach |
+| `yact-dev-docs/web/DESIGN.md` | creating or modifying any UI component, colour, typography, or layout |
+| `yact-dev-docs/web/PHILOSOPHY.md` | evaluating a trade-off that affects route responsiveness or state update strategy |
+| `yact-dev-docs/web/features/open/ROADMAP.md` | asked to implement a planned feature |
+| `yact-dev-docs/web/bugs/BUGS.md` | investigating a known or recurring bug |
 
 ## Local scripts
 
@@ -63,4 +63,4 @@ Only read these when the task genuinely requires them. Do not load speculatively
 
 ## Repo structure note
 
-This file lives in the `main/` worktree of `yact-web/` (bare repo). The bare repo dir is `../` (i.e. `yact-web/`). Other worktrees (e.g. `../visual-style/`) share the same `.bare` object store and these same rules.
+This repo lives at `yact-web/`. Feature branch worktrees are at `yact-web/<branch>/` and share these same rules.
