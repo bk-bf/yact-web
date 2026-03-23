@@ -42,6 +42,19 @@ cd /home/ubuntu/server/yact/yact-web/main
 ./scripts/capture-web-incident.sh
 ```
 
+## Docs
+
+Only read these when the task genuinely requires them. Do not load speculatively.
+
+| File | Read when… |
+|------|------------|
+| `yact-dev-docs/main/web/ARCHITECTURE.md` | adding/changing a route, BFF endpoint, data-loading pattern, or backend dependency |
+| `yact-dev-docs/main/web/DECISIONS.md` | a design choice has an existing ADR — check before proposing an alternative approach |
+| `yact-dev-docs/main/web/DESIGN.md` | creating or modifying any UI component, colour, typography, or layout |
+| `yact-dev-docs/main/web/PHILOSOPHY.md` | evaluating a trade-off that affects route responsiveness or state update strategy |
+| `yact-dev-docs/main/web/features/open/ROADMAP.md` | asked to implement a planned feature |
+| `yact-dev-docs/main/web/bugs/BUGS.md` | investigating a known or recurring bug |
+
 ## Local scripts
 
 - `./scripts/dev-web.sh` — starts the Svelte app dev server.
