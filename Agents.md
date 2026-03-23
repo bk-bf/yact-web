@@ -1,21 +1,22 @@
-<!-- LOC cap: 180 (updated: 2026-03-20) -->
-# Agents.md — AI coding agent reference for yact-web
+<!-- LOC cap: 80 (updated: 2026-03-23) -->
+# Agents.md — yact-web
 
 ## Agent rules
 
-- **Never commit or push to git unprompted.** Always wait for the user to explicitly ask, or for a slash command (e.g. `/commit`) to trigger it.
-- **Date format**: always use `YYYY-MM-DD` (e.g. `2026-03-20`).
-- **One branch at a time**: only make changes to the branch the user specifies.
-- **TypeScript-first policy**: use TypeScript for app and package code unless tooling requires JavaScript.
-- **Svelte-first policy**: for `.svelte` and route work, follow this repository's conventions and keep components/routes strongly typed.
-- **Use repository scripts first**: prefer `./scripts/dev-web.sh` and `./scripts/check.sh` over ad-hoc commands.
-- **Avoid unnecessary dev server restarts**: if Vite is healthy, rely on hot reload.
-- **Mandatory post-change web probe**: after each yact-web code change, verify live HTTP response with curl against the active dev URL (default `http://localhost:5173`), at minimum for `/` and the route changed.
-- **Repository boundary**: do not edit files under `../yact-server/` unless explicitly requested.
+- Never commit or push unprompted.
+- Always use `YYYY-MM-DD` date format.
+- Work on one branch at a time.
+- TypeScript-first: use TypeScript for app and package code unless tooling requires JavaScript.
+- Svelte conventions: keep `.svelte` and route files strongly typed.
+- Use repository scripts first: `./scripts/dev-web.sh` and `./scripts/check.sh`.
+- Avoid unnecessary dev server restarts; rely on hot reload when Vite is healthy.
+- After each code change, verify live HTTP response with curl against the active dev URL (`http://localhost:5173`) for `/` and the changed route.
+- Do not edit files outside this repo unless explicitly requested.
+- **Fresh clone / first run**: run `pnpm install` then `pnpm dev:web` once before running `svelte-check` — SvelteKit must generate `.svelte-kit/tsconfig.json` first or type-checking will fail with phantom errors across every file.
 
 ## Troubleshooting Protocol
 
-When diagnosing web bugs, collect independent evidence before patching code.
+Collect independent evidence before patching code.
 
 Required evidence sources:
 - Dev server/runtime state (`./scripts/dev-web.sh`, terminal status).
@@ -32,95 +33,21 @@ Required workflow:
 6. Correlate UI symptoms with relay logs, ownership map, and endpoint payloads.
 7. Classify incident: client-runtime, proxy-route, upstream-api, config/env, unknown.
 8. Apply the smallest fix and repeat the same capture to confirm resolution.
-9. After every code change, run curl probes to confirm non-500 responses from the active web URL (default `http://localhost:5173`) before reporting success.
+9. After every code change, run curl probes to confirm non-500 responses before reporting success.
 
-Workflow guardrail:
-- Do not switch loading architecture modes (for example, cache strategy plus SSR/client branching plus composable replacement) in the same incident without a before/after evidence bundle that proves the prior race/regression is removed.
-
-Use this minimal incident bundle command when investigating:
+Guardrail: do not switch loading architecture modes in the same incident without a before/after evidence bundle.
 
 ```bash
-cd /home/ubuntu/server/yact/yact-web
+cd /home/ubuntu/server/yact/yact-web/main
 ./scripts/capture-web-incident.sh
 ```
 
-## .github routing
-
-- For prompts/skills/automation related to web work, use files under `yact-web/.github/`.
-- Do not use `yact-server/.github/` for web-only tasks.
-
 ## Local scripts
 
-- `./scripts/dev-web.sh` — starts the Svelte web app dev server.
-- `./scripts/check.sh` — runs the full check pipeline: `svelte-check` → `knip` → `vitest`.
-- Use `pnpm install` (not `npm install`) — this repo uses pnpm workspaces (`pnpm-workspace.yaml`).
+- `./scripts/dev-web.sh` — starts the Svelte app dev server.
+- `./scripts/check.sh` — full check pipeline: `svelte-check` → `knip` → `vitest`.
+- Use `pnpm install` (not `npm install`) — this repo uses pnpm workspaces.
 
-## CI / check pipeline (`./scripts/check.sh`)
+## Repo structure note
 
-The pipeline runs three stages in order:
-
-| Stage | Tool | What it checks |
-| --- | --- | --- |
-| `lint:web` | `svelte-check` | TypeScript types + Svelte-specific diagnostics across all `.svelte` and `.ts` source files. Fails on any error. |
-| `ci:knip` | `knip` | Unused exports, dead files, and undeclared/missing dependencies across the monorepo. Config lives in `knip.json` at the repo root. |
-| `test:web` | `vitest` | Unit tests matching `src/**/*.{test,spec}.{js,ts}`. Passes with no files when no tests are written yet (`--passWithNoTests`). |
-
-**Key files:**
-- `knip.json` — knip workspace config (root-level).
-- `apps/web/vite.config.ts` — imports from `vitest/config`; includes `test.environment: 'jsdom'`.
-- `apps/web/package.json` — `lint` runs `svelte-check`, `test` runs `vitest run --passWithNoTests`.
-- `apps/web/tsconfig.json` — includes `"node"` in `types` for `process.env` in server routes.
-
-**Adding tests:** drop `*.test.ts` or `*.spec.ts` files anywhere under `apps/web/src/`. Vitest picks them up automatically.
-
-**ESLint note:** ESLint is intentionally skipped — `svelte-check` covers Svelte-specific and TypeScript diagnostics, and the Svelte VS Code extension provides in-editor lint feedback. Add ESLint only if rule-based lint gates become necessary.
-
-## Page Data Loading Pattern
-
-Every route must use a **single unified pipeline function** for all data loading. This is a hard rule — violation causes the reload vs navigation loading gap (symptoms: sections that appear on navigation but are blank on hard reload, or vice versa).
-
-### Rule
-
-Define one `loadXxxPageData(fetchFn, ...params, signal?)` function per page in a `xxx-page.data.ts` file. Call it from **both**:
-1. `+page.ts` `load` function (SSR + SPA navigation)
-2. The client-side `refreshCoinData`-style `$effect` inside the page view component
-
-### Structure for a new page
-
-```
-src/lib/pages/my-page/
-  my-page.data.ts       ← single pipeline + cache + types
-  MyPageView.svelte     ← imports from my-page.data.ts only
-src/routes/my-page/
-  +page.ts              ← calls loadMyPageData(fetch, params...)
-  +page.svelte          ← renders <MyPageView {data} />
-```
-
-**`my-page.data.ts` pipeline function:**
-- Fetch all sections the page renders in a single `Promise.all` — never serialize independent requests.
-- Apply per-endpoint `cacheTtlMs` so repeated client refreshes are cheap.
-- Return a fully normalized shape; never return raw API payloads.
-- Accept an optional `signal?: AbortSignal` so the view can cancel on route exit.
-
-**`+page.ts`:**
-```ts
-export const load: PageLoad = async ({ params, fetch }) => {
-    return loadMyPageData(fetch, params.id);
-};
-```
-
-**`MyPageView.svelte` client refresh:**
-```ts
-// Uses the same function — not a hand-rolled subset of fetches.
-await progressive.loadCritical(() =>
-    loadMyPageData(fetch, coin.id, abortController.signal)
-);
-```
-
-### What is allowed to be separate
-
-Only data that is **genuinely optional** and has an independent retry/timeout budget (e.g. markets trending panels) may use its own `loadAuxiliary` call after the main pipeline resolves. Everything rendered in the page's primary visible area must be in the unified pipeline.
-
-### Reference implementation
-
-`apps/web/src/lib/pages/coin-detail/coin-detail-page.data.ts` → `loadCoinDetailPageData`
+This file lives in the `main/` worktree of `yact-web/` (bare repo). The bare repo dir is `../` (i.e. `yact-web/`). Other worktrees (e.g. `../visual-style/`) share the same `.bare` object store and these same rules.
