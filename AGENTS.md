@@ -79,8 +79,7 @@ This repo lives at `yact-web/`. Feature branch worktrees are at `yact-web/featur
 
 Add a row whenever a branch diverges from main in a way that affects agent behaviour (different env vars, patched deps, known broken tests, etc.). Remove on merge.
 
-| Branch                | Port | Notes                                                                             |
-| --------------------- | ---- | --------------------------------------------------------------------------------- |
-| `topbar-filter-0p88`  | 5176 | —                                                                                 |
-| `visual-style`        | 5177 | Excluded from `start-features.sh` — `"exclude"` in `yact-web/features/ports.json` |
-| `watchlist-crud-h1eg` | 5178 | —                                                                                 |
+| Branch               | Port | Notes                                                                             |
+| -------------------- | ---- | --------------------------------------------------------------------------------- |
+| `topbar-filter-0p88` | 5176 | —                                                                                 |
+| `visual-style`       | 5177 | Excluded from `start-features.sh` — `"exclude"` in `yact-web/features/ports.json` |
