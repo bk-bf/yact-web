@@ -77,10 +77,17 @@ export async function GET({ fetch, params, url }) {
     const { values: prices, timestamps } = extractSeries(chart.value.prices);
     // Server stores trading volumes as 'totalVolumes'; fall back to 'volumes' for forwards compat.
     const { values: volumes } = extractSeries(chart.value.totalVolumes ?? chart.value.volumes ?? []);
+    // OHLCV series — only present for CryptoCompare-sourced charts (minute/hourly/daily).
+    const { values: opens } = extractSeries(chart.value.opens ?? []);
+    const { values: highs } = extractSeries(chart.value.highs ?? []);
+    const { values: lows } = extractSeries(chart.value.lows ?? []);
 
     return json({
         range: rangeParam,
         prices,
+        opens: opens.length === prices.length ? opens : [],
+        highs: highs.length === prices.length ? highs : [],
+        lows: lows.length === prices.length ? lows : [],
         volumes,
         timestamps,
         source: 'analytics-api',

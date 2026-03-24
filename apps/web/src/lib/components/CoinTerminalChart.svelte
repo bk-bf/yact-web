@@ -36,37 +36,50 @@
         "24h": {
             label: "24H",
             durationHours: 24,
-            candleBuckets: 24,
+            candleBuckets: 288, // 5-min candles: 1440 raw 1-min pts / 5
         },
         "7d": {
             label: "7D",
             durationHours: 24 * 7,
-            candleBuckets: 28,
+            candleBuckets: 168, // 1-hour candles: 168 hourly pts (1M backing: 720)
         },
         "1m": {
             label: "1M",
             durationHours: 24 * 30,
-            candleBuckets: 32,
+            candleBuckets: 120, // 6-hour candles: 720 hourly pts / 6
         },
         "3m": {
             label: "3M",
             durationHours: 24 * 90,
-            candleBuckets: 36,
+            candleBuckets: 90, // daily candles
         },
         ytd: {
             label: "YTD",
             durationHours: 24 * 365,
-            candleBuckets: 40,
+            candleBuckets: 120, // daily candles (YTD)
         },
         "1y": {
             label: "1Y",
             durationHours: 24 * 365,
-            candleBuckets: 44,
+            candleBuckets: 365, // daily candles
         },
         max: {
             label: "MAX",
-            candleBuckets: 48,
+            candleBuckets: 1000, // all available daily candles
         },
+    };
+
+    // When on 7D, use 1M hourly data (720 pts) as backing so user can scroll
+    // back 30 days from a 7D default view. When on 1M, back with 3M daily.
+    const backingRangeForDisplay: Partial<Record<ChartRange, ChartRange>> = {
+        "7d": "1m",
+        "1m": "3m",
+    };
+
+    // Initial visible window in ms when backing data is being used.
+    const displayWindowMs: Partial<Record<ChartRange, number>> = {
+        "7d": 7 * 24 * 60 * 60 * 1000,
+        "1m": 30 * 24 * 60 * 60 * 1000,
     };
 
     let chartMode = $state<ChartMode>("line");
@@ -74,21 +87,19 @@
     let chartRangeErrorByRange = $state<
         Partial<Record<ChartRange, string | null>>
     >({});
-    let chartSeriesByRange = $state<
-        Partial<
-            Record<
-                ChartRange,
-                { prices: number[]; volumes: number[]; timestamps: number[] }
-            >
-        >
-    >({});
-    // Last series with real data (≥2 pts). Mirrors the BUG-002 hasMeaningfulGlobal guard:
-    // never let a non-meaningful placeholder overwrite displayed state while a fetch is in-flight.
-    let lastMeaningfulSeries = $state<{
+    type ChartSeriesData = {
         prices: number[];
         volumes: number[];
         timestamps: number[];
-    } | null>(null);
+        opens: number[];
+        highs: number[];
+        lows: number[];
+    };
+
+    let chartSeriesByRange = $state<Partial<Record<ChartRange, ChartSeriesData>>>({});
+    // Last series with real data (≥2 pts). Mirrors the BUG-002 hasMeaningfulGlobal guard:
+    // never let a non-meaningful placeholder overwrite displayed state while a fetch is in-flight.
+    let lastMeaningfulSeries = $state<ChartSeriesData | null>(null);
     let chartFetchInFlight = $state(false);
     let chartFetchRequestId = 0;
     let chartSvg = $state<SVGSVGElement | null>(null);
@@ -333,7 +344,17 @@
         hoveredIndex = null;
     }
 
-    const chartSeries = $derived.by(() => {
+    const chartSeries = $derived.by((): ChartSeriesData => {
+        // Prefer backing range data (larger window) when available — this enables
+        // left-scroll beyond the selected range (e.g. 7D view scrolls back 30D).
+        const backingRange = backingRangeForDisplay[chartRange];
+        if (backingRange) {
+            const backingData = chartSeriesByRange[backingRange];
+            if (backingData && backingData.prices.length > 1) {
+                return backingData;
+            }
+        }
+
         const remote = chartSeriesByRange[chartRange];
         if (remote && remote.prices.length > 1) {
             return remote;
@@ -344,6 +365,8 @@
         if (lastMeaningfulSeries && lastMeaningfulSeries.prices.length > 1) {
             return lastMeaningfulSeries;
         }
+
+        const emptyOhlcv = { opens: [], highs: [], lows: [] };
 
         // Only 7D has a meaningful server-provided seed in coin payload.
         // For other ranges, avoid reusing 7D-like data because it is misleading.
@@ -360,6 +383,7 @@
                     flatPrices.length,
                     getRangeDurationHours(chartRange, flatPrices.length),
                 ),
+                ...emptyOhlcv,
             };
         }
 
@@ -377,6 +401,7 @@
                     fallbackPrices.length,
                     getRangeDurationHours(chartRange, fallbackPrices.length),
                 ),
+                ...emptyOhlcv,
             };
         }
 
@@ -387,7 +412,33 @@
                 fallback.prices.length,
                 getRangeDurationHours(chartRange, fallback.prices.length),
             ),
+            ...emptyOhlcv,
         };
+    });
+
+    // How many candle buckets to use: when backing data with real OHLCV is active,
+    // use 1 candle per data point so each raw OHLCV bar is preserved at its native
+    // granularity (e.g. 720 1-hour candles for 1M hourly backing on 7D view).
+    const effectiveCandleBuckets = $derived.by(() => {
+        const backingRange = backingRangeForDisplay[chartRange];
+        if (backingRange) {
+            const backingData = chartSeriesByRange[backingRange];
+            if (backingData && backingData.prices.length > 1) {
+                return backingData.prices.length;
+            }
+        }
+        return chartRangeConfig[chartRange].candleBuckets;
+    });
+
+    // When backing data supplies a larger window than is displayed, set the
+    // initial visible range so the chart shows the correct default window while
+    // keeping the extra history available for left-scroll.
+    const effectiveVisibleWindowMs = $derived.by(() => {
+        const backingRange = backingRangeForDisplay[chartRange];
+        if (backingRange && chartSeriesByRange[backingRange]?.prices.length) {
+            return displayWindowMs[chartRange];
+        }
+        return undefined;
     });
 
     const filteredChartPrices = $derived(chartSeries.prices);
@@ -429,6 +480,24 @@
         );
     });
 
+    // OHLCV arrays — only populated when CryptoCompare provides real OHLCV.
+    // Length must match filteredChartPrices; fall back to empty otherwise.
+    const filteredChartOpens = $derived(
+        chartSeries.opens.length === filteredChartPrices.length
+            ? chartSeries.opens
+            : [],
+    );
+    const filteredChartHighs = $derived(
+        chartSeries.highs.length === filteredChartPrices.length
+            ? chartSeries.highs
+            : [],
+    );
+    const filteredChartLows = $derived(
+        chartSeries.lows.length === filteredChartPrices.length
+            ? chartSeries.lows
+            : [],
+    );
+
     const chartMin = $derived(
         Math.min(...filteredChartPrices, coin.currentPrice),
     );
@@ -461,7 +530,7 @@
     const candles = $derived(
         buildCandles(
             filteredChartPrices,
-            chartRangeConfig[chartRange].candleBuckets,
+            effectiveCandleBuckets,
         ),
     );
     const chartDurationHours = $derived.by(() => {
@@ -602,6 +671,9 @@
 
                 const payload = (await response.json()) as {
                     prices?: number[];
+                    opens?: number[];
+                    highs?: number[];
+                    lows?: number[];
                     volumes?: number[];
                     timestamps?: number[];
                     warning?: string;
@@ -629,6 +701,10 @@
                     return;
                 }
 
+                const rawOpens = payload.opens?.filter((v) => Number.isFinite(v)) ?? [];
+                const rawHighs = payload.highs?.filter((v) => Number.isFinite(v)) ?? [];
+                const rawLows = payload.lows?.filter((v) => Number.isFinite(v)) ?? [];
+
                 const volumes =
                     payload.volumes?.filter((value) =>
                         Number.isFinite(value),
@@ -642,7 +718,7 @@
                         getRangeDurationHours(range, prices.length),
                     );
 
-                const series = {
+                const series: ChartSeriesData = {
                     prices,
                     volumes:
                         volumes.length > 1
@@ -656,6 +732,9 @@
                                   prices.length,
                                   getRangeDurationHours(range, prices.length),
                               ),
+                    opens: rawOpens.length === prices.length ? rawOpens : [],
+                    highs: rawHighs.length === prices.length ? rawHighs : [],
+                    lows: rawLows.length === prices.length ? rawLows : [],
                 };
                 chartSeriesByRange = {
                     ...chartSeriesByRange,
@@ -702,6 +781,9 @@
                 if (!response.ok) return;
                 const payload = (await response.json()) as {
                     prices?: number[];
+                    opens?: number[];
+                    highs?: number[];
+                    lows?: number[];
                     volumes?: number[];
                     timestamps?: number[];
                 };
@@ -712,6 +794,9 @@
                     chartSeriesByRange["24h"]?.prices.length
                 )
                     return;
+                const rawOpens = payload.opens?.filter((v) => Number.isFinite(v)) ?? [];
+                const rawHighs = payload.highs?.filter((v) => Number.isFinite(v)) ?? [];
+                const rawLows = payload.lows?.filter((v) => Number.isFinite(v)) ?? [];
                 const volumes =
                     payload.volumes?.filter((v) => Number.isFinite(v)) ?? [];
                 const timestamps =
@@ -729,12 +814,70 @@
                             timestamps.length === prices.length
                                 ? timestamps
                                 : buildSyntheticTimestamps(prices.length, 24),
+                        opens: rawOpens.length === prices.length ? rawOpens : [],
+                        highs: rawHighs.length === prices.length ? rawHighs : [],
+                        lows: rawLows.length === prices.length ? rawLows : [],
                     },
                 };
             })
             .catch(() => {
                 /* silent — 24h pre-warm is best-effort */
             });
+    });
+
+    // Pre-warm backing ranges (1M for 7D, 3M for 1M) so left-scroll works as
+    // soon as possible without blocking the primary range load.
+    $effect(() => {
+        if (!browser) return;
+        for (const [displayRange, backingRange] of Object.entries(backingRangeForDisplay) as [ChartRange, ChartRange][]) {
+            if (chartSeriesByRange[backingRange]?.prices.length) continue;
+            void fetch(`/api/coins/${coin.id}/chart?range=${backingRange}`, {
+                cache: "default",
+            })
+                .then(async (response) => {
+                    if (!response.ok) return;
+                    const payload = (await response.json()) as {
+                        prices?: number[];
+                        opens?: number[];
+                        highs?: number[];
+                        lows?: number[];
+                        volumes?: number[];
+                        timestamps?: number[];
+                    };
+                    const prices =
+                        payload.prices?.filter((v) => Number.isFinite(v)) ?? [];
+                    if (prices.length < 2 || chartSeriesByRange[backingRange]?.prices.length) return;
+                    const rawOpens = payload.opens?.filter((v) => Number.isFinite(v)) ?? [];
+                    const rawHighs = payload.highs?.filter((v) => Number.isFinite(v)) ?? [];
+                    const rawLows = payload.lows?.filter((v) => Number.isFinite(v)) ?? [];
+                    const volumes = payload.volumes?.filter((v) => Number.isFinite(v)) ?? [];
+                    const timestamps = payload.timestamps?.filter((v) => Number.isFinite(v)) ?? [];
+                    chartSeriesByRange = {
+                        ...chartSeriesByRange,
+                        [backingRange]: {
+                            prices,
+                            volumes:
+                                volumes.length > 1
+                                    ? volumes
+                                    : toFallbackSeries(prices, coin.totalVolume24h).volumes,
+                            timestamps:
+                                timestamps.length === prices.length
+                                    ? timestamps
+                                    : buildSyntheticTimestamps(
+                                          prices.length,
+                                          getRangeDurationHours(backingRange, prices.length),
+                                      ),
+                            opens: rawOpens.length === prices.length ? rawOpens : [],
+                            highs: rawHighs.length === prices.length ? rawHighs : [],
+                            lows: rawLows.length === prices.length ? rawLows : [],
+                        } satisfies ChartSeriesData,
+                    };
+                    void displayRange; // referenced to avoid unused-variable lint warning
+                })
+                .catch(() => {
+                    /* silent — backing pre-warm is best-effort */
+                });
+        }
     });
 
     // BUG-002 seed: populate lastMeaningfulSeries immediately from the server-pushed 7d
@@ -760,6 +903,9 @@
                 prices.length,
                 getRangeDurationHours("7d", prices.length),
             ),
+            opens: [],
+            highs: [],
+            lows: [],
         };
     });
 </script>
@@ -814,15 +960,19 @@
             >
                 <LightweightChart
                     prices={filteredChartPrices}
+                    opens={filteredChartOpens}
+                    highs={filteredChartHighs}
+                    lows={filteredChartLows}
                     volumes={filteredChartVolumes}
                     timestamps={filteredChartTimestamps}
                     {chartMode}
-                    candleBuckets={chartRangeConfig[chartRange].candleBuckets}
+                    candleBuckets={effectiveCandleBuckets}
                     currentPrice={currentPriceValue}
                     {isPositive}
                     loading={chartFetchInFlight}
                     coinId={coin.id}
                     coinName={coin.name}
+                    visibleWindowMs={effectiveVisibleWindowMs}
                 />
             </div>
         {:else}

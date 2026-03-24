@@ -16,6 +16,9 @@
 
     interface Props {
         prices: number[];
+        opens: number[];      // real open prices; empty = synthesise from closes
+        highs: number[];      // real high prices; empty = synthesise from closes
+        lows: number[];       // real low prices; empty = synthesise from closes
         volumes: number[];
         timestamps: number[]; // milliseconds
         chartMode: "line" | "candles";
@@ -25,10 +28,15 @@
         loading: boolean;
         coinId: string;
         coinName: string;
+        /** When set, use setVisibleRange to show the last N ms and allow left-scroll. */
+        visibleWindowMs?: number;
     }
 
     let {
         prices,
+        opens,
+        highs,
+        lows,
         volumes,
         timestamps,
         chartMode,
@@ -38,6 +46,7 @@
         loading,
         coinId,
         coinName,
+        visibleWindowMs,
     }: Props = $props();
 
     // ─── Color palette (hardcoded from CSS vars — LW Charts can't read CSS vars) ───
@@ -116,11 +125,19 @@
         return out;
     }
 
-    /** Time-span-based bucketing — each candle covers an equal time window. */
+    /** Time-span-based bucketing with real OHLCV support.
+     *
+     * When `realOpens/Highs/Lows` have the same length as `vals`, real OHLCV data
+     * from the server is used — each candle has accurate bodies and wicks.
+     * When not provided, synthetic OHLCV is derived from close prices (legacy path).
+     */
     function buildCandles(
         vals: number[],
         ts: number[],
         buckets: number,
+        realOpens: number[] = [],
+        realHighs: number[] = [],
+        realLows: number[] = [],
     ): Array<{
         time: Time;
         open: number;
@@ -130,11 +147,30 @@
     }> {
         if (vals.length < 2 || ts.length < 2) return [];
 
+        const hasRealOHLCV =
+            realOpens.length === vals.length &&
+            realHighs.length === vals.length &&
+            realLows.length === vals.length;
+
         const firstTs = ts[0];
         const lastTs = ts[ts.length - 1];
         const span = lastTs - firstTs;
 
-        // Fall back to index-based if all timestamps are the same
+        // ── 1:1 path: each raw data point becomes one candle ─────────────────────
+        // Triggered when buckets >= number of data points (native resolution).
+        if (buckets >= vals.length) {
+            return dedup(
+                vals.map((close, i) => ({
+                    time: toSec(ts[i] ?? firstTs),
+                    open: hasRealOHLCV ? realOpens[i] : close,
+                    high: hasRealOHLCV ? realHighs[i] : close,
+                    low: hasRealOHLCV ? realLows[i] : close,
+                    close,
+                })),
+            );
+        }
+
+        // ── Fallback: index-based aggregation when timestamps are degenerate ─────
         if (span <= 0) {
             const effective = Math.max(1, Math.min(buckets, vals.length));
             const chunk = Math.max(1, Math.floor(vals.length / effective));
@@ -146,19 +182,25 @@
                 close: number;
             }> = [];
             for (let i = 0; i < vals.length; i += chunk) {
-                const c = vals.slice(i, Math.min(vals.length, i + chunk));
+                const end = Math.min(vals.length, i + chunk);
+                const c = vals.slice(i, end);
                 if (!c.length) continue;
                 out.push({
                     time: toSec(firstTs + i),
-                    open: c[0],
-                    close: c[c.length - 1],
-                    high: Math.max(...c),
-                    low: Math.min(...c),
+                    open: hasRealOHLCV ? realOpens[i] : c[0],
+                    close: hasRealOHLCV ? vals[end - 1] : c[c.length - 1],
+                    high: hasRealOHLCV
+                        ? Math.max(...realHighs.slice(i, end))
+                        : Math.max(...c),
+                    low: hasRealOHLCV
+                        ? Math.min(...realLows.slice(i, end))
+                        : Math.min(...c),
                 });
             }
             return dedup(out);
         }
 
+        // ── Time-window bucketing (standard path) ────────────────────────────────
         const width = span / buckets;
         const out: Array<{
             time: Time;
@@ -171,19 +213,25 @@
         for (let b = 0; b < buckets; b++) {
             const bStart = firstTs + b * width;
             const bEnd = bStart + width;
-            const chunk: number[] = [];
+            const indices: number[] = [];
             for (let i = 0; i < vals.length; i++) {
                 if (ts[i] >= bStart && (ts[i] < bEnd || b === buckets - 1)) {
-                    chunk.push(vals[i]);
+                    indices.push(i);
                 }
             }
-            if (!chunk.length) continue;
+            if (!indices.length) continue;
+            const first = indices[0];
+            const last = indices[indices.length - 1];
             out.push({
                 time: toSec(bStart),
-                open: chunk[0],
-                close: chunk[chunk.length - 1],
-                high: Math.max(...chunk),
-                low: Math.min(...chunk),
+                open: hasRealOHLCV ? realOpens[first] : vals[first],
+                close: hasRealOHLCV ? vals[last] : vals[last],
+                high: hasRealOHLCV
+                    ? Math.max(...indices.map((i) => realHighs[i]))
+                    : Math.max(...indices.map((i) => vals[i])),
+                low: hasRealOHLCV
+                    ? Math.min(...indices.map((i) => realLows[i]))
+                    : Math.min(...indices.map((i) => vals[i])),
             });
         }
 
@@ -311,7 +359,14 @@
         if (!chart || !mainSeries) return;
 
         if (chartMode === "candles") {
-            const candleData = buildCandles(prices, timestamps, candleBuckets);
+            const candleData = buildCandles(
+                prices,
+                timestamps,
+                candleBuckets,
+                opens,
+                highs,
+                lows,
+            );
             (mainSeries as ISeriesApi<"Candlestick">).setData(candleData);
         } else {
             const lineData = buildLineData(prices, timestamps);
@@ -338,7 +393,18 @@
             });
         }
 
-        chart.timeScale().fitContent();
+        // When a visible window is set (backing range is active), position the
+        // chart on the most-recent N milliseconds and let the user scroll left
+        // into the extra historical data. Otherwise, fit all data to the view.
+        if (visibleWindowMs !== undefined && timestamps.length > 0) {
+            const lastMs = timestamps[timestamps.length - 1];
+            chart.timeScale().setVisibleRange({
+                from: Math.floor((lastMs - visibleWindowMs) / 1000) as Time,
+                to: Math.floor(lastMs / 1000) as Time,
+            });
+        } else {
+            chart.timeScale().fitContent();
+        }
     }
 
     function rebuildSeries() {
@@ -447,13 +513,17 @@
     $effect(() => {
         // Track all reactive inputs
         const _p = prices;
+        const _o = opens;
+        const _h = highs;
+        const _l = lows;
         const _v = volumes;
         const _t = timestamps;
         const _m = chartMode;
         const _b = candleBuckets;
         const _pos = isPositive;
         const _cp = currentPrice;
-        void _p, _v, _t, _b, _cp;
+        const _vw = visibleWindowMs;
+        void _p, _o, _h, _l, _v, _t, _b, _cp, _vw;
 
         if (!chart) return;
 

@@ -17,7 +17,7 @@
 
 ## UI coding rules
 
-- **Loading states**: whenever a component has an unavoidable async wait, show the three-dot pulse animation. Use the `.watchlist-loading` / `.watchlist-loading__dot` pattern from `watchlist/+page.svelte` (three `<span>` dots, `wl-dot-pulse` keyframe, purple `--tv-highlight` colour, staggered `animation-delay`). Never leave a blank area or zero-value data visible while data is in flight.
+- **Loading states**: whenever a component has an unavoidable async wait, show the three-dot pulse animation. Use `<LoadingDots>` from `src/lib/components/LoadingDots.svelte` — accepts an optional `label` prop for the `aria-label`. Never leave a blank area or zero-value data visible while data is in flight.
 - **Component extraction**: feature logic belongs in dedicated `.svelte` components under `src/lib/`. Route files (`+page.svelte`, `+layout.svelte`) and page-view orchestrators are wiring only — they import components, own top-level state, and pass props. Do not implement rendering logic, formatting, or feature sub-views directly inside orchestration files.
 
 ## Troubleshooting Protocol
