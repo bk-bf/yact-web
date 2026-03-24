@@ -17,6 +17,7 @@
     type WatchlistIdsContext,
   } from "../../lib/composables/useWatchlistIds.svelte";
   import CoinTableRow from "../../lib/pages/markets/CoinTableRow.svelte";
+  import LoadingDots from "../../lib/components/LoadingDots.svelte";
   import type { MarketCoin } from "../../lib/types/market";
   import { smartUsd, percent } from "../../lib/utils/formatters";
   import {
@@ -152,7 +153,11 @@
 <section class="market-section">
   <h2 class="m3-surface-title">My Watchlist</h2>
 
-  {#if isEmpty}
+  {#if !browser}
+    <!-- SSR: localStorage is unavailable — render neutral state to avoid baking
+         the empty-watchlist HTML into the SSR payload and flashing it on load. -->
+    <LoadingDots label="Loading watchlist…" />
+  {:else if isEmpty}
     <!-- Empty state widget -->
     <div class="watchlist-empty-wrap">
       <div class="watchlist-empty-icon" aria-hidden="true">★</div>
@@ -217,11 +222,7 @@
     </div>
   {:else if isInitialLoad}
     <!-- Suppress 0-price flash while first fetch is in-flight -->
-    <div class="watchlist-loading" aria-label="Loading watchlist…">
-      <span class="watchlist-loading__dot"></span>
-      <span class="watchlist-loading__dot"></span>
-      <span class="watchlist-loading__dot"></span>
-    </div>
+    <LoadingDots label="Loading watchlist…" />
   {:else}
     <div class="market-table-wrap">
       <table class="market-table">
@@ -426,43 +427,5 @@
 
   .watchlist-browse-link:hover {
     color: var(--tv-highlight);
-  }
-
-  /* ── Loading skeleton ───────────────────────────────── */
-  .watchlist-loading {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0.4rem;
-    padding: 4rem 0;
-  }
-
-  .watchlist-loading__dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    background: var(--tv-highlight);
-    opacity: 0.5;
-    animation: wl-dot-pulse 1.2s ease-in-out infinite;
-  }
-
-  .watchlist-loading__dot:nth-child(2) {
-    animation-delay: 0.2s;
-  }
-  .watchlist-loading__dot:nth-child(3) {
-    animation-delay: 0.4s;
-  }
-
-  @keyframes wl-dot-pulse {
-    0%,
-    80%,
-    100% {
-      opacity: 0.2;
-      transform: scale(0.85);
-    }
-    40% {
-      opacity: 0.9;
-      transform: scale(1.15);
-    }
   }
 </style>
