@@ -1004,47 +1004,56 @@ a {
     text-overflow: ellipsis;
 }
 
-/* Rank — fixed narrow */
+/* Watchlist star — fixed narrow */
 .market-table th:nth-child(1),
 .market-table td:nth-child(1) {
+    width: 2.75rem;
+    text-align: center;
+    padding-left: 0.25rem;
+    padding-right: 0.25rem;
+}
+
+/* Rank — fixed narrow */
+.market-table th:nth-child(2),
+.market-table td:nth-child(2) {
     width: 4rem;
 }
 
 /* Coin name — no explicit width: takes all remaining space in fixed layout */
 
 /* Price */
-.market-table th:nth-child(3),
-.market-table td:nth-child(3) {
+.market-table th:nth-child(4),
+.market-table td:nth-child(4) {
     width: 9rem;
 }
 
 /* 24h */
-.market-table th:nth-child(4),
-.market-table td:nth-child(4) {
+.market-table th:nth-child(5),
+.market-table td:nth-child(5) {
     width: 6rem;
 }
 
 /* 7d sparkline */
-.market-table th:nth-child(5),
-.market-table td:nth-child(5) {
+.market-table th:nth-child(6),
+.market-table td:nth-child(6) {
     width: 9rem;
 }
 
 /* Market Cap */
-.market-table th:nth-child(6),
-.market-table td:nth-child(6) {
+.market-table th:nth-child(7),
+.market-table td:nth-child(7) {
     width: 8rem;
 }
 
 /* Volume (24h) */
-.market-table th:nth-child(7),
-.market-table td:nth-child(7) {
+.market-table th:nth-child(8),
+.market-table td:nth-child(8) {
     width: 9rem;
 }
 
 /* Circulating Supply */
-.market-table th:nth-child(8),
-.market-table td:nth-child(8) {
+.market-table th:nth-child(9),
+.market-table td:nth-child(9) {
     width: 11rem;
 }
 
@@ -1058,6 +1067,10 @@ a {
     color: var(--color-table-head-text);
     background: var(--color-table-head-bg);
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(120, 40, 200, 0.25);
+}
+
+.th-watchlist {
+    /* no label text — just an icon column */
 }
 
 .market-table thead th.th--sorted {

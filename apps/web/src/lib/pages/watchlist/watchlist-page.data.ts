@@ -1,19 +1,11 @@
+import type { MarketCoin } from "../../types/market";
+
 // Exported so the useWatchlistIds composable can import defaults from here,
 // avoiding a circular dependency (composable → data file, not data file → composable).
-export const DEFAULT_WATCHLIST_IDS: readonly string[] = ["bitcoin", "ethereum"];
-
-interface WatchlistCoin {
-    id: string;
-    symbol: string;
-    name: string;
-    currentPrice: number;
-    priceChangePercentage24h: number;
-    totalVolume24h: number;
-    marketCapRank: number;
-}
+export const DEFAULT_WATCHLIST_IDS: readonly string[] = [];
 
 interface MarketsResponse {
-    coins?: WatchlistCoin[];
+    coins?: MarketCoin[];
     snapshotTs?: number;
     ts?: number;
     stale?: boolean;
@@ -21,21 +13,25 @@ interface MarketsResponse {
 }
 
 export interface WatchlistPageData {
-    items: WatchlistCoin[];
+    items: MarketCoin[];
     snapshotTs: number | null;
     stale: boolean;
     error?: string;
 }
 
-function placeholderCoin(id: string): WatchlistCoin {
+function placeholderCoin(id: string): MarketCoin {
     return {
         id,
         symbol: id.toUpperCase().slice(0, 8),
         name: id.charAt(0).toUpperCase() + id.slice(1).replace(/-/g, " "),
+        image: "",
         currentPrice: 0,
+        marketCap: 0,
+        marketCapRank: 0,
         priceChangePercentage24h: 0,
         totalVolume24h: 0,
-        marketCapRank: 0,
+        circulatingSupply: 0,
+        sparkline7d: [],
     };
 }
 

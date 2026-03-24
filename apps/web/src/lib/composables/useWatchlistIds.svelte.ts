@@ -11,6 +11,8 @@
 import { DEFAULT_WATCHLIST_IDS } from "../pages/watchlist/watchlist-page.data";
 
 export const WATCHLIST_IDS_STORAGE_KEY = "yact:watchlist:ids";
+export const WATCHLIST_IDS_CONTEXT_KEY = "yact:watchlist-ids";
+export type WatchlistIdsContext = ReturnType<typeof createWatchlistIds>;
 
 function loadPersistedIds(): string[] {
     try {
