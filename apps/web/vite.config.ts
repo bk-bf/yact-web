@@ -4,7 +4,7 @@ import { defineConfig } from 'vite';
 export default defineConfig({
   plugins: [sveltekit()],
   server: {
-    port: 5175,
+    port: parseInt(process.env.YACT_WEB_PORT ?? '5175'),
     strictPort: true,
   }
 });
