@@ -1,4 +1,4 @@
-<!-- LOC cap: 80 (updated: 2026-03-23) -->
+<!-- LOC cap: 95 (updated: 2026-03-24) -->
 
 # AGENTS.md — yact-web
 
@@ -14,6 +14,11 @@
 - After each code change, verify live HTTP response with curl against the active dev URL (`http://localhost:5173`) for `/` and the changed route.
 - Do not edit files outside this repo unless explicitly requested.
 - **Fresh clone / first run**: run `pnpm install` then `pnpm dev:web` once before running `svelte-check` — SvelteKit must generate `.svelte-kit/tsconfig.json` first or type-checking will fail with phantom errors across every file.
+
+## UI coding rules
+
+- **Loading states**: whenever a component has an unavoidable async wait, show the three-dot pulse animation. Use the `.watchlist-loading` / `.watchlist-loading__dot` pattern from `watchlist/+page.svelte` (three `<span>` dots, `wl-dot-pulse` keyframe, purple `--tv-highlight` colour, staggered `animation-delay`). Never leave a blank area or zero-value data visible while data is in flight.
+- **Component extraction**: feature logic belongs in dedicated `.svelte` components under `src/lib/`. Route files (`+page.svelte`, `+layout.svelte`) and page-view orchestrators are wiring only — they import components, own top-level state, and pass props. Do not implement rendering logic, formatting, or feature sub-views directly inside orchestration files.
 
 ## Troubleshooting Protocol
 
