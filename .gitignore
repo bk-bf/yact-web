@@ -1,7 +1,9 @@
 # Worktree directories (git worktree add)
 features/
 
-# Temporary ignores
+# Runtime artifacts
+logs/
+
 .github/
 .vscode/
 

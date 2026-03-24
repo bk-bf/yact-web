@@ -60,10 +60,22 @@ Only read these when the task genuinely requires them. Do not load speculatively
 
 ## Local scripts
 
-- `./scripts/dev-web.sh` — starts the Svelte app dev server.
+- `./scripts/dev-web.sh` — starts the Svelte app dev server (main branch).
 - `./scripts/check.sh` — full check pipeline: `svelte-check` → `knip` → `vitest`.
+- Feature dev servers are launched from the metarepo root via `../start-features.sh`.
+- Metarepo aliases: `../check.sh` (check pipeline), `../logs.sh web [branch]` (log tailing).
 - Use `pnpm install` (not `npm install`) — this repo uses pnpm workspaces.
 
 ## Repo structure note
 
 This repo lives at `yact-web/`. Feature branch worktrees are at `yact-web/features/<branch>/` and share these same rules.
+
+## Feature branch notes
+
+Add a row whenever a branch diverges from main in a way that affects agent behaviour (different env vars, patched deps, known broken tests, etc.). Remove on merge.
+
+| Branch | Port | Notes |
+| ------ | ---- | ----- |
+| `topbar-filter-0p88` | 5176 | — |
+| `visual-style` | 5177 | Excluded from `start-features.sh` — `"exclude"` in `yact-web/features/ports.json` |
+| `watchlist-crud-h1eg` | 5178 | — |
