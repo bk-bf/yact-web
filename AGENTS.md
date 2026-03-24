@@ -1,4 +1,5 @@
 <!-- LOC cap: 80 (updated: 2026-03-23) -->
+
 # AGENTS.md — yact-web
 
 ## Agent rules
@@ -19,12 +20,14 @@
 Collect independent evidence before patching code.
 
 Required evidence sources:
+
 - Dev server/runtime state (`./scripts/dev-web.sh`, terminal status).
 - Browser-console relay logs from `/api/debug/client-logs`.
 - Debug endpoint state from `/api/debug/snapshot-meta` and `/api/debug/auto-refresh`.
 - API proxy behavior from web routes under `/api/*`.
 
 Required workflow:
+
 1. Capture UTC timestamp and context (branch, commit SHA, host, browser URL).
 2. Confirm dev server state and capture current terminal output.
 3. Capture browser-console relay tail via `/api/debug/client-logs`.
@@ -46,14 +49,14 @@ cd /home/ubuntu/server/yact/yact-web
 
 Only read these when the task genuinely requires them. Do not load speculatively.
 
-| File | Read when… |
-|------|------------|
-| `yact-dev-docs/web/ARCHITECTURE.md` | adding/changing a route, BFF endpoint, data-loading pattern, or backend dependency |
-| `yact-dev-docs/web/DECISIONS.md` | a design choice has an existing ADR — check before proposing an alternative approach |
-| `yact-dev-docs/web/DESIGN.md` | creating or modifying any UI component, colour, typography, or layout |
-| `yact-dev-docs/web/PHILOSOPHY.md` | evaluating a trade-off that affects route responsiveness or state update strategy |
-| `yact-dev-docs/web/features/open/ROADMAP.md` | asked to implement a planned feature |
-| `yact-dev-docs/web/bugs/BUGS.md` | investigating a known or recurring bug |
+| File                                         | Read when…                                                                           |
+| -------------------------------------------- | ------------------------------------------------------------------------------------ |
+| `yact-dev-docs/web/ARCHITECTURE.md`          | adding/changing a route, BFF endpoint, data-loading pattern, or backend dependency   |
+| `yact-dev-docs/web/DECISIONS.md`             | a design choice has an existing ADR — check before proposing an alternative approach |
+| `yact-dev-docs/web/DESIGN.md`                | creating or modifying any UI component, colour, typography, or layout                |
+| `yact-dev-docs/web/PHILOSOPHY.md`            | evaluating a trade-off that affects route responsiveness or state update strategy    |
+| `yact-dev-docs/web/features/open/ROADMAP.md` | asked to implement a planned feature                                                 |
+| `yact-dev-docs/web/bugs/BUGS.md`             | investigating a known or recurring bug                                               |
 
 ## Local scripts
 
