@@ -56,7 +56,7 @@ Only read these when the task genuinely requires them. Do not load speculatively
 | `yact-dev-docs/web/DESIGN.md`                | creating or modifying any UI component, colour, typography, or layout                |
 | `yact-dev-docs/web/PHILOSOPHY.md`            | evaluating a trade-off that affects route responsiveness or state update strategy    |
 | `yact-dev-docs/web/features/open/ROADMAP.md` | asked to implement a planned feature                                                 |
-| `yact-dev-docs/web/bugs/BUGS.md`             | investigating a known or recurring bug                                               |
+| `yact-dev-docs/web/bugs/BUGS.md`             | **always** — before implementing or troubleshooting any feature, to avoid reimplementing previously toxic patterns |
 
 ## Local scripts
 
