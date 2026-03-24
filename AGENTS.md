@@ -49,13 +49,13 @@ cd /home/ubuntu/server/yact/yact-web
 
 Only read these when the task genuinely requires them. Do not load speculatively.
 
-| File                                         | Read when…                                                                           |
-| -------------------------------------------- | ------------------------------------------------------------------------------------ |
-| `yact-dev-docs/web/ARCHITECTURE.md`          | adding/changing a route, BFF endpoint, data-loading pattern, or backend dependency   |
-| `yact-dev-docs/web/DECISIONS.md`             | a design choice has an existing ADR — check before proposing an alternative approach |
-| `yact-dev-docs/web/DESIGN.md`                | creating or modifying any UI component, colour, typography, or layout                |
-| `yact-dev-docs/web/PHILOSOPHY.md`            | evaluating a trade-off that affects route responsiveness or state update strategy    |
-| `yact-dev-docs/web/features/open/ROADMAP.md` | asked to implement a planned feature                                                 |
+| File                                         | Read when…                                                                                                         |
+| -------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `yact-dev-docs/web/ARCHITECTURE.md`          | adding/changing a route, BFF endpoint, data-loading pattern, or backend dependency                                 |
+| `yact-dev-docs/web/DECISIONS.md`             | a design choice has an existing ADR — check before proposing an alternative approach                               |
+| `yact-dev-docs/web/DESIGN.md`                | creating or modifying any UI component, colour, typography, or layout                                              |
+| `yact-dev-docs/web/PHILOSOPHY.md`            | evaluating a trade-off that affects route responsiveness or state update strategy                                  |
+| `yact-dev-docs/web/features/open/ROADMAP.md` | asked to implement a planned feature                                                                               |
 | `yact-dev-docs/web/bugs/BUGS.md`             | **always** — before implementing or troubleshooting any feature, to avoid reimplementing previously toxic patterns |
 
 ## Local scripts
@@ -74,8 +74,8 @@ This repo lives at `yact-web/`. Feature branch worktrees are at `yact-web/featur
 
 Add a row whenever a branch diverges from main in a way that affects agent behaviour (different env vars, patched deps, known broken tests, etc.). Remove on merge.
 
-| Branch | Port | Notes |
-| ------ | ---- | ----- |
-| `topbar-filter-0p88` | 5176 | — |
-| `visual-style` | 5177 | Excluded from `start-features.sh` — `"exclude"` in `yact-web/features/ports.json` |
-| `watchlist-crud-h1eg` | 5178 | — |
+| Branch                | Port | Notes                                                                             |
+| --------------------- | ---- | --------------------------------------------------------------------------------- |
+| `topbar-filter-0p88`  | 5176 | —                                                                                 |
+| `visual-style`        | 5177 | Excluded from `start-features.sh` — `"exclude"` in `yact-web/features/ports.json` |
+| `watchlist-crud-h1eg` | 5178 | —                                                                                 |
