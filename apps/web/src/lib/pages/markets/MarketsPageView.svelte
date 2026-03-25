@@ -125,6 +125,16 @@
     return coins;
   });
 
+  const FILTER_LABEL_TO_SLUG: Record<string, string> = {
+    "Layer 1": "layer-1",
+    DeFi: "defi",
+    "AI Tokens": "ai-tokens",
+    "Base Ecosystem": "base-ecosystem",
+    "Payment Solutions": "payment-solutions",
+    Perpetuals: "perpetuals",
+    DEX: "dex",
+  };
+
   const filteredCoins = $derived.by(() => {
     if (activeFilter === "Top 100" || activeFilter === "All") {
       return sortedCoins;
@@ -137,7 +147,14 @@
         ? sortedCoins.filter((coin) => trendingIds.has(coin.id))
         : sortedCoins;
     }
-    // Other filters not yet implemented server-side — show all rows as passthrough.
+    const slug = FILTER_LABEL_TO_SLUG[activeFilter];
+    if (slug) {
+      return sortedCoins.filter(
+        (coin) =>
+          Array.isArray(coin.categories) && coin.categories.includes(slug),
+      );
+    }
+    // Unmapped filters (New Listings, Highlights, Categories) — passthrough.
     return sortedCoins;
   });
 

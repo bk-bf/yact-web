@@ -10,4 +10,5 @@ export interface MarketCoin {
     totalVolume24h: number;
     circulatingSupply: number;
     sparkline7d: number[];
+    categories?: string[];
 }
