@@ -81,5 +81,4 @@ Add a row whenever a branch diverges from main in a way that affects agent behav
 
 | Branch               | Port | Notes                                                                             |
 | -------------------- | ---- | --------------------------------------------------------------------------------- |
-| `topbar-filter-0p88` | 5176 | —                                                                                 |
 | `visual-style`       | 5177 | Excluded from `start-features.sh` — `"exclude"` in `yact-web/features/ports.json` |
