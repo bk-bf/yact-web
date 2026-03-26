@@ -69,7 +69,6 @@
     },
   };
 
-
   let chartMode = $state<ChartMode>("line");
   let chartRange = $state<ChartRange>("7d");
   let chartRangeErrorByRange = $state<
@@ -378,7 +377,9 @@
     };
   });
 
-  const effectiveCandleBuckets = $derived(chartRangeConfig[chartRange].candleBuckets);
+  const effectiveCandleBuckets = $derived(
+    chartRangeConfig[chartRange].candleBuckets,
+  );
 
   const filteredChartPrices = $derived(chartSeries.prices);
   const filteredChartVolumes = $derived.by(() => {
