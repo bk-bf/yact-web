@@ -36,7 +36,7 @@
     "24h": {
       label: "24H",
       durationHours: 24,
-      candleBuckets: 24, // 24 × 1H candles (Binance hourly)
+      candleBuckets: 96, // 96 × 15-min candles (Binance intraday)
     },
     "7d": {
       label: "7D",
