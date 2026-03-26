@@ -71,4 +71,8 @@
     --color-row-focus: rgba(176, 38, 255, 0.14);
     --color-chip-bg: #07090a;
     --color-chip-border: #b355ff;
+
+    --status-ok: #1ddf72;
+    --status-warn: #f5a623;
+    --status-error: #ff4d57;
 }
