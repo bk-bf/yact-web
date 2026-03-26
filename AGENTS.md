@@ -75,6 +75,8 @@ Only read these when the task genuinely requires them. Do not load speculatively
 
 This repo lives at `yact-web/`. Feature branch worktrees are at `yact-web/features/<branch>/` and share these same rules.
 
+After creating a new worktree and running `sync-workspace.sh`, always run `../start-features.sh` from the metarepo root to register and start the new dev server.
+
 ## Feature branch notes
 
 Add a row whenever a branch diverges from main in a way that affects agent behaviour (different env vars, patched deps, known broken tests, etc.). Remove on merge.
