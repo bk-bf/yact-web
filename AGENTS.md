@@ -14,6 +14,7 @@
 - After each code change, verify live HTTP response with curl against the active dev URL (`http://localhost:5173`) for `/` and the changed route.
 - Do not edit files outside this repo unless explicitly requested.
 - **Fresh clone / first run**: run `pnpm install` then `pnpm dev:web` once before running `svelte-check` — SvelteKit must generate `.svelte-kit/tsconfig.json` first or type-checking will fail with phantom errors across every file.
+- **After implementing any feature**: always end with an explicit summary of every URL the user needs — host, port, and path — e.g. `http://ubuntuserver:5176/status`. Never assume the user knows which port a feature branch is on; state it clearly even if it was mentioned earlier in the conversation.
 
 ## UI coding rules
 
