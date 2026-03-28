@@ -18,9 +18,18 @@
   let lastUpdated = $state<Date | null>(null);
   let intervalId: ReturnType<typeof setInterval> | null = null;
 
+  function parseServerDate(isoString: string): Date {
+    // Python isoformat() gives microseconds ("...T04:23:31.060954") with no Z suffix.
+    // Truncate fractional digits to 3 (ms) and append Z so JS treats it as UTC.
+    const normalized = isoString
+      .replace(/(\.\d{3})\d*/, "$1")
+      .replace(/([^Z])$/, "$1Z");
+    return new Date(normalized);
+  }
+
   function formatRelativeTime(isoString: string | null): string {
     if (!isoString) return "never";
-    const date = new Date(isoString);
+    const date = parseServerDate(isoString);
     if (isNaN(date.getTime())) return "never";
     const diffMs = Date.now() - date.getTime();
     const diffSec = Math.floor(diffMs / 1000);
