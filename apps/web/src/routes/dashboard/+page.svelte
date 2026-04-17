@@ -23,7 +23,9 @@
   // ── Formatting helpers ──────────────────────────────────────────────────────
 
   function parseServerDate(iso: string): Date {
-    const normalized = iso.replace(/(\.\d{3})\d*/, "$1").replace(/([^Z])$/, "$1Z");
+    const normalized = iso
+      .replace(/(\.\d{3})\d*/, "$1")
+      .replace(/([^Z])$/, "$1Z");
     return new Date(normalized);
   }
 
@@ -68,19 +70,27 @@
 
   function providerStatusColor(status: ProviderStatus): string {
     switch (status) {
-      case "healthy": return "var(--status-ok)";
-      case "rate_limited": return "var(--status-warn)";
-      case "error": return "var(--status-error)";
-      default: return "var(--tv-text-muted)";
+      case "healthy":
+        return "var(--status-ok)";
+      case "rate_limited":
+        return "var(--status-warn)";
+      case "error":
+        return "var(--status-error)";
+      default:
+        return "var(--tv-text-muted)";
     }
   }
 
   function providerStatusLabel(status: ProviderStatus): string {
     switch (status) {
-      case "healthy": return "Healthy";
-      case "rate_limited": return "Rate limited";
-      case "error": return "Error";
-      default: return status;
+      case "healthy":
+        return "Healthy";
+      case "rate_limited":
+        return "Rate limited";
+      case "error":
+        return "Error";
+      default:
+        return status;
     }
   }
 
@@ -91,20 +101,26 @@
   const cycleStatus = $derived((): "ok" | "warn" | "error" | "unknown" => {
     if (!refreshState) return "unknown";
     if (!refreshState.last_cycle_at) return "unknown";
-    const ageSec = (Date.now() - parseServerDate(refreshState.last_cycle_at).getTime()) / 1000;
+    const ageSec =
+      (Date.now() - parseServerDate(refreshState.last_cycle_at).getTime()) /
+      1000;
     const interval = progress?.intervalSec ?? 300;
-    if (ageSec > interval * 3) return "error";           // genuinely stalled
+    if (ageSec > interval * 3) return "error"; // genuinely stalled
     if (!refreshState.last_cycle_success) return "warn"; // recent failure, still cycling
-    if (ageSec > interval * 1.5) return "warn";          // overdue but last was ok
+    if (ageSec > interval * 1.5) return "warn"; // overdue but last was ok
     return "ok";
   });
 
   const cycleStatusColor = $derived((): string => {
     switch (cycleStatus()) {
-      case "ok": return "var(--status-ok)";
-      case "warn": return "var(--status-warn)";
-      case "error": return "var(--status-error)";
-      default: return "var(--tv-text-muted)";
+      case "ok":
+        return "var(--status-ok)";
+      case "warn":
+        return "var(--status-warn)";
+      case "error":
+        return "var(--status-error)";
+      default:
+        return "var(--tv-text-muted)";
     }
   });
 
@@ -152,7 +168,11 @@
     <div class="dash-meta">
       {#if lastUpdated}
         <span class="last-updated">
-          Updated {lastUpdated.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
+          Updated {lastUpdated.toLocaleTimeString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            second: "2-digit",
+          })}
         </span>
       {/if}
       <button class="m3-button outlined" onclick={fetchAll}>Refresh</button>
@@ -162,27 +182,39 @@
   {#if loading}
     <LoadingDots label="Loading dashboard" />
   {:else}
-
     <!-- ── Cycle health ───────────────────────────────────────────────────── -->
     <M3Surface title="Miner Cycle">
       {#if !refreshState}
-        <p class="empty-state">No cycle data yet — waiting for first miner run</p>
+        <p class="empty-state">
+          No cycle data yet — waiting for first miner run
+        </p>
       {:else}
         <div class="cycle-grid">
           <div class="cycle-stat">
             <span class="cycle-stat-label">Status</span>
             <span class="cycle-stat-value" style="color: {cycleStatusColor()};">
-              <span class="dot" style="background: {cycleStatusColor()};"></span>
-              {cycleStatus() === "ok" ? "Healthy" : cycleStatus() === "warn" ? "Warning / partial failure" : cycleStatus() === "error" ? "Stalled" : "Unknown"}
+              <span class="dot" style="background: {cycleStatusColor()};"
+              ></span>
+              {cycleStatus() === "ok"
+                ? "Healthy"
+                : cycleStatus() === "warn"
+                  ? "Warning / partial failure"
+                  : cycleStatus() === "error"
+                    ? "Stalled"
+                    : "Unknown"}
             </span>
           </div>
           <div class="cycle-stat">
             <span class="cycle-stat-label">Cycles completed</span>
-            <span class="cycle-stat-value">{refreshState.cycle_count ?? "—"}</span>
+            <span class="cycle-stat-value"
+              >{refreshState.cycle_count ?? "—"}</span
+            >
           </div>
           <div class="cycle-stat">
             <span class="cycle-stat-label">Last cycle</span>
-            <span class="cycle-stat-value">{formatDateTime(refreshState.last_cycle_at)}</span>
+            <span class="cycle-stat-value"
+              >{formatDateTime(refreshState.last_cycle_at)}</span
+            >
           </div>
           <div class="cycle-stat">
             <span class="cycle-stat-label">Last cycle age</span>
@@ -192,14 +224,20 @@
           </div>
           <div class="cycle-stat">
             <span class="cycle-stat-label">Last success</span>
-            <span class="cycle-stat-value"
-              style="color: {refreshState.last_cycle_success ? 'var(--status-ok)' : 'var(--status-error)'};">
+            <span
+              class="cycle-stat-value"
+              style="color: {refreshState.last_cycle_success
+                ? 'var(--status-ok)'
+                : 'var(--status-error)'};"
+            >
               {refreshState.last_cycle_success ? "Yes" : "No"}
             </span>
           </div>
           <div class="cycle-stat">
             <span class="cycle-stat-label">Interval</span>
-            <span class="cycle-stat-value">{progress?.intervalSec ? `${progress.intervalSec}s` : "—"}</span>
+            <span class="cycle-stat-value"
+              >{progress?.intervalSec ? `${progress.intervalSec}s` : "—"}</span
+            >
           </div>
         </div>
       {/if}
@@ -213,43 +251,82 @@
         <div class="coverage-grid">
           <div class="coverage-card">
             <span class="coverage-card-label">Overall</span>
-            <span class="coverage-card-pct" style="color: {coverageColor(progress.totals.coveragePct)};">
+            <span
+              class="coverage-card-pct"
+              style="color: {coverageColor(progress.totals.coveragePct)};"
+            >
               {formatPct(progress.totals.coveragePct)}
             </span>
-            <span class="coverage-card-sub">{progress.totals.populated} / {progress.totals.expected}</span>
+            <span class="coverage-card-sub"
+              >{progress.totals.populated} / {progress.totals.expected}</span
+            >
           </div>
           <div class="coverage-card">
             <span class="coverage-card-label">Market coins</span>
-            <span class="coverage-card-pct" style="color: {coverageColor(progress.sections.marketCoins.coveragePct)};">
+            <span
+              class="coverage-card-pct"
+              style="color: {coverageColor(
+                progress.sections.marketCoins.coveragePct,
+              )};"
+            >
               {formatPct(progress.sections.marketCoins.coveragePct)}
             </span>
-            <span class="coverage-card-sub">{progress.sections.marketCoins.populated} / {progress.sections.marketCoins.expected}</span>
+            <span class="coverage-card-sub"
+              >{progress.sections.marketCoins.populated} / {progress.sections
+                .marketCoins.expected}</span
+            >
           </div>
           <div class="coverage-card">
             <span class="coverage-card-label">Coin breakdown</span>
-            <span class="coverage-card-pct" style="color: {coverageColor(progress.sections.coinBreakdown.coveragePct)};">
+            <span
+              class="coverage-card-pct"
+              style="color: {coverageColor(
+                progress.sections.coinBreakdown.coveragePct,
+              )};"
+            >
               {formatPct(progress.sections.coinBreakdown.coveragePct)}
             </span>
-            <span class="coverage-card-sub">{progress.sections.coinBreakdown.populated} / {progress.sections.coinBreakdown.expected}</span>
+            <span class="coverage-card-sub"
+              >{progress.sections.coinBreakdown.populated} / {progress.sections
+                .coinBreakdown.expected}</span
+            >
           </div>
           <div class="coverage-card">
             <span class="coverage-card-label">Charts</span>
-            <span class="coverage-card-pct" style="color: {coverageColor(progress.sections.charts.coveragePct)};">
+            <span
+              class="coverage-card-pct"
+              style="color: {coverageColor(
+                progress.sections.charts.coveragePct,
+              )};"
+            >
               {formatPct(progress.sections.charts.coveragePct)}
             </span>
-            <span class="coverage-card-sub">{progress.sections.charts.populated} / {progress.sections.charts.expected}</span>
+            <span class="coverage-card-sub"
+              >{progress.sections.charts.populated} / {progress.sections.charts
+                .expected}</span
+            >
           </div>
         </div>
 
         <div class="freshness-row">
           <span class="freshness-label">Freshness</span>
-          <span class="freshness-badge fresh">{progress.freshness.fresh} fresh</span>
-          <span class="freshness-badge warn">{progress.freshness.warning} warning</span>
-          <span class="freshness-badge stale">{progress.freshness.stale} stale</span>
+          <span class="freshness-badge fresh"
+            >{progress.freshness.fresh} fresh</span
+          >
+          <span class="freshness-badge warn"
+            >{progress.freshness.warning} warning</span
+          >
+          <span class="freshness-badge stale"
+            >{progress.freshness.stale} stale</span
+          >
           {#if progress.freshness.unknown > 0}
-            <span class="freshness-badge unknown">{progress.freshness.unknown} unknown</span>
+            <span class="freshness-badge unknown"
+              >{progress.freshness.unknown} unknown</span
+            >
           {/if}
-          <span class="freshness-as-of">as of {formatRelative(progress.snapshotTs ?? progress.asOf)}</span>
+          <span class="freshness-as-of"
+            >as of {formatRelative(progress.snapshotTs ?? progress.asOf)}</span
+          >
         </div>
       {/if}
     </M3Surface>
@@ -257,14 +334,22 @@
     <!-- ── Provider health ───────────────────────────────────────────────── -->
     <M3Surface title="Provider Health">
       {#if providers.length === 0}
-        <p class="empty-state">No provider data yet — waiting for first miner cycle</p>
+        <p class="empty-state">
+          No provider data yet — waiting for first miner cycle
+        </p>
       {:else}
         <ul class="provider-list">
           {#each providers as p (p.provider)}
             <li class="provider-row">
-              <span class="status-dot" style="background: {providerStatusColor(p.status)};"></span>
+              <span
+                class="status-dot"
+                style="background: {providerStatusColor(p.status)};"
+              ></span>
               <span class="provider-name">{p.provider}</span>
-              <span class="provider-status" style="color: {providerStatusColor(p.status)};">
+              <span
+                class="provider-status"
+                style="color: {providerStatusColor(p.status)};"
+              >
                 {providerStatusLabel(p.status)}
               </span>
               <span class="provider-streak">
@@ -278,7 +363,6 @@
         </ul>
       {/if}
     </M3Surface>
-
   {/if}
 </main>
 
@@ -425,10 +509,22 @@
     padding: 0.15rem 0.6rem;
     border-radius: 999px;
   }
-  .freshness-badge.fresh  { color: var(--status-ok);    background: color-mix(in srgb, var(--status-ok) 12%, transparent); }
-  .freshness-badge.warn   { color: var(--status-warn);  background: color-mix(in srgb, var(--status-warn) 12%, transparent); }
-  .freshness-badge.stale  { color: var(--status-error); background: color-mix(in srgb, var(--status-error) 12%, transparent); }
-  .freshness-badge.unknown { color: var(--tv-text-muted); background: color-mix(in srgb, var(--tv-text-muted) 12%, transparent); }
+  .freshness-badge.fresh {
+    color: var(--status-ok);
+    background: color-mix(in srgb, var(--status-ok) 12%, transparent);
+  }
+  .freshness-badge.warn {
+    color: var(--status-warn);
+    background: color-mix(in srgb, var(--status-warn) 12%, transparent);
+  }
+  .freshness-badge.stale {
+    color: var(--status-error);
+    background: color-mix(in srgb, var(--status-error) 12%, transparent);
+  }
+  .freshness-badge.unknown {
+    color: var(--tv-text-muted);
+    background: color-mix(in srgb, var(--tv-text-muted) 12%, transparent);
+  }
 
   .freshness-as-of {
     font-size: 0.75rem;
