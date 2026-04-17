@@ -1,6 +1,7 @@
-import { env } from '$env/dynamic/private';
-import { error } from '@sveltejs/kit';
+import { redirect } from '@sveltejs/kit';
 
+// Deprecated 2026-04-17: replaced by /dashboard.  Keep the redirect so any
+// saved bookmarks or links to /status still work.
 export function load() {
-    if (!env.YACT_ENABLE_STATUS_PAGE) throw error(404, 'Not found');
+    throw redirect(301, '/dashboard');
 }

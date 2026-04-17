@@ -501,6 +501,13 @@
               ? "page"
               : undefined}>Watchlist</a
           >
+          <a
+            class="route-link"
+            href="/dashboard"
+            aria-current={$page.url.pathname === "/dashboard"
+              ? "page"
+              : undefined}>Dashboard</a
+          >
         </nav>
 
         <div class="nav-actions">
