@@ -22,6 +22,7 @@
     import CoinMomentumCard from "./CoinMomentumCard.svelte";
     import CoinNewsCard from "./CoinNewsCard.svelte";
     import CoinMoversCard from "./CoinMoversCard.svelte";
+    import RegimeMatchCard from "./RegimeMatchCard.svelte";
     import FilterBar from "../../components/FilterBar.svelte";
 
     const coinTabs = [
@@ -301,6 +302,7 @@
 
         <aside class="coin-right-rail">
             <CoinMomentumCard {coin} />
+            <RegimeMatchCard coinId={coin.id} />
             <CoinNewsCard headlines={viewData.headlines ?? []} />
             <CoinMoversCard topGainers={viewData.topGainers} />
         </aside>
