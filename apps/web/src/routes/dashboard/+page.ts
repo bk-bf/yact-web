@@ -7,6 +7,36 @@ export interface RefreshStateData {
   updated_at: string | null;
 }
 
+export interface MissingClarity {
+  coverageUnit: string;
+  expectedCoins: number;
+  fullyPopulatedCoins: number;
+  coinsWithAnyMissingItems: number;
+  completelyMissingCoins: number;
+  allMissingIsItemLevel: boolean;
+  topMissingItemsByField: Record<string, number>;
+}
+
+export interface MetadataStage {
+  enabled: boolean;
+  selectedCoins: number;
+  failedCoins: number;
+  writtenCoins: number;
+  freshness: { lastAttemptAt: string | null; bucket: string };
+  skippedReason: string | null;
+}
+
+export interface PriceTier {
+  totalCoins: number;
+  currentPrice: number;
+  symbol: number;
+  name: number;
+  marketCap: number;
+  marketCapRank: number;
+  volume24h: number;
+  priceChange24h: number;
+}
+
 export interface ProgressOverview {
   asOf: string;
   snapshotTs?: string;
@@ -25,6 +55,10 @@ export interface ProgressOverview {
     coinBreakdown: { expected: number; populated: number; coveragePct: number };
     charts: { expected: number; populated: number; coveragePct: number };
   };
+  missingClarity?: MissingClarity;
+  metadataStage?: MetadataStage;
+  chartTimeframes?: string[];
+  priceTier?: PriceTier;
 }
 
 export interface DashboardPageData {

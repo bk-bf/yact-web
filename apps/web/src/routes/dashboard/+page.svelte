@@ -3,6 +3,7 @@
   import { onMount } from "svelte";
   import M3Surface from "$lib/components/M3Surface.svelte";
   import LoadingDots from "$lib/components/LoadingDots.svelte";
+  import CoverageDetail from "$lib/components/CoverageDetail.svelte";
   import type { RefreshStateData, ProgressOverview } from "./+page";
 
   type ProviderStatus = "healthy" | "rate_limited" | "error";
@@ -328,6 +329,23 @@
             >as of {formatRelative(progress.snapshotTs ?? progress.asOf)}</span
           >
         </div>
+      {/if}
+    </M3Surface>
+
+    <!-- ── Coverage detail ──────────────────────────────────────────────── -->
+    <M3Surface title="Coverage Detail">
+      {#if !progress}
+        <p class="empty-state">No coverage data yet</p>
+      {:else if !progress.missingClarity}
+        <p class="empty-state">No field-level breakdown available</p>
+      {:else}
+        <CoverageDetail
+          missingClarity={progress.missingClarity}
+          metadataStage={progress.metadataStage}
+          chartTimeframes={progress.chartTimeframes}
+          totalCoins={progress.missingClarity.expectedCoins}
+          priceTier={progress.priceTier}
+        />
       {/if}
     </M3Surface>
 
