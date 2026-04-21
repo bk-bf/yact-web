@@ -22,6 +22,7 @@
     import CoinMomentumCard from "./CoinMomentumCard.svelte";
     import CoinNewsCard from "./CoinNewsCard.svelte";
     import CoinMoversCard from "./CoinMoversCard.svelte";
+    import FundingRateCard from "./FundingRateCard.svelte";
     import FilterBar from "../../components/FilterBar.svelte";
 
     const coinTabs = [
@@ -284,6 +285,7 @@
             <CoinConverterCard {coin} />
             <CoinPricePerformanceCard {coin} />
             <CoinMarketMetricsCard {coin} />
+            <FundingRateCard coinId={coin.id} />
             <CoinSupplyCard {coin} />
             <CoinInfoCard {coin} />
         </aside>
