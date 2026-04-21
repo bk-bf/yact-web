@@ -102,10 +102,14 @@
           return dir * a.name.localeCompare(b.name);
         case "price":
           return dir * (a.currentPrice - b.currentPrice);
-        case "change24h":
-          return (
-            dir * (a.priceChangePercentage24h - b.priceChangePercentage24h)
-          );
+        case "change24h": {
+          const av = a.priceChangePercentage24h;
+          const bv = b.priceChangePercentage24h;
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          return dir * (av - bv);
+        }
         case "change7d":
           return (
             dir *
