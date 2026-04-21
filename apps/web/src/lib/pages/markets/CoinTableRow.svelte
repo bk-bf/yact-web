@@ -80,8 +80,16 @@
       ? formatJitterUsd(coin.id, coin.currentPrice)
       : smartUsd(coin.currentPrice)}
   </td>
-  <td class={coin.priceChangePercentage24h == null ? "muted" : coin.priceChangePercentage24h >= 0 ? "positive" : "negative"}>
-    {coin.priceChangePercentage24h == null ? "—" : percent.format(coin.priceChangePercentage24h / 100)}
+  <td
+    class={coin.priceChangePercentage24h == null
+      ? "muted"
+      : coin.priceChangePercentage24h >= 0
+        ? "positive"
+        : "negative"}
+  >
+    {coin.priceChangePercentage24h == null
+      ? "—"
+      : percent.format(coin.priceChangePercentage24h / 100)}
   </td>
   <td>
     <svg
