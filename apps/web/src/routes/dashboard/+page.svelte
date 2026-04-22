@@ -4,7 +4,7 @@
   import M3Surface from "$lib/components/M3Surface.svelte";
   import LoadingDots from "$lib/components/LoadingDots.svelte";
   import CoverageDetail from "$lib/components/CoverageDetail.svelte";
-  import type { RefreshStateData, ProgressOverview } from "./+page";
+  import type { RefreshStateData, ProgressOverview, DbCohorts } from "./+page";
 
   type ProviderStatus = "healthy" | "rate_limited" | "error";
 
@@ -21,6 +21,12 @@
   let coreLoading = $state(true);
   let progressLoading = $state(true);
   let lastUpdated = $state<Date | null>(null);
+
+  // ── Log viewer state ────────────────────────────────────────────────────────
+  let logLines = $state<string[]>([]);
+  let logSource = $state<"miner" | "api">("miner");
+  let logLoading = $state(false);
+  let logTotalLines = $state(0);
 
   // ── Formatting helpers ──────────────────────────────────────────────────────
 
@@ -131,6 +137,22 @@
 
   // ── Fetch logic ─────────────────────────────────────────────────────────────
 
+  async function fetchLogs() {
+    logLoading = true;
+    try {
+      const res = await fetch(`/api/logs?lines=150&source=${logSource}`);
+      if (res.ok) {
+        const data = await res.json();
+        logLines = data.lines ?? [];
+        logTotalLines = data.totalLines ?? 0;
+      }
+    } catch {
+      /* keep last known state */
+    } finally {
+      logLoading = false;
+    }
+  }
+
   async function fetchAll() {
     // Fetch fast endpoints (refresh-state, provider-health) first so the core
     // dashboard renders immediately, independent of the slow progress overview.
@@ -178,8 +200,13 @@
   onMount(() => {
     if (!browser) return;
     void fetchAll();
+    void fetchLogs();
     const id = setInterval(() => void fetchAll(), 30_000);
-    return () => clearInterval(id);
+    const logId = setInterval(() => void fetchLogs(), 15_000);
+    return () => {
+      clearInterval(id);
+      clearInterval(logId);
+    };
   });
 </script>
 
@@ -400,8 +427,85 @@
       {/if}
     </M3Surface>
 
-    <!-- ── Provider health ───────────────────────────────────────────────── -->
-    <M3Surface title="Provider Health">
+    <!-- ── DB Cohorts ────────────────────────────────────────────────────── -->
+    <M3Surface title="DB Coin Cohorts">
+      {#if progressLoading}
+        <LoadingDots label="Loading cohort data" />
+      {:else if !progress?.dbCohorts}
+        <p class="empty-state">No cohort data available</p>
+      {:else}
+        {@const c = progress.dbCohorts as DbCohorts}
+        <div class="cohort-table">
+          <div class="cohort-row cohort-header">
+            <span>Cohort</span>
+            <span>Count</span>
+            <span>Note</span>
+          </div>
+          <div class="cohort-row">
+            <span class="cohort-label">Total in DB</span>
+            <span class="cohort-count">{c.totalInDb.toLocaleString()}</span>
+            <span class="cohort-note">All coins ever seen (any source)</span>
+          </div>
+          <div class="cohort-row">
+            <span class="cohort-label">Ticker-auto only</span>
+            <span class="cohort-count">{c.tickerOnly.toLocaleString()}</span>
+            <span class="cohort-note">Auto-registered from exchange tickers — live price only, no rank or metadata</span>
+          </div>
+          <div class="cohort-row">
+            <span class="cohort-label">CoinPaprika-ranked</span>
+            <span class="cohort-count">{c.paprikaTracked.toLocaleString()}</span>
+            <span class="cohort-note">Have a market cap rank from CoinPaprika — eligible for full enrichment</span>
+          </div>
+          <div class="cohort-row">
+            <span class="cohort-label">Current snapshot</span>
+            <span class="cohort-count">{c.currentSnapshot.toLocaleString()}</span>
+            <span class="cohort-note">In the latest miner snapshot — used as coverage denominator</span>
+          </div>
+          <div class="cohort-row">
+            <span class="cohort-label">CoinGecko-enriched</span>
+            <span class="cohort-count">{c.coingeckoEnriched.toLocaleString()}</span>
+            <span class="cohort-note">Have CoinGecko breakdown data (ATH, ATL, description, socials…)</span>
+          </div>
+        </div>
+        <p class="cohort-footnote">
+          Coverage stats only count the <strong>current snapshot</strong> cohort.
+          Ticker-auto coins will never appear in coverage until CoinPaprika or CoinGecko confirms them.
+        </p>
+      {/if}
+    </M3Surface>
+
+    <!-- ── Log viewer ─────────────────────────────────────────────────────── -->
+    <M3Surface title="Log Tail">
+      <div class="log-toolbar">
+        <div class="log-source-toggle">
+          <button
+            class="log-toggle-btn"
+            class:active={logSource === "miner"}
+            onclick={() => { logSource = "miner"; void fetchLogs(); }}
+          >Miner</button>
+          <button
+            class="log-toggle-btn"
+            class:active={logSource === "api"}
+            onclick={() => { logSource = "api"; void fetchLogs(); }}
+          >API</button>
+        </div>
+        {#if logTotalLines > 0}
+          <span class="log-meta">showing last 150 of {logTotalLines.toLocaleString()} lines</span>
+        {/if}
+        <button class="m3-button outlined log-refresh-btn" onclick={() => void fetchLogs()}>
+          Refresh
+        </button>
+      </div>
+      {#if logLoading && logLines.length === 0}
+        <LoadingDots label="Loading logs" />
+      {:else if logLines.length === 0}
+        <p class="empty-state">No log lines found — log file may not exist yet</p>
+      {:else}
+        <pre class="log-pre">{logLines.join("\n")}</pre>
+      {/if}
+    </M3Surface>
+
+    <!-- ── Provider health ───────────────────────────────────────────────── -->    <M3Surface title="Provider Health">
       {#if providers.length === 0}
         <p class="empty-state">
           No provider data yet — waiting for first miner cycle
@@ -688,5 +792,121 @@
     color: var(--tv-text-muted);
     text-align: right;
     min-width: 7rem;
+  }
+
+  /* DB Cohort table */
+  .cohort-table {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--tv-border);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+  }
+
+  .cohort-row {
+    display: grid;
+    grid-template-columns: minmax(10rem, 1.5fr) 6rem 1fr;
+    align-items: center;
+    gap: 0 1rem;
+    padding: 0.6rem 0.875rem;
+    border-bottom: 1px solid var(--tv-border);
+  }
+
+  .cohort-row:last-child {
+    border-bottom: none;
+  }
+
+  .cohort-header {
+    background: var(--tv-surface-1);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--tv-text-muted);
+  }
+
+  .cohort-label {
+    font-size: 0.9rem;
+    font-weight: 500;
+    color: var(--tv-text-primary);
+  }
+
+  .cohort-count {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--tv-text-primary);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .cohort-note {
+    font-size: 0.8125rem;
+    color: var(--tv-text-muted);
+  }
+
+  .cohort-footnote {
+    font-size: 0.8125rem;
+    color: var(--tv-text-muted);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  /* Log viewer */
+  .log-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    flex-wrap: wrap;
+    margin-bottom: 0.75rem;
+  }
+
+  .log-source-toggle {
+    display: flex;
+    border: 1px solid var(--tv-border);
+    border-radius: 6px;
+    overflow: hidden;
+  }
+
+  .log-toggle-btn {
+    padding: 0.3rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    color: var(--tv-text-secondary);
+    transition: background 0.15s, color 0.15s;
+  }
+
+  .log-toggle-btn.active {
+    background: var(--tv-surface-2, var(--tv-accent-muted, var(--tv-border)));
+    color: var(--tv-text-primary);
+  }
+
+  .log-meta {
+    font-size: 0.75rem;
+    color: var(--tv-text-muted);
+    margin-right: auto;
+  }
+
+  .log-refresh-btn {
+    font-size: 0.8125rem;
+    padding: 0.25rem 0.75rem;
+  }
+
+  .log-pre {
+    font-family: var(--font-mono, monospace);
+    font-size: 0.75rem;
+    line-height: 1.55;
+    color: var(--tv-text-secondary);
+    background: var(--tv-surface-1);
+    border: 1px solid var(--tv-border);
+    border-radius: 6px;
+    padding: 0.75rem 1rem;
+    max-height: 400px;
+    overflow-y: auto;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0;
   }
 </style>

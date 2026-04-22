@@ -26,7 +26,6 @@ interface CryptoHeadline {
 }
 
 interface MarketsResponse {
-    source: string;
     count: number;
     coins: MarketCoin[];
     global: GlobalMarketSummary;
@@ -80,7 +79,6 @@ function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
                 ? safeHighlights.topGainers
                 : EMPTY_HIGHLIGHTS.topGainers,
         },
-        source: safePayload.source ?? 'analytics-api',
         snapshotTs: safePayload.snapshotTs ?? safePayload.ts ?? null,
         stale: safePayload.stale ?? false,
         error: safePayload.error ?? undefined

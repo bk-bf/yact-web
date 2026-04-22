@@ -44,6 +44,15 @@ export interface PriceTier {
   priceChange24h: number;
 }
 
+export interface DbCohorts {
+  totalInDb: number;
+  paprikaTracked: number;
+  tickerOnly: number;
+  coingeckoEnriched: number;
+  currentSnapshot: number;
+  note?: string;
+}
+
 export interface ProgressOverview {
   asOf: string;
   snapshotTs?: string;
@@ -66,6 +75,7 @@ export interface ProgressOverview {
   metadataStage?: MetadataStage;
   chartTimeframes?: string[];
   priceTier?: PriceTier;
+  dbCohorts?: DbCohorts;
   cycleHealth?: {
     consecutiveFailures: number;
     lastResult: string | null;

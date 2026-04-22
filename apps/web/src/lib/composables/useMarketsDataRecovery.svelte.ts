@@ -115,7 +115,6 @@ export function useMarketsDataRecovery(
                 setRecovered(next);
                 console.info("[tier-2-refresh] markets: updated", {
                     coins: next.coins.length,
-                    source: next.source,
                 });
                 window.dispatchEvent(
                     new CustomEvent("yact:global-ready", {
