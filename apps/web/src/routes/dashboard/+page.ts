@@ -5,6 +5,13 @@ export interface RefreshStateData {
   last_cycle_at: string | null;
   last_cycle_success: boolean;
   updated_at: string | null;
+  current_state?: {
+    last_result?: string;
+    error?: string;
+    status_code?: number | null;
+    consecutive_failures?: number;
+    interval_sec?: number;
+  } | null;
 }
 
 export interface MissingClarity {
@@ -59,6 +66,13 @@ export interface ProgressOverview {
   metadataStage?: MetadataStage;
   chartTimeframes?: string[];
   priceTier?: PriceTier;
+  cycleHealth?: {
+    consecutiveFailures: number;
+    lastResult: string | null;
+    lastError: string | null;
+    lastCycleAt: string | null;
+    lastCycleSuccess: boolean | null;
+  };
 }
 
 export interface DashboardPageData {

@@ -18,7 +18,8 @@
   let refreshState = $state<RefreshStateData | null>(null);
   let progress = $state<ProgressOverview | null>(null);
   let providers = $state<ProviderHealth[]>([]);
-  let loading = $state(true);
+  let coreLoading = $state(true);
+  let progressLoading = $state(true);
   let lastUpdated = $state<Date | null>(null);
 
   // ── Formatting helpers ──────────────────────────────────────────────────────
@@ -96,8 +97,8 @@
   }
 
   // ── Cycle health ────────────────────────────────────────────────────────────
-  // "error" only when genuinely stalled (age > 3× interval).
-  // A single failed cycle that is recent is "warn" — transient rate limits etc.
+  // "error" when stalled (age > 3× interval) OR ≥5 consecutive failures.
+  // A small streak of failures that is recent is "warn" — transient rate limits etc.
 
   const cycleStatus = $derived((): "ok" | "warn" | "error" | "unknown" => {
     if (!refreshState) return "unknown";
@@ -107,6 +108,9 @@
       1000;
     const interval = progress?.intervalSec ?? 300;
     if (ageSec > interval * 3) return "error"; // genuinely stalled
+    const consecutiveFails =
+      refreshState.current_state?.consecutive_failures ?? 0;
+    if (consecutiveFails >= 5) return "error"; // persistently failing
     if (!refreshState.last_cycle_success) return "warn"; // recent failure, still cycling
     if (ageSec > interval * 1.5) return "warn"; // overdue but last was ok
     return "ok";
@@ -128,31 +132,45 @@
   // ── Fetch logic ─────────────────────────────────────────────────────────────
 
   async function fetchAll() {
-    try {
-      const [rsRes, progRes, provRes] = await Promise.all([
-        fetch("/api/refresh-state"),
-        fetch("/api/progress"),
-        fetch("/api/provider-health"),
-      ]);
-
+    // Fetch fast endpoints (refresh-state, provider-health) first so the core
+    // dashboard renders immediately, independent of the slow progress overview.
+    const corePromise = Promise.all([
+      fetch("/api/refresh-state"),
+      fetch("/api/provider-health"),
+    ]).then(async ([rsRes, provRes]) => {
       if (rsRes.ok) {
         const payload = await rsRes.json();
         if (payload) refreshState = payload as RefreshStateData;
-      }
-      if (progRes.ok) {
-        const payload = await progRes.json();
-        if (payload) progress = payload as ProgressOverview;
       }
       if (provRes.ok) {
         const payload = await provRes.json();
         if (Array.isArray(payload)) providers = payload;
       }
+    });
+
+    const progressPromise = fetch("/api/progress")
+      .then(async (res) => {
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload) progress = payload as ProgressOverview;
+        }
+      })
+      .catch(() => { /* keep last known state */ })
+      .finally(() => {
+        progressLoading = false;
+      });
+
+    try {
+      await corePromise;
     } catch {
       // keep last known state on transient errors
     } finally {
-      loading = false;
+      coreLoading = false;
       lastUpdated = new Date();
     }
+
+    // progress settles in the background; lastUpdated is already set
+    await progressPromise;
   }
 
   onMount(() => {
@@ -180,7 +198,7 @@
     </div>
   </div>
 
-  {#if loading}
+  {#if coreLoading}
     <LoadingDots label="Loading dashboard" />
   {:else}
     <!-- ── Cycle health ───────────────────────────────────────────────────── -->
@@ -190,6 +208,21 @@
           No cycle data yet — waiting for first miner run
         </p>
       {:else}
+        {#if !refreshState.last_cycle_success && refreshState.current_state?.error}
+          <div class="cycle-error-banner">
+            <span class="cycle-error-icon">⚠</span>
+            <div class="cycle-error-body">
+              <span class="cycle-error-title">
+                Cycle failing{(refreshState.current_state.consecutive_failures ?? 0) > 1
+                  ? ` · ${refreshState.current_state.consecutive_failures} consecutive failures`
+                  : ""}
+              </span>
+              <span class="cycle-error-message"
+                >{refreshState.current_state.error}</span
+              >
+            </div>
+          </div>
+        {/if}
         <div class="cycle-grid">
           <div class="cycle-stat">
             <span class="cycle-stat-label">Status</span>
@@ -201,7 +234,7 @@
                 : cycleStatus() === "warn"
                   ? "Warning / partial failure"
                   : cycleStatus() === "error"
-                    ? "Stalled"
+                    ? "Stalled / failing"
                     : "Unknown"}
             </span>
           </div>
@@ -234,6 +267,14 @@
               {refreshState.last_cycle_success ? "Yes" : "No"}
             </span>
           </div>
+          {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
+            <div class="cycle-stat">
+              <span class="cycle-stat-label">Consecutive failures</span>
+              <span class="cycle-stat-value" style="color: var(--status-error);">
+                {refreshState.current_state?.consecutive_failures}
+              </span>
+            </div>
+          {/if}
           <div class="cycle-stat">
             <span class="cycle-stat-label">Interval</span>
             <span class="cycle-stat-value"
@@ -246,7 +287,9 @@
 
     <!-- ── Coverage overview ─────────────────────────────────────────────── -->
     <M3Surface title="Data Coverage">
-      {#if !progress}
+      {#if progressLoading}
+        <LoadingDots label="Loading coverage" />
+      {:else if !progress}
         <p class="empty-state">No coverage data yet</p>
       {:else}
         <div class="coverage-grid">
@@ -334,7 +377,9 @@
 
     <!-- ── Coverage detail ──────────────────────────────────────────────── -->
     <M3Surface title="Coverage Detail">
-      {#if !progress}
+      {#if progressLoading}
+        <LoadingDots label="Loading detail" />
+      {:else if !progress}
         <p class="empty-state">No coverage data yet</p>
       {:else if !progress.missingClarity}
         <p class="empty-state">No field-level breakdown available</p>
@@ -368,13 +413,18 @@
                 class="provider-status"
                 style="color: {providerStatusColor(p.status)};"
               >
-                {providerStatusLabel(p.status)}
-              </span>
-              <span class="provider-streak">
-                {p.error_streak > 0 ? `${p.error_streak} errors` : "—"}
+                {#if p.status === "error" && p.error_streak > 0}
+                  {p.error_streak} errors
+                {:else if p.status === "rate_limited" && p.error_streak > 0}
+                  Rate limited &middot; {p.error_streak} errors
+                {:else}
+                  {providerStatusLabel(p.status)}
+                {/if}
               </span>
               <span class="provider-last">
-                {formatRelative(p.last_success_at)}
+                {p.status === "healthy"
+                  ? formatRelative(p.last_success_at)
+                  : `last ok: ${formatRelative(p.last_success_at)}`}
               </span>
             </li>
           {/each}
@@ -428,6 +478,44 @@
   }
 
   /* Cycle grid */
+  .cycle-error-banner {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.75rem 1rem;
+    margin-bottom: 1rem;
+    background: color-mix(in srgb, var(--status-error) 12%, transparent);
+    border: 1px solid color-mix(in srgb, var(--status-error) 40%, transparent);
+    border-radius: 6px;
+  }
+
+  .cycle-error-icon {
+    font-size: 1.125rem;
+    color: var(--status-error);
+    flex-shrink: 0;
+    margin-top: 0.05rem;
+  }
+
+  .cycle-error-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.2rem;
+    min-width: 0;
+  }
+
+  .cycle-error-title {
+    font-size: 0.875rem;
+    font-weight: 700;
+    color: var(--status-error);
+  }
+
+  .cycle-error-message {
+    font-size: 0.8125rem;
+    color: var(--tv-text-secondary);
+    word-break: break-word;
+    font-family: var(--font-mono, monospace);
+  }
+
   .cycle-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -559,7 +647,7 @@
 
   .provider-row {
     display: grid;
-    grid-template-columns: 0.75rem 1fr auto auto auto;
+    grid-template-columns: 0.75rem 1fr auto auto;
     align-items: center;
     gap: 0.75rem 1rem;
     padding: 0.75rem 0;
@@ -589,16 +677,10 @@
     font-weight: 600;
   }
 
-  .provider-streak {
-    font-size: 0.8125rem;
-    color: var(--tv-text-muted);
-    text-align: right;
-  }
-
   .provider-last {
     font-size: 0.8125rem;
     color: var(--tv-text-muted);
     text-align: right;
-    min-width: 6rem;
+    min-width: 7rem;
   }
 </style>
