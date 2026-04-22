@@ -155,7 +155,9 @@
           if (payload) progress = payload as ProgressOverview;
         }
       })
-      .catch(() => { /* keep last known state */ })
+      .catch(() => {
+        /* keep last known state */
+      })
       .finally(() => {
         progressLoading = false;
       });
@@ -213,7 +215,8 @@
             <span class="cycle-error-icon">⚠</span>
             <div class="cycle-error-body">
               <span class="cycle-error-title">
-                Cycle failing{(refreshState.current_state.consecutive_failures ?? 0) > 1
+                Cycle failing{(refreshState.current_state
+                  .consecutive_failures ?? 0) > 1
                   ? ` · ${refreshState.current_state.consecutive_failures} consecutive failures`
                   : ""}
               </span>
@@ -270,7 +273,10 @@
           {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
             <div class="cycle-stat">
               <span class="cycle-stat-label">Consecutive failures</span>
-              <span class="cycle-stat-value" style="color: var(--status-error);">
+              <span
+                class="cycle-stat-value"
+                style="color: var(--status-error);"
+              >
                 {refreshState.current_state?.consecutive_failures}
               </span>
             </div>
