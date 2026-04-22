@@ -449,27 +449,43 @@
           <div class="cohort-row">
             <span class="cohort-label">Ticker-auto only</span>
             <span class="cohort-count">{c.tickerOnly.toLocaleString()}</span>
-            <span class="cohort-note">Auto-registered from exchange tickers — live price only, no rank or metadata</span>
+            <span class="cohort-note"
+              >Auto-registered from exchange tickers — live price only, no rank
+              or metadata</span
+            >
           </div>
           <div class="cohort-row">
             <span class="cohort-label">CoinPaprika-ranked</span>
-            <span class="cohort-count">{c.paprikaTracked.toLocaleString()}</span>
-            <span class="cohort-note">Have a market cap rank from CoinPaprika — eligible for full enrichment</span>
+            <span class="cohort-count">{c.paprikaTracked.toLocaleString()}</span
+            >
+            <span class="cohort-note"
+              >Have a market cap rank from CoinPaprika — eligible for full
+              enrichment</span
+            >
           </div>
           <div class="cohort-row">
             <span class="cohort-label">Current snapshot</span>
-            <span class="cohort-count">{c.currentSnapshot.toLocaleString()}</span>
-            <span class="cohort-note">In the latest miner snapshot — used as coverage denominator</span>
+            <span class="cohort-count"
+              >{c.currentSnapshot.toLocaleString()}</span
+            >
+            <span class="cohort-note"
+              >In the latest miner snapshot — used as coverage denominator</span
+            >
           </div>
           <div class="cohort-row">
             <span class="cohort-label">CoinGecko-enriched</span>
-            <span class="cohort-count">{c.coingeckoEnriched.toLocaleString()}</span>
-            <span class="cohort-note">Have CoinGecko breakdown data (ATH, ATL, description, socials…)</span>
+            <span class="cohort-count"
+              >{c.coingeckoEnriched.toLocaleString()}</span
+            >
+            <span class="cohort-note"
+              >Have CoinGecko breakdown data (ATH, ATL, description, socials…)</span
+            >
           </div>
         </div>
         <p class="cohort-footnote">
           Coverage stats only count the <strong>current snapshot</strong> cohort.
-          Ticker-auto coins will never appear in coverage until CoinPaprika or CoinGecko confirms them.
+          Ticker-auto coins will never appear in coverage until CoinPaprika or CoinGecko
+          confirms them.
         </p>
       {/if}
     </M3Surface>
@@ -481,31 +497,45 @@
           <button
             class="log-toggle-btn"
             class:active={logSource === "miner"}
-            onclick={() => { logSource = "miner"; void fetchLogs(); }}
-          >Miner</button>
+            onclick={() => {
+              logSource = "miner";
+              void fetchLogs();
+            }}>Miner</button
+          >
           <button
             class="log-toggle-btn"
             class:active={logSource === "api"}
-            onclick={() => { logSource = "api"; void fetchLogs(); }}
-          >API</button>
+            onclick={() => {
+              logSource = "api";
+              void fetchLogs();
+            }}>API</button
+          >
         </div>
         {#if logTotalLines > 0}
-          <span class="log-meta">showing last 150 of {logTotalLines.toLocaleString()} lines</span>
+          <span class="log-meta"
+            >showing last 150 of {logTotalLines.toLocaleString()} lines</span
+          >
         {/if}
-        <button class="m3-button outlined log-refresh-btn" onclick={() => void fetchLogs()}>
+        <button
+          class="m3-button outlined log-refresh-btn"
+          onclick={() => void fetchLogs()}
+        >
           Refresh
         </button>
       </div>
       {#if logLoading && logLines.length === 0}
         <LoadingDots label="Loading logs" />
       {:else if logLines.length === 0}
-        <p class="empty-state">No log lines found — log file may not exist yet</p>
+        <p class="empty-state">
+          No log lines found — log file may not exist yet
+        </p>
       {:else}
         <pre class="log-pre">{logLines.join("\n")}</pre>
       {/if}
     </M3Surface>
 
-    <!-- ── Provider health ───────────────────────────────────────────────── -->    <M3Surface title="Provider Health">
+    <!-- ── Provider health ───────────────────────────────────────────────── -->
+    <M3Surface title="Provider Health">
       {#if providers.length === 0}
         <p class="empty-state">
           No provider data yet — waiting for first miner cycle
@@ -875,7 +905,9 @@
     border: none;
     cursor: pointer;
     color: var(--tv-text-secondary);
-    transition: background 0.15s, color 0.15s;
+    transition:
+      background 0.15s,
+      color 0.15s;
   }
 
   .log-toggle-btn.active {
