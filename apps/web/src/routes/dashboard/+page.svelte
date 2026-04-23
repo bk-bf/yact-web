@@ -67,6 +67,23 @@
     return Number.isFinite(v) ? `${v.toFixed(1)}%` : "—";
   }
 
+  // ── Log timestamp localisation ───────────────────────────────────────────────
+  // Server runs in UTC; the raw log lines contain naive UTC timestamps in the
+  // format "YYYY-MM-DD HH:MM:SS".  Rewrite them to the browser's local time so
+  // the displayed time matches the user's clock.
+
+  const _LOG_TS_RE = /^(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})/;
+  const _p2 = (n: number) => String(n).padStart(2, "0");
+
+  function localizeLogLine(line: string): string {
+    const m = _LOG_TS_RE.exec(line);
+    if (!m) return line;
+    const d = new Date(`${m[1]}T${m[2]}Z`); // treat as UTC
+    if (isNaN(d.getTime())) return line;
+    const local = `${d.getFullYear()}-${_p2(d.getMonth() + 1)}-${_p2(d.getDate())} ${_p2(d.getHours())}:${_p2(d.getMinutes())}:${_p2(d.getSeconds())}`;
+    return local + line.slice(m[0].length);
+  }
+
   function coverageColor(pct: number): string {
     if (!Number.isFinite(pct)) return "var(--tv-text-muted)";
     if (pct >= 90) return "var(--status-ok)";
@@ -530,7 +547,7 @@
           No log lines found — log file may not exist yet
         </p>
       {:else}
-        <pre class="log-pre">{logLines.join("\n")}</pre>
+        <pre class="log-pre">{logLines.map(localizeLogLine).join("\n")}</pre>
       {/if}
     </M3Surface>
 
