@@ -22,7 +22,9 @@
   }: Props = $props();
 
   const fieldGroups = $derived.by(() => {
-    const entries = Object.entries(missingClarity?.topMissingItemsByField ?? {});
+    const entries = Object.entries(
+      missingClarity?.topMissingItemsByField ?? {},
+    );
     return {
       breakdown: entries.filter(([k]) => k.startsWith("breakdown.")),
       charts: entries.filter(([k]) => k.startsWith("charts.")),
@@ -79,15 +81,34 @@
     </div>
     <div class="cd-row">
       <span class="cd-k">fully populated</span>
-      <span class="cd-v" style="color:{missingClarity.fullyPopulatedCoins === missingClarity.expectedCoins ? 'var(--status-ok)' : 'var(--tv-text-primary)'};">{missingClarity.fullyPopulatedCoins}</span>
+      <span
+        class="cd-v"
+        style="color:{missingClarity.fullyPopulatedCoins ===
+        missingClarity.expectedCoins
+          ? 'var(--status-ok)'
+          : 'var(--tv-text-primary)'};"
+        >{missingClarity.fullyPopulatedCoins}</span
+      >
     </div>
     <div class="cd-row">
       <span class="cd-k">partial</span>
-      <span class="cd-v" style="color:{missingClarity.coinsWithAnyMissingItems > 0 ? 'var(--status-warn)' : 'var(--status-ok)'};">{missingClarity.coinsWithAnyMissingItems}</span>
+      <span
+        class="cd-v"
+        style="color:{missingClarity.coinsWithAnyMissingItems > 0
+          ? 'var(--status-warn)'
+          : 'var(--status-ok)'};"
+        >{missingClarity.coinsWithAnyMissingItems}</span
+      >
     </div>
     <div class="cd-row">
       <span class="cd-k">completely missing</span>
-      <span class="cd-v" style="color:{missingClarity.completelyMissingCoins > 0 ? 'var(--status-error)' : 'var(--tv-text-muted)'};">{missingClarity.completelyMissingCoins}</span>
+      <span
+        class="cd-v"
+        style="color:{missingClarity.completelyMissingCoins > 0
+          ? 'var(--status-error)'
+          : 'var(--tv-text-muted)'};"
+        >{missingClarity.completelyMissingCoins}</span
+      >
     </div>
     {#if chartTimeframes && chartTimeframes.length > 0}
       <div class="cd-row">
@@ -106,7 +127,9 @@
             <span class="ob-bar-wrap"
               ><span
                 class="ob-bar"
-                style="width:{pctMissing(count)}%; background:{barFillColor(count)};"
+                style="width:{pctMissing(count)}%; background:{barFillColor(
+                  count,
+                )};"
               ></span></span
             >
             <span class="cd-v" style="color:{missColor(count)};">{count}</span>
@@ -135,16 +158,26 @@
       <div class="cd-grp">
         <div class="cd-grp-hd">PRICE FIELDS</div>
         {#each [{ label: "price", value: priceTier.currentPrice }, { label: "symbol", value: priceTier.symbol }, { label: "name", value: priceTier.name }, { label: "market cap", value: priceTier.marketCap }, { label: "rank", value: priceTier.marketCapRank }, { label: "vol 24h", value: priceTier.volume24h }, { label: "Δ 24h", value: priceTier.priceChange24h }] as col (col.label)}
-          {@const pct = priceTier.totalCoins > 0 ? Math.round((col.value / priceTier.totalCoins) * 100) : 0}
+          {@const pct =
+            priceTier.totalCoins > 0
+              ? Math.round((col.value / priceTier.totalCoins) * 100)
+              : 0}
           <div class="cd-row cd-row-bar">
             <span class="cd-k">{col.label}</span>
             <span class="ob-bar-wrap"
               ><span
                 class="ob-bar"
-                style="width:{pct}%; background:{priceBarColor(col.value, priceTier.totalCoins)};"
+                style="width:{pct}%; background:{priceBarColor(
+                  col.value,
+                  priceTier.totalCoins,
+                )};"
               ></span></span
             >
-            <span class="cd-v" style="color:{priceFieldColor(col.value, priceTier.totalCoins)};">{col.value}</span>
+            <span
+              class="cd-v"
+              style="color:{priceFieldColor(col.value, priceTier.totalCoins)};"
+              >{col.value}</span
+            >
             <span class="cd-s">{pct}%</span>
           </div>
         {/each}
@@ -158,7 +191,13 @@
       <div class="cd-grp-hd">METADATA</div>
       <div class="cd-row">
         <span class="cd-k">enrichment</span>
-        <span class="cd-v" style="color:{metadataStage.enabled ? 'var(--status-ok)' : 'var(--tv-text-muted)'};">{metadataStage.enabled ? 'ENABLED' : 'DISABLED'}</span>
+        <span
+          class="cd-v"
+          style="color:{metadataStage.enabled
+            ? 'var(--status-ok)'
+            : 'var(--tv-text-muted)'};"
+          >{metadataStage.enabled ? "ENABLED" : "DISABLED"}</span
+        >
       </div>
       {#if metadataStage.skippedReason}
         <div class="cd-row">
@@ -168,7 +207,17 @@
       {:else if metadataStage.freshness.lastAttemptAt}
         <div class="cd-row">
           <span class="cd-k">freshness</span>
-          <span class="cd-v" style="color:{metadataStage.freshness.bucket === 'fresh' ? 'var(--status-ok)' : metadataStage.freshness.bucket === 'warning' ? 'var(--status-warn)' : metadataStage.freshness.bucket === 'stale' ? 'var(--status-error)' : 'var(--tv-text-muted)'};">{metadataStage.freshness.bucket.toUpperCase()}</span>
+          <span
+            class="cd-v"
+            style="color:{metadataStage.freshness.bucket === 'fresh'
+              ? 'var(--status-ok)'
+              : metadataStage.freshness.bucket === 'warning'
+                ? 'var(--status-warn)'
+                : metadataStage.freshness.bucket === 'stale'
+                  ? 'var(--status-error)'
+                  : 'var(--tv-text-muted)'};"
+            >{metadataStage.freshness.bucket.toUpperCase()}</span
+          >
         </div>
         <div class="cd-row">
           <span class="cd-k">written</span>
@@ -176,7 +225,12 @@
         </div>
         <div class="cd-row">
           <span class="cd-k">failed</span>
-          <span class="cd-v" style="color:{metadataStage.failedCoins > 0 ? 'var(--status-error)' : 'var(--tv-text-muted)'};">{metadataStage.failedCoins}</span>
+          <span
+            class="cd-v"
+            style="color:{metadataStage.failedCoins > 0
+              ? 'var(--status-error)'
+              : 'var(--tv-text-muted)'};">{metadataStage.failedCoins}</span
+          >
         </div>
       {/if}
     </div>
@@ -214,7 +268,9 @@
     padding: 0.08rem 0;
     border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   }
-  .cd-row:last-child { border-bottom: none; }
+  .cd-row:last-child {
+    border-bottom: none;
+  }
 
   /* bar variant: name | bar-track | count | pct */
   .cd-row-bar {

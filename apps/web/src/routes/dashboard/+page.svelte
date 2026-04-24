@@ -296,7 +296,9 @@
           })
         : "--:--:--"} UTC</span
     >
-    <button class="t-btn t-btn-icon" onclick={fetchAll} title="Refresh">↻</button>
+    <button class="t-btn t-btn-icon" onclick={fetchAll} title="Refresh"
+      >↻</button
+    >
   </div>
 
   {#if coreLoading}
@@ -306,13 +308,17 @@
     <div class="t-main">
       <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
       <div class="t-col t-col-l">
-
         <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
         {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
           <div class="t-panel alert-panel">
             <div class="t-panel-label alert-label">⚠ ALERT</div>
             <div class="t-panel-body">
-              <div class="alert-title">CYCLE FAILING{(refreshState.current_state.consecutive_failures ?? 0) > 1 ? ` · ${refreshState.current_state.consecutive_failures}×` : ""}</div>
+              <div class="alert-title">
+                CYCLE FAILING{(refreshState.current_state
+                  .consecutive_failures ?? 0) > 1
+                  ? ` · ${refreshState.current_state.consecutive_failures}×`
+                  : ""}
+              </div>
               <div class="alert-msg">{refreshState.current_state.error}</div>
             </div>
           </div>
@@ -482,7 +488,11 @@
                 }}>API</button
               >
             </div>
-            <button class="t-btn t-btn-tiny t-btn-icon" onclick={() => void fetchLogs()} title="Refresh logs">↻</button>
+            <button
+              class="t-btn t-btn-tiny t-btn-icon"
+              onclick={() => void fetchLogs()}
+              title="Refresh logs">↻</button
+            >
           </div>
           <div class="t-stream">
             {#if logLoading && logLines.length === 0}
