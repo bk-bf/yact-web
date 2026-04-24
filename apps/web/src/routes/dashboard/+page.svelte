@@ -296,29 +296,27 @@
           })
         : "--:--:--"} UTC</span
     >
-    <button class="t-btn" onclick={fetchAll}>REFRESH</button>
+    <button class="t-btn t-btn-icon" onclick={fetchAll} title="Refresh">↻</button>
   </div>
 
   {#if coreLoading}
     <div class="t-loading"><LoadingDots label="Loading dashboard" /></div>
   {:else}
-    {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
-      <div class="t-err">
-        <span class="t-err-icon">⚠</span>
-        <span class="t-err-title"
-          >CYCLE FAILING{(refreshState.current_state.consecutive_failures ??
-            0) > 1
-            ? ` // ${refreshState.current_state.consecutive_failures} CONSECUTIVE FAILURES`
-            : ""}</span
-        >
-        <span class="t-err-msg">{refreshState.current_state.error}</span>
-      </div>
-    {/if}
-
     <!-- ══ MAIN 3-PANE GRID ═══════════════════════════════════════════════════ -->
     <div class="t-main">
       <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
       <div class="t-col t-col-l">
+
+        <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
+        {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
+          <div class="t-panel alert-panel">
+            <div class="t-panel-label alert-label">⚠ ALERT</div>
+            <div class="t-panel-body">
+              <div class="alert-title">CYCLE FAILING{(refreshState.current_state.consecutive_failures ?? 0) > 1 ? ` · ${refreshState.current_state.consecutive_failures}×` : ""}</div>
+              <div class="alert-msg">{refreshState.current_state.error}</div>
+            </div>
+          </div>
+        {/if}
         <!-- Miner Cycle -->
         <div class="t-panel">
           <div class="t-panel-label">
@@ -484,9 +482,7 @@
                 }}>API</button
               >
             </div>
-            <button class="t-btn t-btn-tiny" onclick={() => void fetchLogs()}
-              >REFRESH</button
-            >
+            <button class="t-btn t-btn-tiny t-btn-icon" onclick={() => void fetchLogs()} title="Refresh logs">↻</button>
           </div>
           <div class="t-stream">
             {#if logLoading && logLines.length === 0}
@@ -749,34 +745,38 @@
     padding: 0.05rem 0.45rem;
     font-size: 0.6rem;
   }
+  .t-btn-icon {
+    font-size: 0.85rem;
+    line-height: 1;
+    padding: 0.05rem 0.45rem;
+    letter-spacing: 0;
+  }
 
-  /* ── Loading / error ────────────────────────────────────────────────────── */
+  /* ── Loading ────────────────────────────────────────────────────────────── */
   .t-loading {
     padding: 2rem;
   }
-  .t-err {
-    display: flex;
-    align-items: baseline;
-    gap: 0.5rem;
-    flex-wrap: wrap;
-    padding: 0.3rem 0.875rem;
-    border-bottom: 1px solid rgba(255, 77, 87, 0.4);
-    background: rgba(255, 77, 87, 0.06);
-    flex-shrink: 0;
+
+  /* ── Alert panel (in left column — no layout shift) ─────────────────────── */
+  .alert-panel {
+    border-top-color: rgba(255, 77, 87, 0.45) !important;
+    background: rgba(255, 77, 87, 0.04);
   }
-  .t-err-icon {
-    color: var(--status-error);
+  .alert-label {
+    color: var(--status-error) !important;
   }
-  .t-err-title {
-    font-size: 0.7rem;
+  .alert-title {
+    font-size: 0.65rem;
     font-weight: 700;
     letter-spacing: 0.06em;
     color: var(--status-error);
   }
-  .t-err-msg {
-    font-size: 0.7rem;
-    color: var(--tv-text-muted);
-    word-break: break-word;
+  .alert-msg {
+    margin-top: 0.3rem;
+    font-size: 0.62rem;
+    color: rgba(200, 212, 207, 0.7);
+    line-height: 1.45;
+    word-break: break-all;
   }
 
   /* ── Main grid ─────────────────────────────────────────────────────────── */
@@ -791,6 +791,7 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
+    min-width: 0; /* prevent grid track blowout from wide content */
     padding-top: 0.6rem; /* breathing room so first floating label isn't clipped */
     border-right: 1px solid rgba(176, 38, 255, 0.15);
   }
@@ -843,6 +844,7 @@
   .t-panel-body {
     padding: 0.85rem 0.6rem 0.45rem;
     overflow-y: auto;
+    overflow-x: hidden;
     min-height: 0;
     flex: 1;
   }

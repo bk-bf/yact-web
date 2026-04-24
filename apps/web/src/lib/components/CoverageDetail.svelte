@@ -40,17 +40,33 @@
 
   function missColor(missing: number): string {
     const p = pctMissing(missing);
-    if (p >= 80) return "var(--status-error)";
+    if (p >= 100) return "var(--status-ok)";
     if (p >= 50) return "var(--status-warn)";
-    return "var(--tv-text-primary)";
+    return "var(--status-error)";
   }
 
   function priceFieldColor(value: number, total: number): string {
     if (!total) return "var(--tv-text-muted)";
     const p = Math.round((value / total) * 100);
-    if (p >= 90) return "var(--status-ok)";
+    if (p >= 100) return "var(--status-ok)";
     if (p >= 50) return "var(--status-warn)";
     return "var(--status-error)";
+  }
+
+  function priceBarColor(value: number, total: number): string {
+    if (!total) return "rgba(255,255,255,0.1)";
+    const p = Math.round((value / total) * 100);
+    if (p >= 100) return "rgba(29, 223, 114, 0.5)";
+    if (p >= 50) return "rgba(245, 166, 35, 0.55)";
+    return "rgba(255, 77, 87, 0.6)";
+  }
+
+  /** Returns the fill color for the "filled" portion of a missing-field bar. */
+  function barFillColor(missing: number): string {
+    const p = pctMissing(missing);
+    if (p >= 100) return "rgba(29, 223, 114, 0.5)";
+    if (p >= 50) return "rgba(245, 166, 35, 0.55)";
+    return "rgba(255, 77, 87, 0.6)";
   }
 </script>
 
@@ -85,8 +101,14 @@
       <div class="cd-grp">
         <div class="cd-grp-hd">BREAKDOWN MISSING</div>
         {#each fieldGroups.breakdown as [key, count] (key)}
-          <div class="cd-row">
+          <div class="cd-row cd-row-bar">
             <span class="cd-k">{fieldLabel(key)}</span>
+            <span class="ob-bar-wrap"
+              ><span
+                class="ob-bar"
+                style="width:{pctMissing(count)}%; background:{barFillColor(count)};"
+              ></span></span
+            >
             <span class="cd-v" style="color:{missColor(count)};">{count}</span>
             <span class="cd-s">{pctMissing(count)}%</span>
           </div>
@@ -114,8 +136,14 @@
         <div class="cd-grp-hd">PRICE FIELDS</div>
         {#each [{ label: "price", value: priceTier.currentPrice }, { label: "symbol", value: priceTier.symbol }, { label: "name", value: priceTier.name }, { label: "market cap", value: priceTier.marketCap }, { label: "rank", value: priceTier.marketCapRank }, { label: "vol 24h", value: priceTier.volume24h }, { label: "Δ 24h", value: priceTier.priceChange24h }] as col (col.label)}
           {@const pct = priceTier.totalCoins > 0 ? Math.round((col.value / priceTier.totalCoins) * 100) : 0}
-          <div class="cd-row">
+          <div class="cd-row cd-row-bar">
             <span class="cd-k">{col.label}</span>
+            <span class="ob-bar-wrap"
+              ><span
+                class="ob-bar"
+                style="width:{pct}%; background:{priceBarColor(col.value, priceTier.totalCoins)};"
+              ></span></span
+            >
             <span class="cd-v" style="color:{priceFieldColor(col.value, priceTier.totalCoins)};">{col.value}</span>
             <span class="cd-s">{pct}%</span>
           </div>
@@ -160,6 +188,8 @@
     display: flex;
     flex-direction: column;
     font-family: inherit;
+    min-width: 0;
+    width: 100%;
   }
 
   .cd-grp {
@@ -185,6 +215,30 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   }
   .cd-row:last-child { border-bottom: none; }
+
+  /* bar variant: name | bar-track | count | pct */
+  .cd-row-bar {
+    grid-template-columns: minmax(0, 1fr) 4rem 4.5ch 3.5ch;
+    align-items: center;
+    gap: 0.35rem;
+  }
+
+  /* Order Book-style bar — identical to TradingTerminalView .ob-bar-wrap/.ob-bar */
+  .ob-bar-wrap {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.06);
+    position: relative;
+    overflow: hidden;
+    border-radius: 0;
+  }
+  .ob-bar {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    left: auto;
+    height: 100%;
+    transition: width 0.4s ease;
+  }
 
   .cd-k {
     color: rgba(200, 212, 207, 0.5);
