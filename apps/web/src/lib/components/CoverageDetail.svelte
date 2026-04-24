@@ -21,354 +21,199 @@
     priceTier,
   }: Props = $props();
 
-  // Group top-missing fields into breakdown vs charts buckets
-  const fieldGroups = $derived(
-    (): { breakdown: [string, number][]; charts: [string, number][] } => {
-      const entries = Object.entries(
-        missingClarity?.topMissingItemsByField ?? {},
-      );
-      return {
-        breakdown: entries.filter(([k]) => k.startsWith("breakdown.")),
-        charts: entries.filter(([k]) => k.startsWith("charts.")),
-      };
-    },
-  );
+  const fieldGroups = $derived.by(() => {
+    const entries = Object.entries(missingClarity?.topMissingItemsByField ?? {});
+    return {
+      breakdown: entries.filter(([k]) => k.startsWith("breakdown.")),
+      charts: entries.filter(([k]) => k.startsWith("charts.")),
+    };
+  });
 
-  // Friendly label for a field key like "breakdown.categories" → "categories"
   function fieldLabel(key: string): string {
     return key.split(".").slice(1).join(".");
   }
 
-  // Bar width percentage capped at 100
-  function barPct(missing: number): number {
+  function pctMissing(missing: number): number {
     if (!totalCoins || totalCoins === 0) return 0;
-    return Math.min(100, Math.round((missing / totalCoins) * 100));
+    return Math.round((missing / totalCoins) * 100);
   }
 
-  function bucketColor(bucket: string): string {
-    switch (bucket) {
-      case "fresh":
-        return "var(--status-ok)";
-      case "warning":
-        return "var(--status-warn)";
-      case "stale":
-        return "var(--status-error)";
-      default:
-        return "var(--tv-text-muted)";
-    }
+  function missColor(missing: number): string {
+    const p = pctMissing(missing);
+    if (p >= 80) return "var(--status-error)";
+    if (p >= 50) return "var(--status-warn)";
+    return "var(--tv-text-primary)";
+  }
+
+  function priceFieldColor(value: number, total: number): string {
+    if (!total) return "var(--tv-text-muted)";
+    const p = Math.round((value / total) * 100);
+    if (p >= 90) return "var(--status-ok)";
+    if (p >= 50) return "var(--status-warn)";
+    return "var(--status-error)";
   }
 </script>
 
-<div class="coverage-detail">
-  <!-- ── Summary row ──────────────────────────────────────────────────────── -->
+<div class="cd-root">
   {#if missingClarity}
-    <div class="summary-row">
-      <div class="summary-stat">
-        <span class="stat-label">Expected coins</span>
-        <span class="stat-value">{missingClarity.expectedCoins}</span>
-      </div>
-      <div class="summary-stat">
-        <span class="stat-label">Fully populated</span>
-        <span
-          class="stat-value"
-          style="color: {missingClarity.fullyPopulatedCoins ===
-          missingClarity.expectedCoins
-            ? 'var(--status-ok)'
-            : 'var(--tv-text-primary)'};"
-        >
-          {missingClarity.fullyPopulatedCoins}
-        </span>
-      </div>
-      <div class="summary-stat">
-        <span class="stat-label">Partially missing</span>
-        <span
-          class="stat-value"
-          style="color: {missingClarity.coinsWithAnyMissingItems > 0
-            ? 'var(--status-warn)'
-            : 'var(--status-ok)'};"
-        >
-          {missingClarity.coinsWithAnyMissingItems}
-        </span>
-      </div>
-      <div class="summary-stat">
-        <span class="stat-label">Completely missing</span>
-        <span
-          class="stat-value"
-          style="color: {missingClarity.completelyMissingCoins > 0
-            ? 'var(--status-error)'
-            : 'var(--tv-text-muted)'};"
-        >
-          {missingClarity.completelyMissingCoins}
-        </span>
-      </div>
-      {#if chartTimeframes}
-        <div class="summary-stat">
-          <span class="stat-label">Chart timeframes</span>
-          <span class="stat-value">{chartTimeframes.join(", ")}</span>
-        </div>
-      {/if}
+    <!-- ── Summary line ─────────────────────────────────────────────────── -->
+    <div class="cd-row">
+      <span class="cd-k">expected</span>
+      <span class="cd-v">{missingClarity.expectedCoins}</span>
     </div>
-
-    <!-- ── Top missing fields ─────────────────────────────────────────────── -->
-    <div class="fields-grid">
-      {#if fieldGroups().breakdown.length > 0}
-        <div class="field-group">
-          <h4 class="field-group-title">Breakdown fields missing</h4>
-          <ul class="field-list">
-            {#each fieldGroups().breakdown as [key, count] (key)}
-              <li class="field-row">
-                <span class="field-name">{fieldLabel(key)}</span>
-                <div class="field-bar-track">
-                  <div
-                    class="field-bar-fill"
-                    style="width: {barPct(count)}%; background: {barPct(count) >
-                    80
-                      ? 'var(--status-error)'
-                      : barPct(count) > 50
-                        ? 'var(--status-warn)'
-                        : 'var(--tv-highlight)'};"
-                  ></div>
-                </div>
-                <span class="field-count">{count} / {totalCoins}</span>
-              </li>
-            {/each}
-          </ul>
-        </div>
-      {/if}
-
-      {#if fieldGroups().charts.length > 0}
-        <div class="field-group">
-          <h4 class="field-group-title">Chart timeframes missing</h4>
-          <ul class="field-list">
-            {#each fieldGroups().charts as [key, count] (key)}
-              <li class="field-row">
-                <span class="field-name">{fieldLabel(key)}</span>
-                <div class="field-bar-track">
-                  <div
-                    class="field-bar-fill"
-                    style="width: {barPct(count)}%; background: {barPct(count) >
-                    80
-                      ? 'var(--status-error)'
-                      : barPct(count) > 50
-                        ? 'var(--status-warn)'
-                        : 'var(--tv-highlight)'};"
-                  ></div>
-                </div>
-                <span class="field-count">{count} / {totalCoins}</span>
-              </li>
-            {/each}
-          </ul>
-        </div>
-      {/if}
-
-      {#if priceTier}
-        <div class="field-group">
-          <h4 class="field-group-title">Price fields</h4>
-          <ul class="field-list">
-            {#each [{ label: "price", value: priceTier.currentPrice }, { label: "symbol", value: priceTier.symbol }, { label: "name", value: priceTier.name }, { label: "market cap", value: priceTier.marketCap }, { label: "rank", value: priceTier.marketCapRank }, { label: "volume 24h", value: priceTier.volume24h }, { label: "Δ price 24h", value: priceTier.priceChange24h }] as col (col.label)}
-              {@const pct =
-                priceTier.totalCoins > 0
-                  ? Math.round((col.value / priceTier.totalCoins) * 100)
-                  : 0}
-              <li class="field-row">
-                <span class="field-name">{col.label}</span>
-                <div class="field-bar-track">
-                  <div
-                    class="field-bar-fill"
-                    style="width: {pct}%; background: {pct >= 90
-                      ? 'var(--status-ok)'
-                      : pct >= 50
-                        ? 'var(--status-warn)'
-                        : 'var(--status-error)'};"
-                  ></div>
-                </div>
-                <span class="field-count"
-                  >{col.value} / {priceTier.totalCoins}</span
-                >
-              </li>
-            {/each}
-          </ul>
-        </div>
-      {/if}
+    <div class="cd-row">
+      <span class="cd-k">fully populated</span>
+      <span class="cd-v" style="color:{missingClarity.fullyPopulatedCoins === missingClarity.expectedCoins ? 'var(--status-ok)' : 'var(--tv-text-primary)'};">{missingClarity.fullyPopulatedCoins}</span>
     </div>
+    <div class="cd-row">
+      <span class="cd-k">partial</span>
+      <span class="cd-v" style="color:{missingClarity.coinsWithAnyMissingItems > 0 ? 'var(--status-warn)' : 'var(--status-ok)'};">{missingClarity.coinsWithAnyMissingItems}</span>
+    </div>
+    <div class="cd-row">
+      <span class="cd-k">completely missing</span>
+      <span class="cd-v" style="color:{missingClarity.completelyMissingCoins > 0 ? 'var(--status-error)' : 'var(--tv-text-muted)'};">{missingClarity.completelyMissingCoins}</span>
+    </div>
+    {#if chartTimeframes && chartTimeframes.length > 0}
+      <div class="cd-row">
+        <span class="cd-k">timeframes</span>
+        <span class="cd-v cd-v-sm">{chartTimeframes.join(",")}</span>
+      </div>
+    {/if}
+
+    <!-- ── Breakdown missing fields ─────────────────────────────────────── -->
+    {#if fieldGroups.breakdown.length > 0}
+      <div class="cd-grp">
+        <div class="cd-grp-hd">BREAKDOWN MISSING</div>
+        {#each fieldGroups.breakdown as [key, count] (key)}
+          <div class="cd-row">
+            <span class="cd-k">{fieldLabel(key)}</span>
+            <span class="cd-v" style="color:{missColor(count)};">{count}</span>
+            <span class="cd-s">{pctMissing(count)}%</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- ── Chart timeframes missing ─────────────────────────────────────── -->
+    {#if fieldGroups.charts.length > 0}
+      <div class="cd-grp">
+        <div class="cd-grp-hd">CHARTS MISSING</div>
+        {#each fieldGroups.charts as [key, count] (key)}
+          <div class="cd-row">
+            <span class="cd-k">{fieldLabel(key)}</span>
+            <span class="cd-v" style="color:{missColor(count)};">{count}</span>
+            <span class="cd-s">{pctMissing(count)}%</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
+
+    <!-- ── Price fields ─────────────────────────────────────────────────── -->
+    {#if priceTier}
+      <div class="cd-grp">
+        <div class="cd-grp-hd">PRICE FIELDS</div>
+        {#each [{ label: "price", value: priceTier.currentPrice }, { label: "symbol", value: priceTier.symbol }, { label: "name", value: priceTier.name }, { label: "market cap", value: priceTier.marketCap }, { label: "rank", value: priceTier.marketCapRank }, { label: "vol 24h", value: priceTier.volume24h }, { label: "Δ 24h", value: priceTier.priceChange24h }] as col (col.label)}
+          {@const pct = priceTier.totalCoins > 0 ? Math.round((col.value / priceTier.totalCoins) * 100) : 0}
+          <div class="cd-row">
+            <span class="cd-k">{col.label}</span>
+            <span class="cd-v" style="color:{priceFieldColor(col.value, priceTier.totalCoins)};">{col.value}</span>
+            <span class="cd-s">{pct}%</span>
+          </div>
+        {/each}
+      </div>
+    {/if}
   {/if}
 
-  <!-- ── Metadata stage ────────────────────────────────────────────────────── -->
+  <!-- ── Metadata stage ─────────────────────────────────────────────────── -->
   {#if metadataStage}
-    <div class="meta-stage">
-      <span class="meta-stage-label">Metadata enrichment</span>
-      <span
-        class="meta-stage-pill"
-        style="color: {metadataStage.enabled
-          ? 'var(--status-ok)'
-          : 'var(--tv-text-muted)'};"
-      >
-        {metadataStage.enabled ? "enabled" : "disabled"}
-      </span>
+    <div class="cd-grp">
+      <div class="cd-grp-hd">METADATA</div>
+      <div class="cd-row">
+        <span class="cd-k">enrichment</span>
+        <span class="cd-v" style="color:{metadataStage.enabled ? 'var(--status-ok)' : 'var(--tv-text-muted)'};">{metadataStage.enabled ? 'ENABLED' : 'DISABLED'}</span>
+      </div>
       {#if metadataStage.skippedReason}
-        <span class="meta-stage-skip"
-          >skipped: {metadataStage.skippedReason}</span
-        >
+        <div class="cd-row">
+          <span class="cd-k">skipped</span>
+          <span class="cd-v cd-v-sm">{metadataStage.skippedReason}</span>
+        </div>
       {:else if metadataStage.freshness.lastAttemptAt}
-        <span
-          class="meta-stage-bucket"
-          style="color: {bucketColor(metadataStage.freshness.bucket)};"
-        >
-          {metadataStage.freshness.bucket}
-        </span>
-        <span class="meta-stage-counts">
-          {metadataStage.writtenCoins} written · {metadataStage.failedCoins} failed
-        </span>
+        <div class="cd-row">
+          <span class="cd-k">freshness</span>
+          <span class="cd-v" style="color:{metadataStage.freshness.bucket === 'fresh' ? 'var(--status-ok)' : metadataStage.freshness.bucket === 'warning' ? 'var(--status-warn)' : metadataStage.freshness.bucket === 'stale' ? 'var(--status-error)' : 'var(--tv-text-muted)'};">{metadataStage.freshness.bucket.toUpperCase()}</span>
+        </div>
+        <div class="cd-row">
+          <span class="cd-k">written</span>
+          <span class="cd-v">{metadataStage.writtenCoins}</span>
+        </div>
+        <div class="cd-row">
+          <span class="cd-k">failed</span>
+          <span class="cd-v" style="color:{metadataStage.failedCoins > 0 ? 'var(--status-error)' : 'var(--tv-text-muted)'};">{metadataStage.failedCoins}</span>
+        </div>
       {/if}
     </div>
   {/if}
 </div>
 
 <style>
-  .coverage-detail {
+  .cd-root {
     display: flex;
     flex-direction: column;
-    gap: 1.25rem;
-    padding: 0.25rem 0;
+    font-family: inherit;
   }
 
-  /* Summary row */
-  .summary-row {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem 2rem;
-    padding: 0.75rem 1rem;
-    background: var(--tv-surface-1);
-    border: 1px solid var(--tv-border);
-    border-radius: 6px;
+  .cd-grp {
+    margin-top: 0.6rem;
   }
 
-  .summary-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .stat-label {
-    font-size: 0.75rem;
+  .cd-grp-hd {
+    font-size: 0.58rem;
     font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--tv-text-muted);
+    letter-spacing: 0.1em;
+    color: rgba(176, 38, 255, 0.6);
+    padding: 0.15rem 0;
+    border-bottom: 1px solid rgba(176, 38, 255, 0.12);
+    margin-bottom: 0.2rem;
   }
 
-  .stat-value {
-    font-size: 0.9375rem;
-    font-weight: 600;
-    color: var(--tv-text-primary);
-  }
-
-  /* Field groups */
-  .fields-grid {
+  .cd-row {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 1.25rem;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.4rem;
+    align-items: baseline;
+    padding: 0.08rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   }
+  .cd-row:last-child { border-bottom: none; }
 
-  .field-group {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .field-group-title {
-    font-size: 0.75rem;
-    font-weight: 700;
-    letter-spacing: 0.05em;
-    text-transform: uppercase;
-    color: var(--tv-text-muted);
-    margin: 0 0 0.25rem;
-  }
-
-  .field-list {
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .field-row {
-    display: grid;
-    grid-template-columns: 9rem 1fr 5rem;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .field-name {
-    font-size: 0.8125rem;
-    color: var(--tv-text-primary);
-    font-family: monospace;
+  .cd-k {
+    color: rgba(200, 212, 207, 0.5);
+    font-size: 0.62rem;
+    letter-spacing: 0.02em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
   }
 
-  .field-bar-track {
-    height: 6px;
-    background: var(--tv-surface-2);
-    border-radius: 3px;
-    overflow: hidden;
-  }
-
-  .field-bar-fill {
-    height: 100%;
-    border-radius: 3px;
-    transition: width 0.3s ease;
-  }
-
-  .field-count {
-    font-size: 0.75rem;
-    color: var(--tv-text-muted);
+  .cd-v {
+    font-size: 0.68rem;
+    font-weight: 600;
+    color: var(--tv-text-primary);
+    font-variant-numeric: tabular-nums;
     text-align: right;
-    white-space: nowrap;
   }
 
-  /* Metadata stage */
-  .meta-stage {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    padding: 0.5rem 0.75rem;
-    border: 1px solid var(--tv-border);
-    border-radius: 6px;
-    background: var(--tv-surface-1);
-  }
-
-  .meta-stage-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  .cd-v-sm {
+    font-size: 0.6rem;
+    font-weight: 500;
     color: var(--tv-text-muted);
   }
 
-  .meta-stage-pill {
-    font-size: 0.8125rem;
-    font-weight: 600;
-  }
-
-  .meta-stage-skip {
-    font-size: 0.8125rem;
-    color: var(--status-warn);
-    font-style: italic;
-  }
-
-  .meta-stage-bucket {
-    font-size: 0.8125rem;
-    font-weight: 600;
-  }
-
-  .meta-stage-counts {
-    font-size: 0.8125rem;
-    color: var(--tv-text-muted);
-    margin-left: auto;
+  .cd-s {
+    font-size: 0.58rem;
+    color: rgba(200, 212, 207, 0.4);
+    text-align: right;
+    min-width: 4ch;
+    font-variant-numeric: tabular-nums;
   }
 </style>

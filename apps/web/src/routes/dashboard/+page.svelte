@@ -227,735 +227,784 @@
   });
 </script>
 
-<main class="dashboard">
-  <div class="dash-header">
-    <h1 class="dash-title">System Dashboard</h1>
-    <div class="dash-meta">
-      {#if lastUpdated}
-        <span class="last-updated">
-          Updated {lastUpdated.toLocaleTimeString(undefined, {
+<main class="t-root">
+  <!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
+  <div class="t-topbar">
+    <span class="t-bullet">●</span>
+    <h1 class="t-title">SYSTEM·DASHBOARD</h1>
+    <span class="t-sep">│</span>
+    {#if !coreLoading}
+      <div class="t-status">
+        <span class="t-kv"
+          ><span class="t-k">CYCLE</span><span
+            class="t-v"
+            style="color:{cycleStatusColor()};"
+            >{cycleStatus() === "ok"
+              ? "HEALTHY"
+              : cycleStatus() === "warn"
+                ? "WARN"
+                : cycleStatus() === "error"
+                  ? "STALLED"
+                  : "—"}</span
+          ></span
+        >
+        {#if providers.length > 0}
+          {@const hc = providers.filter((p) => p.status === "healthy").length}
+          {@const pc =
+            hc === providers.length
+              ? "var(--status-ok)"
+              : hc === 0
+                ? "var(--status-error)"
+                : "var(--status-warn)"}
+          <span class="t-kv"
+            ><span class="t-k">PROVIDERS</span><span
+              class="t-v"
+              style="color:{pc};">{hc}/{providers.length}</span
+            ></span
+          >
+        {/if}
+        {#if progress && !progressLoading}
+          <span class="t-kv"
+            ><span class="t-k">COVERAGE</span><span
+              class="t-v"
+              style="color:{coverageColor(progress.totals.coveragePct)};"
+              >{formatPct(progress.totals.coveragePct)}</span
+            ></span
+          >
+          <span class="t-kv"
+            ><span class="t-k">SNAPSHOT</span><span class="t-v"
+              >{formatRelative(progress.snapshotTs ?? progress.asOf)}</span
+            ></span
+          >
+        {/if}
+        {#if progress?.dbCohorts}
+          <span class="t-kv"
+            ><span class="t-k">DB</span><span class="t-v"
+              >{progress.dbCohorts.totalInDb.toLocaleString()}</span
+            ></span
+          >
+        {/if}
+      </div>
+    {/if}
+    <span class="t-clock"
+      >{lastUpdated
+        ? lastUpdated.toLocaleTimeString(undefined, {
             hour: "2-digit",
             minute: "2-digit",
             second: "2-digit",
-          })}
-        </span>
-      {/if}
-      <button class="m3-button outlined" onclick={fetchAll}>Refresh</button>
-    </div>
+            hour12: false,
+          })
+        : "--:--:--"} UTC</span
+    >
+    <button class="t-btn" onclick={fetchAll}>REFRESH</button>
   </div>
 
   {#if coreLoading}
-    <LoadingDots label="Loading dashboard" />
+    <div class="t-loading"><LoadingDots label="Loading dashboard" /></div>
   {:else}
-    <!-- ── Cycle health ───────────────────────────────────────────────────── -->
-    <M3Surface title="Miner Cycle">
-      {#if !refreshState}
-        <p class="empty-state">
-          No cycle data yet — waiting for first miner run
-        </p>
-      {:else}
-        {#if !refreshState.last_cycle_success && refreshState.current_state?.error}
-          <div class="cycle-error-banner">
-            <span class="cycle-error-icon">⚠</span>
-            <div class="cycle-error-body">
-              <span class="cycle-error-title">
-                Cycle failing{(refreshState.current_state
-                  .consecutive_failures ?? 0) > 1
-                  ? ` · ${refreshState.current_state.consecutive_failures} consecutive failures`
-                  : ""}
-              </span>
-              <span class="cycle-error-message"
-                >{refreshState.current_state.error}</span
-              >
-            </div>
-          </div>
-        {/if}
-        <div class="cycle-grid">
-          <div class="cycle-stat">
-            <span class="cycle-stat-label">Status</span>
-            <span class="cycle-stat-value" style="color: {cycleStatusColor()};">
-              <span class="dot" style="background: {cycleStatusColor()};"
-              ></span>
-              {cycleStatus() === "ok"
-                ? "Healthy"
-                : cycleStatus() === "warn"
-                  ? "Warning / partial failure"
-                  : cycleStatus() === "error"
-                    ? "Stalled / failing"
-                    : "Unknown"}
-            </span>
-          </div>
-          <div class="cycle-stat">
-            <span class="cycle-stat-label">Cycles completed</span>
-            <span class="cycle-stat-value"
-              >{refreshState.cycle_count ?? "—"}</span
-            >
-          </div>
-          <div class="cycle-stat">
-            <span class="cycle-stat-label">Last cycle</span>
-            <span class="cycle-stat-value"
-              >{formatDateTime(refreshState.last_cycle_at)}</span
-            >
-          </div>
-          <div class="cycle-stat">
-            <span class="cycle-stat-label">Last cycle age</span>
-            <span class="cycle-stat-value" style="color: {cycleStatusColor()};">
-              {formatRelative(refreshState.last_cycle_at)}
-            </span>
-          </div>
-          <div class="cycle-stat">
-            <span class="cycle-stat-label">Last success</span>
-            <span
-              class="cycle-stat-value"
-              style="color: {refreshState.last_cycle_success
-                ? 'var(--status-ok)'
-                : 'var(--status-error)'};"
-            >
-              {refreshState.last_cycle_success ? "Yes" : "No"}
-            </span>
-          </div>
-          {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
-            <div class="cycle-stat">
-              <span class="cycle-stat-label">Consecutive failures</span>
-              <span
-                class="cycle-stat-value"
-                style="color: var(--status-error);"
-              >
-                {refreshState.current_state?.consecutive_failures}
-              </span>
-            </div>
-          {/if}
-          <div class="cycle-stat">
-            <span class="cycle-stat-label">Interval</span>
-            <span class="cycle-stat-value"
-              >{progress?.intervalSec ? `${progress.intervalSec}s` : "—"}</span
-            >
-          </div>
-        </div>
-      {/if}
-    </M3Surface>
-
-    <!-- ── Coverage overview ─────────────────────────────────────────────── -->
-    <M3Surface title="Data Coverage">
-      {#if progressLoading}
-        <LoadingDots label="Loading coverage" />
-      {:else if !progress}
-        <p class="empty-state">No coverage data yet</p>
-      {:else}
-        <div class="coverage-grid">
-          <div class="coverage-card">
-            <span class="coverage-card-label">Overall</span>
-            <span
-              class="coverage-card-pct"
-              style="color: {coverageColor(progress.totals.coveragePct)};"
-            >
-              {formatPct(progress.totals.coveragePct)}
-            </span>
-            <span class="coverage-card-sub"
-              >{progress.totals.populated} / {progress.totals.expected}</span
-            >
-          </div>
-          <div class="coverage-card">
-            <span class="coverage-card-label">Market coins</span>
-            <span
-              class="coverage-card-pct"
-              style="color: {coverageColor(
-                progress.sections.marketCoins.coveragePct,
-              )};"
-            >
-              {formatPct(progress.sections.marketCoins.coveragePct)}
-            </span>
-            <span class="coverage-card-sub"
-              >{progress.sections.marketCoins.populated} / {progress.sections
-                .marketCoins.expected}</span
-            >
-          </div>
-          <div class="coverage-card">
-            <span class="coverage-card-label">Coin breakdown</span>
-            <span
-              class="coverage-card-pct"
-              style="color: {coverageColor(
-                progress.sections.coinBreakdown.coveragePct,
-              )};"
-            >
-              {formatPct(progress.sections.coinBreakdown.coveragePct)}
-            </span>
-            <span class="coverage-card-sub"
-              >{progress.sections.coinBreakdown.populated} / {progress.sections
-                .coinBreakdown.expected}</span
-            >
-          </div>
-          <div class="coverage-card">
-            <span class="coverage-card-label">Charts</span>
-            <span
-              class="coverage-card-pct"
-              style="color: {coverageColor(
-                progress.sections.charts.coveragePct,
-              )};"
-            >
-              {formatPct(progress.sections.charts.coveragePct)}
-            </span>
-            <span class="coverage-card-sub"
-              >{progress.sections.charts.populated} / {progress.sections.charts
-                .expected}</span
-            >
-          </div>
-        </div>
-
-        <div class="freshness-row">
-          <span class="freshness-label">Freshness</span>
-          <span class="freshness-badge fresh"
-            >{progress.freshness.fresh} fresh</span
-          >
-          <span class="freshness-badge warn"
-            >{progress.freshness.warning} warning</span
-          >
-          <span class="freshness-badge stale"
-            >{progress.freshness.stale} stale</span
-          >
-          {#if progress.freshness.unknown > 0}
-            <span class="freshness-badge unknown"
-              >{progress.freshness.unknown} unknown</span
-            >
-          {/if}
-          <span class="freshness-as-of"
-            >as of {formatRelative(progress.snapshotTs ?? progress.asOf)}</span
-          >
-        </div>
-      {/if}
-    </M3Surface>
-
-    <!-- ── Coverage detail ──────────────────────────────────────────────── -->
-    <M3Surface title="Coverage Detail">
-      {#if progressLoading}
-        <LoadingDots label="Loading detail" />
-      {:else if !progress}
-        <p class="empty-state">No coverage data yet</p>
-      {:else if !progress.missingClarity}
-        <p class="empty-state">No field-level breakdown available</p>
-      {:else}
-        <CoverageDetail
-          missingClarity={progress.missingClarity}
-          metadataStage={progress.metadataStage}
-          chartTimeframes={progress.chartTimeframes}
-          totalCoins={progress.missingClarity.expectedCoins}
-          priceTier={progress.priceTier}
-        />
-      {/if}
-    </M3Surface>
-
-    <!-- ── DB Cohorts ────────────────────────────────────────────────────── -->
-    <M3Surface title="DB Coin Cohorts">
-      {#if progressLoading}
-        <LoadingDots label="Loading cohort data" />
-      {:else if !progress?.dbCohorts}
-        <p class="empty-state">No cohort data available</p>
-      {:else}
-        {@const c = progress.dbCohorts as DbCohorts}
-        <div class="cohort-table">
-          <div class="cohort-row cohort-header">
-            <span>Cohort</span>
-            <span>Count</span>
-            <span>Note</span>
-          </div>
-          <div class="cohort-row">
-            <span class="cohort-label">Total in DB</span>
-            <span class="cohort-count">{c.totalInDb.toLocaleString()}</span>
-            <span class="cohort-note">All coins ever seen (any source)</span>
-          </div>
-          <div class="cohort-row">
-            <span class="cohort-label">Ticker-auto only</span>
-            <span class="cohort-count">{c.tickerOnly.toLocaleString()}</span>
-            <span class="cohort-note"
-              >Auto-registered from exchange tickers — live price only, no rank
-              or metadata</span
-            >
-          </div>
-          <div class="cohort-row">
-            <span class="cohort-label">CoinPaprika-ranked</span>
-            <span class="cohort-count">{c.paprikaTracked.toLocaleString()}</span
-            >
-            <span class="cohort-note"
-              >Have a market cap rank from CoinPaprika — eligible for full
-              enrichment</span
-            >
-          </div>
-          <div class="cohort-row">
-            <span class="cohort-label">Current snapshot</span>
-            <span class="cohort-count"
-              >{c.currentSnapshot.toLocaleString()}</span
-            >
-            <span class="cohort-note"
-              >In the latest miner snapshot — used as coverage denominator</span
-            >
-          </div>
-          <div class="cohort-row">
-            <span class="cohort-label">CoinGecko-enriched</span>
-            <span class="cohort-count"
-              >{c.coingeckoEnriched.toLocaleString()}</span
-            >
-            <span class="cohort-note"
-              >Have CoinGecko breakdown data (ATH, ATL, description, socials…)</span
-            >
-          </div>
-        </div>
-        <p class="cohort-footnote">
-          Coverage stats only count the <strong>current snapshot</strong> cohort.
-          Ticker-auto coins will never appear in coverage until CoinPaprika or CoinGecko
-          confirms them.
-        </p>
-      {/if}
-    </M3Surface>
-
-    <!-- ── Log viewer ─────────────────────────────────────────────────────── -->
-    <M3Surface title="Log Tail">
-      <div class="log-toolbar">
-        <div class="log-source-toggle">
-          <button
-            class="log-toggle-btn"
-            class:active={logSource === "miner"}
-            onclick={() => {
-              logSource = "miner";
-              void fetchLogs();
-            }}>Miner</button
-          >
-          <button
-            class="log-toggle-btn"
-            class:active={logSource === "api"}
-            onclick={() => {
-              logSource = "api";
-              void fetchLogs();
-            }}>API</button
-          >
-        </div>
-        {#if logTotalLines > 0}
-          <span class="log-meta"
-            >showing last 150 of {logTotalLines.toLocaleString()} lines</span
-          >
-        {/if}
-        <button
-          class="m3-button outlined log-refresh-btn"
-          onclick={() => void fetchLogs()}
+    {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
+      <div class="t-err">
+        <span class="t-err-icon">⚠</span>
+        <span class="t-err-title"
+          >CYCLE FAILING{(refreshState.current_state.consecutive_failures ??
+            0) > 1
+            ? ` // ${refreshState.current_state.consecutive_failures} CONSECUTIVE FAILURES`
+            : ""}</span
         >
-          Refresh
-        </button>
+        <span class="t-err-msg">{refreshState.current_state.error}</span>
       </div>
-      {#if logLoading && logLines.length === 0}
-        <LoadingDots label="Loading logs" />
-      {:else if logLines.length === 0}
-        <p class="empty-state">
-          No log lines found — log file may not exist yet
-        </p>
-      {:else}
-        <pre class="log-pre">{logLines.map(localizeLogLine).join("\n")}</pre>
-      {/if}
-    </M3Surface>
+    {/if}
 
-    <!-- ── Provider health ───────────────────────────────────────────────── -->
-    <M3Surface title="Provider Health">
-      {#if providers.length === 0}
-        <p class="empty-state">
-          No provider data yet — waiting for first miner cycle
-        </p>
-      {:else}
-        <ul class="provider-list">
-          {#each providers as p (p.provider)}
-            <li class="provider-row">
-              <span
-                class="status-dot"
-                style="background: {providerStatusColor(p.status)};"
-              ></span>
-              <span class="provider-name">{p.provider}</span>
-              <span
-                class="provider-status"
-                style="color: {providerStatusColor(p.status)};"
+    <!-- ══ MAIN 3-PANE GRID ═══════════════════════════════════════════════════ -->
+    <div class="t-main">
+      <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
+      <div class="t-col t-col-l">
+        <!-- Miner Cycle -->
+        <div class="t-panel">
+          <div class="t-panel-label">
+            MINER CYCLE // {refreshState
+              ? cycleStatus() === "ok"
+                ? "HEALTHY"
+                : cycleStatus() === "warn"
+                  ? "WARNING"
+                  : cycleStatus() === "error"
+                    ? "STALLED"
+                    : "UNKNOWN"
+              : "—"}
+          </div>
+          <div class="t-panel-body">
+            {#if !refreshState}
+              <p class="t-empty">no cycle data</p>
+            {:else}
+              <div class="m-row">
+                <span class="m-k">cycles</span><span class="m-v"
+                  >{refreshState.cycle_count ?? "—"}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">last cycle</span><span class="m-v"
+                  >{formatDateTime(refreshState.last_cycle_at)}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">age</span><span
+                  class="m-v"
+                  style="color:{cycleStatusColor()};"
+                  >{formatRelative(refreshState.last_cycle_at)}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">last success</span><span
+                  class="m-v"
+                  style="color:{refreshState.last_cycle_success
+                    ? 'var(--status-ok)'
+                    : 'var(--status-error)'};"
+                  >{refreshState.last_cycle_success ? "YES" : "NO"}</span
+                >
+              </div>
+              {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
+                <div class="m-row">
+                  <span class="m-k">failures</span><span
+                    class="m-v"
+                    style="color:var(--status-error);"
+                    >{refreshState.current_state?.consecutive_failures}</span
+                  >
+                </div>
+              {/if}
+              <div class="m-row">
+                <span class="m-k">interval</span><span class="m-v"
+                  >{progress?.intervalSec
+                    ? `${progress.intervalSec}s`
+                    : "—"}</span
+                >
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Provider Health -->
+        <div class="t-panel">
+          <div class="t-panel-label">
+            PROVIDER HEALTH // {providers.filter((p) => p.status === "healthy")
+              .length}/{providers.length} OK
+          </div>
+          <div class="t-panel-body">
+            {#if providers.length === 0}
+              <p class="t-empty">no provider data</p>
+            {:else}
+              {#each providers as p (p.provider)}
+                <div class="prov-row">
+                  <span class="prov-name">{p.provider}</span>
+                  <span
+                    class="prov-status"
+                    style="color:{providerStatusColor(p.status)};"
+                  >
+                    {#if p.status === "error" && p.error_streak > 0}{p.error_streak}
+                      ERR{:else if p.status === "rate_limited" && p.error_streak > 0}LIMIT
+                      · {p.error_streak}{:else}{providerStatusLabel(
+                        p.status,
+                      ).toUpperCase()}{/if}
+                  </span>
+                  <span class="prov-last"
+                    >{formatRelative(p.last_success_at)}</span
+                  >
+                </div>
+              {/each}
+            {/if}
+          </div>
+        </div>
+
+        <!-- DB Cohorts -->
+        <div class="t-panel t-panel-grow">
+          <div class="t-panel-label">
+            DB COIN COHORTS // {progress?.dbCohorts
+              ? progress.dbCohorts.totalInDb.toLocaleString() + " TOTAL"
+              : "—"}
+          </div>
+          <div class="t-panel-body">
+            {#if !progress?.dbCohorts}
+              <p class="t-empty">no cohort data</p>
+            {:else}
+              {@const c = progress.dbCohorts as DbCohorts}
+              <div class="m-row">
+                <span class="m-k">total in db</span><span class="m-v"
+                  >{c.totalInDb.toLocaleString()}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">paprika-ranked</span><span class="m-v"
+                  >{c.paprikaTracked.toLocaleString()}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">ticker-only</span><span class="m-v"
+                  >{c.tickerOnly.toLocaleString()}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">current snapshot</span><span
+                  class="m-v cohort-hl"
+                  >{c.currentSnapshot.toLocaleString()}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">coingecko-enriched</span><span class="m-v"
+                  >{c.coingeckoEnriched.toLocaleString()}</span
+                >
+              </div>
+            {/if}
+          </div>
+        </div>
+      </div>
+
+      <!-- ── CENTER COLUMN: LOG STREAM ───────────────────────────────────── -->
+      <div class="t-col t-col-c">
+        <div class="t-panel t-panel-fill">
+          <div class="t-panel-label">
+            LOG STREAM // {logSource.toUpperCase()}{logTotalLines > 0
+              ? ` // LAST 150 / ${logTotalLines.toLocaleString()}`
+              : ""}
+          </div>
+          <div class="t-panel-tools">
+            <div class="log-toggle">
+              <button
+                class="t-tab"
+                class:active={logSource === "miner"}
+                onclick={() => {
+                  logSource = "miner";
+                  void fetchLogs();
+                }}>MINER</button
               >
-                {#if p.status === "error" && p.error_streak > 0}
-                  {p.error_streak} errors
-                {:else if p.status === "rate_limited" && p.error_streak > 0}
-                  Rate limited &middot; {p.error_streak} errors
-                {:else}
-                  {providerStatusLabel(p.status)}
-                {/if}
-              </span>
-              <span class="provider-last">
-                {p.status === "healthy"
-                  ? formatRelative(p.last_success_at)
-                  : `last ok: ${formatRelative(p.last_success_at)}`}
-              </span>
-            </li>
-          {/each}
-        </ul>
-      {/if}
-    </M3Surface>
+              <button
+                class="t-tab"
+                class:active={logSource === "api"}
+                onclick={() => {
+                  logSource = "api";
+                  void fetchLogs();
+                }}>API</button
+              >
+            </div>
+            <button class="t-btn t-btn-tiny" onclick={() => void fetchLogs()}
+              >REFRESH</button
+            >
+          </div>
+          <div class="t-stream">
+            {#if logLoading && logLines.length === 0}
+              <LoadingDots label="Loading logs" />
+            {:else if logLines.length === 0}
+              <p class="t-empty">no log lines found</p>
+            {:else}
+              <pre class="log-pre">{logLines
+                  .map(localizeLogLine)
+                  .join("\n")}</pre>
+            {/if}
+          </div>
+        </div>
+      </div>
+
+      <!-- ── RIGHT COLUMN: Data Health ───────────────────────────────────── -->
+      <div class="t-col t-col-r">
+        <!-- Data Coverage -->
+        <div class="t-panel">
+          <div class="t-panel-label">
+            DATA COVERAGE // {progress
+              ? formatPct(progress.totals.coveragePct)
+              : "—"}
+          </div>
+          <div class="t-panel-body">
+            {#if progressLoading}
+              <LoadingDots label="Loading" />
+            {:else if !progress}
+              <p class="t-empty">no coverage data</p>
+            {:else}
+              <div class="m-row">
+                <span class="m-k">overall</span><span
+                  class="m-v"
+                  style="color:{coverageColor(progress.totals.coveragePct)};"
+                  >{formatPct(progress.totals.coveragePct)}</span
+                ><span class="m-s"
+                  >{progress.totals.populated}/{progress.totals.expected}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">market</span><span
+                  class="m-v"
+                  style="color:{coverageColor(
+                    progress.sections.marketCoins.coveragePct,
+                  )};"
+                  >{formatPct(progress.sections.marketCoins.coveragePct)}</span
+                ><span class="m-s"
+                  >{progress.sections.marketCoins.populated}/{progress.sections
+                    .marketCoins.expected}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">breakdown</span><span
+                  class="m-v"
+                  style="color:{coverageColor(
+                    progress.sections.coinBreakdown.coveragePct,
+                  )};"
+                  >{formatPct(
+                    progress.sections.coinBreakdown.coveragePct,
+                  )}</span
+                ><span class="m-s"
+                  >{progress.sections.coinBreakdown.populated}/{progress
+                    .sections.coinBreakdown.expected}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">charts</span><span
+                  class="m-v"
+                  style="color:{coverageColor(
+                    progress.sections.charts.coveragePct,
+                  )};">{formatPct(progress.sections.charts.coveragePct)}</span
+                ><span class="m-s"
+                  >{progress.sections.charts.populated}/{progress.sections
+                    .charts.expected}</span
+                >
+              </div>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Freshness -->
+        <div class="t-panel">
+          <div class="t-panel-label">
+            FRESHNESS // {progress
+              ? `AS OF ${formatRelative(progress.snapshotTs ?? progress.asOf)}`
+              : "—"}
+          </div>
+          <div class="t-panel-body">
+            {#if !progress}
+              <p class="t-empty">—</p>
+            {:else}
+              <div class="m-row">
+                <span class="m-k">fresh</span><span
+                  class="m-v"
+                  style="color:var(--status-ok);"
+                  >{progress.freshness.fresh}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">warning</span><span
+                  class="m-v"
+                  style="color:var(--status-warn);"
+                  >{progress.freshness.warning}</span
+                >
+              </div>
+              <div class="m-row">
+                <span class="m-k">stale</span><span
+                  class="m-v"
+                  style="color:var(--status-error);"
+                  >{progress.freshness.stale}</span
+                >
+              </div>
+              {#if progress.freshness.unknown > 0}
+                <div class="m-row">
+                  <span class="m-k">unknown</span><span class="m-v"
+                    >{progress.freshness.unknown}</span
+                  >
+                </div>
+              {/if}
+            {/if}
+          </div>
+        </div>
+
+        <!-- Coverage Detail (compact) -->
+        <div class="t-panel t-panel-grow">
+          <div class="t-panel-label">
+            COVERAGE DETAIL // {progress?.missingClarity
+              ? progress.missingClarity.expectedCoins.toLocaleString() +
+                " COINS"
+              : "—"}
+          </div>
+          <div class="t-panel-body">
+            {#if progressLoading}
+              <LoadingDots label="Loading" />
+            {:else if !progress}
+              <p class="t-empty">no coverage data</p>
+            {:else if !progress.missingClarity}
+              <p class="t-empty">no field-level breakdown</p>
+            {:else}
+              <CoverageDetail
+                missingClarity={progress.missingClarity}
+                metadataStage={progress.metadataStage}
+                chartTimeframes={progress.chartTimeframes}
+                totalCoins={progress.missingClarity.expectedCoins}
+                priceTier={progress.priceTier}
+              />
+            {/if}
+          </div>
+        </div>
+      </div>
+    </div>
   {/if}
 </main>
 
 <style>
-  .dashboard {
-    max-width: 960px;
-    margin: 2rem auto;
-    padding: 0 1.5rem;
+  /* ── Root: viewport-filling 3-pane terminal ────────────────────────────── */
+  .t-root {
     display: flex;
     flex-direction: column;
-    gap: 1.5rem;
-  }
-
-  .dash-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 1rem;
-    flex-wrap: wrap;
-  }
-
-  .dash-title {
-    font-size: 1.5rem;
-    font-weight: 700;
+    height: calc(100dvh - 3.6rem); /* allow for app shell topbar */
+    background: var(--tv-bg, #030303);
     color: var(--tv-text-primary);
-    margin: 0;
+    font-family: "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas,
+      ui-monospace, monospace;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    overflow: hidden;
   }
 
-  .dash-meta {
-    display: flex;
-    align-items: center;
-    gap: 1rem;
-  }
-
-  .last-updated {
-    font-size: 0.8125rem;
-    color: var(--tv-text-muted);
-  }
-
-  .empty-state {
-    padding: 2rem 1rem;
-    text-align: center;
-    color: var(--tv-text-muted);
-    font-size: 0.9375rem;
-  }
-
-  /* Cycle grid */
-  .cycle-error-banner {
-    display: flex;
-    align-items: flex-start;
-    gap: 0.75rem;
-    padding: 0.75rem 1rem;
-    margin-bottom: 1rem;
-    background: color-mix(in srgb, var(--status-error) 12%, transparent);
-    border: 1px solid color-mix(in srgb, var(--status-error) 40%, transparent);
-    border-radius: 6px;
-  }
-
-  .cycle-error-icon {
-    font-size: 1.125rem;
-    color: var(--status-error);
-    flex-shrink: 0;
-    margin-top: 0.05rem;
-  }
-
-  .cycle-error-body {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    min-width: 0;
-  }
-
-  .cycle-error-title {
-    font-size: 0.875rem;
-    font-weight: 700;
-    color: var(--status-error);
-  }
-
-  .cycle-error-message {
-    font-size: 0.8125rem;
-    color: var(--tv-text-secondary);
-    word-break: break-word;
-    font-family: var(--font-mono, monospace);
-  }
-
-  .cycle-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
-    gap: 1rem 1.5rem;
-    padding: 0.5rem 0;
-  }
-
-  .cycle-stat {
-    display: flex;
-    flex-direction: column;
-    gap: 0.25rem;
-  }
-
-  .cycle-stat-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--tv-text-muted);
-  }
-
-  .cycle-stat-value {
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--tv-text-primary);
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .dot {
-    display: inline-block;
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
-    flex-shrink: 0;
-  }
-
-  /* Coverage grid */
-  .coverage-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-    gap: 1rem;
-    padding: 0.5rem 0 1rem;
-  }
-
-  .coverage-card {
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-    padding: 0.75rem 1rem;
-    border: 1px solid var(--tv-border);
-    border-radius: 6px;
-    background: var(--tv-surface-1);
-  }
-
-  .coverage-card-label {
-    font-size: 0.75rem;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    text-transform: uppercase;
-    color: var(--tv-text-muted);
-  }
-
-  .coverage-card-pct {
-    font-size: 1.375rem;
-    font-weight: 700;
-    line-height: 1.2;
-  }
-
-  .coverage-card-sub {
-    font-size: 0.75rem;
-    color: var(--tv-text-muted);
-  }
-
-  /* Freshness row */
-  .freshness-row {
+  /* ── Topbar ─────────────────────────────────────────────────────────────── */
+  .t-topbar {
     display: flex;
     align-items: center;
     gap: 0.625rem;
-    flex-wrap: wrap;
-    padding: 0.25rem 0 0.5rem;
+    padding: 0 0.875rem;
+    height: 2.2rem;
+    border-bottom: 1px solid rgba(176, 38, 255, 0.25);
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
   }
 
-  .freshness-label {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    color: var(--tv-text-muted);
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
-    margin-right: 0.25rem;
+  .t-bullet {
+    color: var(--tv-highlight);
+    font-size: 0.55rem;
+    line-height: 1;
   }
-
-  .freshness-badge {
-    font-size: 0.8125rem;
-    font-weight: 600;
-    padding: 0.15rem 0.6rem;
-    border-radius: 999px;
-  }
-  .freshness-badge.fresh {
-    color: var(--status-ok);
-    background: color-mix(in srgb, var(--status-ok) 12%, transparent);
-  }
-  .freshness-badge.warn {
-    color: var(--status-warn);
-    background: color-mix(in srgb, var(--status-warn) 12%, transparent);
-  }
-  .freshness-badge.stale {
-    color: var(--status-error);
-    background: color-mix(in srgb, var(--status-error) 12%, transparent);
-  }
-  .freshness-badge.unknown {
-    color: var(--tv-text-muted);
-    background: color-mix(in srgb, var(--tv-text-muted) 12%, transparent);
-  }
-
-  .freshness-as-of {
+  .t-title {
     font-size: 0.75rem;
-    color: var(--tv-text-muted);
-    margin-left: auto;
-  }
-
-  /* Provider list */
-  .provider-list {
-    list-style: none;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--tv-text-primary);
     margin: 0;
-    padding: 0;
+    flex-shrink: 0;
   }
-
-  .provider-row {
-    display: grid;
-    grid-template-columns: 0.75rem 1fr auto auto;
-    align-items: center;
-    gap: 0.75rem 1rem;
-    padding: 0.75rem 0;
-    border-bottom: 1px solid var(--tv-border);
-  }
-
-  .provider-row:last-child {
-    border-bottom: none;
-  }
-
-  .status-dot {
-    width: 0.5rem;
-    height: 0.5rem;
-    border-radius: 50%;
+  .t-sep {
+    color: rgba(176, 38, 255, 0.3);
     flex-shrink: 0;
   }
 
-  .provider-name {
-    font-size: 0.9375rem;
-    font-weight: 500;
-    color: var(--tv-text-primary);
-    text-transform: capitalize;
-  }
-
-  .provider-status {
-    font-size: 0.875rem;
-    font-weight: 600;
-  }
-
-  .provider-last {
-    font-size: 0.8125rem;
-    color: var(--tv-text-muted);
-    text-align: right;
-    min-width: 7rem;
-  }
-
-  /* DB Cohort table */
-  .cohort-table {
+  .t-status {
     display: flex;
-    flex-direction: column;
-    border: 1px solid var(--tv-border);
-    border-radius: 6px;
-    overflow: hidden;
-    margin-bottom: 0.75rem;
-  }
-
-  .cohort-row {
-    display: grid;
-    grid-template-columns: minmax(10rem, 1.5fr) 6rem 1fr;
     align-items: center;
-    gap: 0 1rem;
-    padding: 0.6rem 0.875rem;
-    border-bottom: 1px solid var(--tv-border);
+    flex: 1;
+    gap: 0.875rem;
+    min-width: 0;
   }
 
-  .cohort-row:last-child {
-    border-bottom: none;
+  .t-kv {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    flex-shrink: 0;
   }
-
-  .cohort-header {
-    background: var(--tv-surface-1);
-    font-size: 0.75rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 0.04em;
+  .t-k {
+    font-size: 0.625rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
     color: var(--tv-text-muted);
   }
-
-  .cohort-label {
-    font-size: 0.9rem;
-    font-weight: 500;
-    color: var(--tv-text-primary);
-  }
-
-  .cohort-count {
-    font-size: 0.9rem;
-    font-weight: 700;
+  .t-v {
+    font-size: 0.7rem;
+    font-weight: 600;
     color: var(--tv-text-primary);
     font-variant-numeric: tabular-nums;
   }
 
-  .cohort-note {
-    font-size: 0.8125rem;
-    color: var(--tv-text-muted);
+  .t-clock {
+    color: rgba(200, 212, 207, 0.5);
+    font-size: 0.65rem;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.04em;
+    margin-left: auto;
+    flex-shrink: 0;
   }
 
-  .cohort-footnote {
-    font-size: 0.8125rem;
-    color: var(--tv-text-muted);
-    line-height: 1.5;
-    margin: 0;
-  }
-
-  /* Log viewer */
-  .log-toolbar {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    flex-wrap: wrap;
-    margin-bottom: 0.75rem;
-  }
-
-  .log-source-toggle {
-    display: flex;
+  .t-btn {
+    padding: 0.15rem 0.6rem;
+    font-family: inherit;
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     border: 1px solid var(--tv-border);
-    border-radius: 6px;
+    border-radius: 0;
+    background: transparent;
+    color: var(--tv-text-primary);
+    cursor: pointer;
+    flex-shrink: 0;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
+  }
+  .t-btn:hover {
+    border-color: var(--tv-highlight);
+    color: var(--tv-highlight-soft);
+  }
+
+  .t-btn-tiny {
+    padding: 0.05rem 0.45rem;
+    font-size: 0.6rem;
+  }
+
+  /* ── Loading / error ────────────────────────────────────────────────────── */
+  .t-loading {
+    padding: 2rem;
+  }
+  .t-err {
+    display: flex;
+    align-items: baseline;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    padding: 0.3rem 0.875rem;
+    border-bottom: 1px solid rgba(255, 77, 87, 0.4);
+    background: rgba(255, 77, 87, 0.06);
+    flex-shrink: 0;
+  }
+  .t-err-icon {
+    color: var(--status-error);
+  }
+  .t-err-title {
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: var(--status-error);
+  }
+  .t-err-msg {
+    font-size: 0.7rem;
+    color: var(--tv-text-muted);
+    word-break: break-word;
+  }
+
+  /* ── Main grid ─────────────────────────────────────────────────────────── */
+  .t-main {
+    flex: 1;
+    display: grid;
+    grid-template-columns: 17rem 1fr 19rem;
     overflow: hidden;
   }
 
-  .log-toggle-btn {
-    padding: 0.3rem 0.875rem;
-    font-size: 0.8125rem;
+  .t-col {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    padding-top: 0.6rem; /* breathing room so first floating label isn't clipped */
+    border-right: 1px solid rgba(176, 38, 255, 0.15);
+  }
+  .t-col-r {
+    border-right: none;
+  }
+
+  /* ── Panels with floating label ─────────────────────────────────────────── */
+  .t-panel {
+    position: relative;
+    margin-top: 0.7rem; /* clearance for the floating label that sits at top: -0.55em */
+    border-top: 1px solid rgba(176, 38, 255, 0.12);
+    flex-shrink: 0;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+  }
+  .t-panel:first-child {
+    margin-top: 0;
+  }
+
+  .t-panel-grow {
+    flex: 1;
+    min-height: 0;
+  }
+  .t-panel-fill {
+    flex: 1;
+    min-height: 0;
+  }
+
+  .t-panel-label {
+    position: absolute;
+    top: -0.6em;
+    left: 0.8rem;
+    padding: 0 0.4rem;
+    background: var(--tv-bg, #030303);
+    color: rgba(176, 38, 255, 0.75);
+    font-size: 0.6rem;
+    line-height: 1.2;
     font-weight: 600;
+    letter-spacing: 0.1em;
+    white-space: nowrap;
+    z-index: 2;
+    pointer-events: none;
+    max-width: calc(100% - 1.6rem);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .t-panel-body {
+    padding: 0.85rem 0.6rem 0.45rem;
+    overflow-y: auto;
+    min-height: 0;
+    flex: 1;
+  }
+
+  .t-panel-tools {
+    position: absolute;
+    top: -0.7em;
+    right: 0.6rem;
+    display: flex;
+    gap: 0.3rem;
+    background: var(--tv-bg, #030303);
+    padding: 0 0.25rem;
+    z-index: 2;
+  }
+
+  .log-toggle {
+    display: flex;
+    border: 1px solid var(--tv-border);
+  }
+  .t-tab {
+    padding: 0.05rem 0.45rem;
+    font-family: inherit;
+    font-size: 0.6rem;
+    font-weight: 600;
+    letter-spacing: 0.08em;
     background: transparent;
     border: none;
+    border-right: 1px solid var(--tv-border);
     cursor: pointer;
-    color: var(--tv-text-secondary);
-    transition:
-      background 0.15s,
-      color 0.15s;
-  }
-
-  .log-toggle-btn.active {
-    background: var(--tv-surface-2, var(--tv-accent-muted, var(--tv-border)));
-    color: var(--tv-text-primary);
-  }
-
-  .log-meta {
-    font-size: 0.75rem;
     color: var(--tv-text-muted);
-    margin-right: auto;
+  }
+  .t-tab:last-child {
+    border-right: none;
+  }
+  .t-tab.active {
+    background: rgba(176, 38, 255, 0.15);
+    color: var(--tv-highlight-soft);
   }
 
-  .log-refresh-btn {
-    font-size: 0.8125rem;
-    padding: 0.25rem 0.75rem;
+  /* ── Metric rows ────────────────────────────────────────────────────────── */
+  .m-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.5rem;
+    align-items: baseline;
+    padding: 0.1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .m-row:last-child {
+    border-bottom: none;
+  }
+
+  .m-k {
+    color: rgba(200, 212, 207, 0.5);
+    font-size: 0.65rem;
+    letter-spacing: 0.02em;
+  }
+  .m-v {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--tv-text-primary);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+  }
+  .m-s {
+    font-size: 0.6rem;
+    color: rgba(200, 212, 207, 0.4);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+    min-width: 9ch;
+  }
+
+  .cohort-hl {
+    color: var(--tv-highlight-soft) !important;
+  }
+
+  /* ── Provider rows ──────────────────────────────────────────────────────── */
+  .prov-row {
+    display: grid;
+    grid-template-columns: 1fr auto auto;
+    gap: 0.4rem;
+    align-items: baseline;
+    padding: 0.1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+  }
+  .prov-row:last-child {
+    border-bottom: none;
+  }
+
+  .prov-name {
+    color: var(--tv-text-primary);
+    font-size: 0.7rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+  .prov-status {
+    font-size: 0.65rem;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-align: right;
+  }
+  .prov-last {
+    color: rgba(200, 212, 207, 0.4);
+    font-size: 0.6rem;
+    min-width: 7ch;
+    text-align: right;
+  }
+
+  /* ── Stream / log ───────────────────────────────────────────────────────── */
+  .t-stream {
+    flex: 1;
+    overflow-y: auto;
+    overflow-x: auto;
+    padding: 0.85rem 0.6rem 0.4rem;
+    min-height: 0;
   }
 
   .log-pre {
-    font-family: var(--font-mono, monospace);
-    font-size: 0.75rem;
+    font-family: inherit;
+    font-size: 0.65rem;
     line-height: 1.55;
-    color: var(--tv-text-secondary);
-    background: var(--tv-surface-1);
-    border: 1px solid var(--tv-border);
-    border-radius: 6px;
-    padding: 0.75rem 1rem;
-    max-height: 400px;
-    overflow-y: auto;
-    overflow-x: auto;
-    white-space: pre;
+    color: var(--tv-text-primary);
+    background: transparent;
+    padding: 0;
     margin: 0;
+    white-space: pre;
+    border: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Empty state ────────────────────────────────────────────────────────── */
+  .t-empty {
+    color: rgba(200, 212, 207, 0.4);
+    font-size: 0.68rem;
+    letter-spacing: 0.02em;
+    margin: 0;
+    padding: 0.2rem 0;
+  }
+
+  /* ── Responsive: stack columns under 1100px ─────────────────────────────── */
+  @media (max-width: 1100px) {
+    .t-root {
+      height: auto;
+      min-height: calc(100dvh - 3.6rem);
+    }
+    .t-main {
+      grid-template-columns: 1fr;
+    }
+    .t-col {
+      border-right: none;
+      border-bottom: 1px solid rgba(176, 38, 255, 0.15);
+    }
+    .t-col:last-child {
+      border-bottom: none;
+    }
+    .t-panel-fill,
+    .t-panel-grow {
+      flex: none;
+    }
+    .t-stream {
+      max-height: 60vh;
+    }
   }
 </style>
