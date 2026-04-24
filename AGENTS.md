@@ -1,4 +1,7 @@
-<!-- LOC cap: 95 (updated: 2026-03-24) -->
+---
+applyTo: "**"
+---
+<!-- LOC cap: 95 (opencode entry point — VS Code: .github/instructions/web.instructions.md) -->
 
 # AGENTS.md — yact-web
 
