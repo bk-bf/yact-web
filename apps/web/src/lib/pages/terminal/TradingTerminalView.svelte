@@ -2,8 +2,9 @@
   import { browser } from "$app/environment";
   import { onMount } from "svelte";
 
-  // ── Live clock ──────────────────────────────────────────────────────────────
   let clockTime = $state("--:--:--");
+  let blinkOn = $state(true);
+  let streamEl: HTMLElement | null = null;
 
   onMount(() => {
     if (!browser) return;
@@ -13,1659 +14,889 @@
     };
     tick();
     const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
+    const blinkId = setInterval(() => (blinkOn = !blinkOn), 600);
+    // Scroll signal stream to latest entry
+    if (streamEl) streamEl.scrollTop = streamEl.scrollHeight;
+    return () => {
+      clearInterval(id);
+      clearInterval(blinkId);
+    };
   });
 
   // ── Types ──────────────────────────────────────────────────────────────────
-  type SignalTag =
-    | "SKIP"
-    | "WATCH"
-    | "GAP"
-    | "PENDING"
-    | "MATCH"
-    | "ENTER"
-    | "EXIT"
-    | "CUT"
-    | "TIMEOUT";
-
-  interface SignalEntry {
-    label: "LAG" | "KILL" | "ENTER" | "EXIT" | "SCAN";
-    detail: string;
-    tag: SignalTag;
-  }
-
-  interface ImbalanceEntry {
-    key: string;
-    value: string;
-    detail: string;
-    action: "ENTER" | "SKIP" | null;
-  }
-
-  interface Position {
-    pair: string;
-    price: string;
-    pnlAbs: string;
-    pnlPct: string;
-    status: "profit" | "loss";
-  }
-
-  interface Trade {
-    time: string;
-    size: string;
-    lag: string;
-    pct: string;
-    pnl: string;
-    sigPct: string;
-    dir: "buy" | "sell";
-  }
+  type Tag = "SKIP" | "WATCH" | "GAP" | "PENDING" | "MATCH" | "ENTER" | "EXIT" | "CUT" | "TIMEOUT" | "SCAN";
+  interface LogEntry { ts: string; kind: string; detail: string; tag: Tag; }
+  interface OBLevel { price: string; size: string; depth: number; side: "ask" | "bid"; }
+  interface Position { pair: string; price: string; pnl: string; pct: string; dir: 1 | -1; }
+  interface Trade { ts: string; dur: string; lag: string; pnl: string; win: boolean; }
 
   // ── Mock data ──────────────────────────────────────────────────────────────
-  const signalLog: SignalEntry[] = [
-    {
-      label: "LAG",
-      detail: "log 16s — strong — coinbase +$61 · binance +$64",
-      tag: "SKIP",
-    },
-    {
-      label: "LAG",
-      detail: "spent 2 weeks watching order book — not trading",
-      tag: "WATCH",
-    },
-    {
-      label: "LAG",
-      detail: "14 0s gap — binance +$551 · coinbase +$50",
-      tag: "GAP",
-    },
-    {
-      label: "LAG",
-      detail: "14 2s gap detected — chainlink not updated yet",
-      tag: "PENDING",
-    },
-    {
-      label: "KILL",
-      detail: "6.2s — too short — noise — skip this one",
-      tag: "SKIP",
-    },
-    {
-      label: "LAG",
-      detail: "spent 2 weeks watching order book — not trading",
-      tag: "WATCH",
-    },
-    { label: "KILL", detail: "9.1s — below 11s threshold — skip", tag: "SKIP" },
-    {
-      label: "LAG",
-      detail: "14 7s gap detected — chainlink not updated yet",
-      tag: "PENDING",
-    },
-    {
-      label: "LAG",
-      detail: "spent 2 weeks watching order book — not trading",
-      tag: "WATCH",
-    },
-    {
-      label: "ENTER",
-      detail: "both signals agree · BTC 71c — entering",
-      tag: "MATCH",
-    },
-    {
-      label: "EXIT",
-      detail: "wrong direction — $10 — cut immediately",
-      tag: "CUT",
-    },
-    {
-      label: "KILL",
-      detail: "after 100s — no exit window — if wrong",
-      tag: "TIMEOUT",
-    },
-    {
-      label: "ENTER",
-      detail: "tag 11.0s — imbalance 2.1 — entering",
-      tag: "MATCH",
-    },
-    {
-      label: "EXIT",
-      detail: "imbalance 0.48 — sellers dominant — skip",
-      tag: "SKIP",
-    },
-    {
-      label: "KILL",
-      detail: "after 100s — no exit window — if wrong",
-      tag: "TIMEOUT",
-    },
-    {
-      label: "SCAN",
-      detail: "market opens — bot watches — does NOT enter",
-      tag: "WATCH",
-    },
-    {
-      label: "ENTER",
-      detail: "tag 13.0s + imbalance 2.01 — entering at 51c",
-      tag: "MATCH",
-    },
-    {
-      label: "EXIT",
-      detail: "both signals agree — BTC 71c — entering",
-      tag: "ENTER",
-    },
+  const log: LogEntry[] = [
+    { ts: "14:22:01", kind: "SCAN",  detail: "market opens — bot watches — does NOT enter",               tag: "SCAN"    },
+    { ts: "14:22:04", kind: "LAG",   detail: "log 16s — strong — coinbase +$61 · binance +$64",            tag: "SKIP"    },
+    { ts: "14:22:09", kind: "LAG",   detail: "14.0s gap detected — chainlink not yet updated",             tag: "PENDING" },
+    { ts: "14:22:14", kind: "KILL",  detail: "6.2s — below threshold — noise — skip this one",             tag: "SKIP"    },
+    { ts: "14:22:19", kind: "LAG",   detail: "spent 2 weeks watching order book — not trading",            tag: "WATCH"   },
+    { ts: "14:22:23", kind: "KILL",  detail: "9.1s — below 11s threshold — skip",                         tag: "SKIP"    },
+    { ts: "14:22:28", kind: "LAG",   detail: "14.7s gap — chainlink not updated yet",                      tag: "PENDING" },
+    { ts: "14:22:33", kind: "ENTER", detail: "both signals agree · BTC 71c — entering at $94,208",         tag: "MATCH"   },
+    { ts: "14:22:39", kind: "EXIT",  detail: "wrong direction — $10 loss — cut immediately",               tag: "CUT"     },
+    { ts: "14:22:44", kind: "KILL",  detail: "after 100s — no exit window — if wrong kill it",            tag: "TIMEOUT" },
+    { ts: "14:22:49", kind: "ENTER", detail: "tag 11.0s — imbalance 2.1 — entering at $94,215",           tag: "MATCH"   },
+    { ts: "14:22:55", kind: "EXIT",  detail: "imbalance 0.48 — sellers dominant — skip",                  tag: "SKIP"    },
+    { ts: "14:23:00", kind: "KILL",  detail: "after 100s — no exit window — if wrong",                    tag: "TIMEOUT" },
+    { ts: "14:23:05", kind: "SCAN",  detail: "new 5-min BTC window — watching",                           tag: "SCAN"    },
+    { ts: "14:23:11", kind: "ENTER", detail: "tag 13.0s + imbalance 2.01 — entering at $94,219",          tag: "MATCH"   },
+    { ts: "14:23:17", kind: "EXIT",  detail: "both signals confirm exit — BTC at $94,270 — +$51",         tag: "ENTER"   },
+    { ts: "14:23:22", kind: "LAG",   detail: "log 12s — moderate — coinbase +$20 · binance +$22",          tag: "WATCH"   },
+    { ts: "14:23:27", kind: "ENTER", detail: "ratio 2.08 — 30s window — both signals agree",              tag: "MATCH"   },
+    { ts: "14:23:33", kind: "KILL",  detail: "imbalance dropped to 1.04 — abort entry",                   tag: "SKIP"    },
+    { ts: "14:23:38", kind: "LAG",   detail: "entry window 7c — $94,225 BTC 71c — in",                    tag: "MATCH"   },
+    { ts: "14:23:43", kind: "EXIT",  detail: "imbalance 1.84 — buyers stacking — both agree",             tag: "ENTER"   },
+    { ts: "14:23:48", kind: "KILL",  detail: "imbalance 1.04 — buyers stacking — both agree",             tag: "ENTER"   },
+    { ts: "14:24:01", kind: "SCAN",  detail: "scanning 1,847 pairs — watching BTC 5m + ETH 15m",          tag: "SCAN"    },
+    { ts: "14:24:07", kind: "LAG",   detail: "LAG 14.2s — gap detected — chainlink not updated",           tag: "PENDING" },
+    { ts: "14:24:13", kind: "ENTER", detail: "both signals agree · ETH window — entering at $3,821",      tag: "MATCH"   },
+    { ts: "14:24:19", kind: "EXIT",  detail: "profit target hit — +$288 — closing ETH position",           tag: "ENTER"   },
   ];
 
-  const imbalanceLog: ImbalanceEntry[] = [
-    {
-      key: "RATIO",
-      value: "2.08",
-      detail: "30s window — both signals agree",
-      action: "ENTER",
-    },
-    {
-      key: "RATIO",
-      value: "2.08",
-      detail: "10s window — both signals agree",
-      action: "SKIP",
-    },
-    {
-      key: "BID DEPTH",
-      value: "$3,848",
-      detail: "ask depth $998 — ratio 1.04",
-      action: null,
-    },
-    {
-      key: "IMBALANCE",
-      value: "0.44+0.55",
-      detail: "sellers dominant",
-      action: "SKIP",
-    },
-    {
-      key: "BID DEPTH",
-      value: "$3,848",
-      detail: "ask depth $998 — ratio 1.04",
-      action: null,
-    },
-    {
-      key: "IMBALANCE",
-      value: "0.44+0.55",
-      detail: "sellers dominant",
-      action: "SKIP",
-    },
-    {
-      key: "RATIO",
-      value: "2.08",
-      detail: "10s window — BOTH SIGNALS",
-      action: "ENTER",
-    },
-    {
-      key: "RATIO",
-      value: "1.61",
-      detail: "lag 14s — window 80s",
-      action: "ENTER",
-    },
-    {
-      key: "RATIO",
-      value: "2.08",
-      detail: "10s window — both signals agree",
-      action: "SKIP",
-    },
-    {
-      key: "IMBALANCE",
-      value: "1.2",
-      detail: "neutral zone — skip this window",
-      action: "SKIP",
-    },
-    {
-      key: "IMBALANCE",
-      value: "1.84",
-      detail: "buyers stacking — both agree",
-      action: "ENTER",
-    },
+  const asks: OBLevel[] = [
+    { side: "ask", price: "94,225", size: "2,200", depth: 100 },
+    { side: "ask", price: "94,219", size: "1,800", depth: 82  },
+    { side: "ask", price: "94,215", size: "1,440", depth: 65  },
+    { side: "ask", price: "94,210", size: "980",   depth: 45  },
+    { side: "ask", price: "94,209", size: "640",   depth: 29  },
+  ];
+  const bids: OBLevel[] = [
+    { side: "bid", price: "94,204", size: "4,380", depth: 100 },
+    { side: "bid", price: "94,198", size: "3,100", depth: 71  },
+    { side: "bid", price: "94,190", size: "2,400", depth: 55  },
+    { side: "bid", price: "94,183", size: "1,650", depth: 38  },
+    { side: "bid", price: "94,175", size: "880",   depth: 20  },
   ];
 
   const positions: Position[] = [
-    {
-      pair: "BTC 5m",
-      price: "$74,795",
-      pnlAbs: "+$18.8k",
-      pnlPct: "+25.1%",
-      status: "profit",
-    },
-    {
-      pair: "BTC 5m",
-      price: "$74,770",
-      pnlAbs: "+$2.1k",
-      pnlPct: "+26.1%",
-      status: "profit",
-    },
-    {
-      pair: "BTC 5m",
-      price: "$74,635",
-      pnlAbs: "+$1.6k",
-      pnlPct: "+20.8%",
-      status: "profit",
-    },
-    {
-      pair: "BTC 5m",
-      price: "$74,830",
-      pnlAbs: "-$1.31",
-      pnlPct: "-1.7%",
-      status: "loss",
-    },
-    {
-      pair: "BTC 5m",
-      price: "$74,825",
-      pnlAbs: "+$0.9k",
-      pnlPct: "+12.6%",
-      status: "profit",
-    },
-    {
-      pair: "BTC 5m",
-      price: "$74,775",
-      pnlAbs: "+$0.6k",
-      pnlPct: "+8.9%",
-      status: "profit",
-    },
+    { pair: "BTC/5m",  price: "$74,795", pnl: "+$18.8k", pct: "+25.1%", dir:  1 },
+    { pair: "BTC/5m",  price: "$74,770", pnl: "+$2.1k",  pct: "+26.1%", dir:  1 },
+    { pair: "BTC/5m",  price: "$74,635", pnl: "+$1.6k",  pct: "+20.8%", dir:  1 },
+    { pair: "BTC/5m",  price: "$74,830", pnl: "-$1.31",  pct: "-1.7%",  dir: -1 },
+    { pair: "ETH/15m", price: "$3,821",  pnl: "+$0.9k",  pct: "+12.6%", dir:  1 },
+    { pair: "ETH/15m", price: "$3,805",  pnl: "+$0.6k",  pct: "+8.9%",  dir:  1 },
   ];
 
-  const signalTree = [
-    {
-      indent: 0,
-      label: "EXIT",
-      detail: "wrong direction — $10 — cut immediately",
-      tag: "CUT",
-    },
-    {
-      indent: 0,
-      label: "KILL",
-      detail: "after 100s — no exit window if wrong",
-      tag: "TIMEOUT",
-    },
-    {
-      indent: 0,
-      label: "KILL",
-      detail: "after 100s — no exit window if wrong",
-      tag: "TIMEOUT",
-    },
-    {
-      indent: 0,
-      label: "ENTER",
-      detail: "tag 11.0s — imbalance 2.1 — entering",
-      tag: "ENTER",
-    },
-    {
-      indent: 1,
-      label: "EXIT",
-      detail: "imbalance 0.48 — sellers dominant",
-      tag: "SKIP",
-    },
-    {
-      indent: 0,
-      label: "KILL",
-      detail: "imbalance 0.48 — sellers dominant — skip",
-      tag: "SKIP",
-    },
-    {
-      indent: 0,
-      label: "ENTER",
-      detail: "entry window 7c — $74,825 BTC 71c — in",
-      tag: "MATCH",
-    },
-    {
-      indent: 1,
-      label: "EXIT",
-      detail: "both signals agree — BTC 71c — entering",
-      tag: "ENTER",
-    },
-    {
-      indent: 0,
-      label: "KILL",
-      detail: "imbalance 1.04 — buyers stacking — both agree",
-      tag: "ENTER",
-    },
+  const trades: Trade[] = [
+    { ts: "18:41:21", dur: "35.0s", lag: "2.30", pnl: "+$288", win: true  },
+    { ts: "18:43:16", dur: "13.0s", lag: "1.34", pnl: "+$40",  win: true  },
+    { ts: "18:40:11", dur: "14.2s", lag: "1.83", pnl: "+$501", win: true  },
+    { ts: "18:38:04", dur: "9.3s",  lag: "2.18", pnl: "-$54",  win: false },
+    { ts: "18:25:19", dur: "12.1s", lag: "1.26", pnl: "-$157", win: false },
   ];
 
-  const recentTrades: Trade[] = [
-    {
-      time: "18:41:21",
-      size: "35.0s",
-      lag: "2.30",
-      pct: "131%",
-      pnl: "+$288",
-      sigPct: "67%",
-      dir: "buy",
-    },
-    {
-      time: "18:43:16",
-      size: "13.0s",
-      lag: "1.34",
-      pct: "86%",
-      pnl: "+$40",
-      sigPct: "61%",
-      dir: "buy",
-    },
-    {
-      time: "18:40:11",
-      size: "14.2s",
-      lag: "1.83",
-      pct: "215%",
-      pnl: "+$501",
-      sigPct: "72%",
-      dir: "buy",
-    },
-    {
-      time: "18:38:04",
-      size: "9.3s",
-      lag: "2.18",
-      pct: "65%",
-      pnl: "-$54",
-      sigPct: "67%",
-      dir: "sell",
-    },
-    {
-      time: "18:25:19",
-      size: "12.1s",
-      lag: "1.26",
-      pct: "111%",
-      pnl: "-$157",
-      sigPct: "67%",
-      dir: "sell",
-    },
+  // ── Sparkline (block chars) ─────────────────────────────────────────────────
+  const pnlSeries = [
+    220, 380, 310, 460, 530, 500, 640, 720, 700, 790, 860, 840,
+    940, 1020, 1080, 1200, 1280, 1420, 1520, 1660, 1760, 1880, 2020,
+    2140, 2360, 2420, 2540, 2660, 2780, 2960, 3080, 3240, 3400, 3520,
+    3780, 3920, 4080, 4360, 4500, 4800, 4960, 5280, 5440, 5760, 5940,
+    6280, 6460, 6800, 7180, 7540, 7940, 8360, 8820, 9360, 9900, 10460, 11356,
   ];
 
-  const signalBarsA = [
-    { label: "MOMENTUM", pct: 74 },
-    { label: "VOLUME DELTA", pct: 62 },
-    { label: "LAG DETECT", pct: 85 },
-    { label: "CHAINLINK", pct: 45 },
-  ];
+  const blocks = "▁▂▃▄▅▆▇█";
+  const sparkline = $derived.by(() => {
+    const mn = Math.min(...pnlSeries);
+    const mx = Math.max(...pnlSeries);
+    const rng = mx - mn || 1;
+    // Downsample to ~40 chars
+    const step = Math.ceil(pnlSeries.length / 40);
+    const sampled = pnlSeries.filter((_, i) => i % step === 0);
+    return sampled.map(v => blocks[Math.round((v - mn) / rng * 7)]).join("");
+  });
 
-  const signalBarsB = [
-    { label: "1m–15s", pct: 70 },
-    { label: "1m–30s", pct: 74 },
-    { label: "1m–1m", pct: 81 },
-    { label: "5m–1m", pct: 85 },
-    { label: "5m–5m", pct: 43 },
-    { label: "5m–10m", pct: 20 },
-  ];
-
-  // ── PnL sparkline data ─────────────────────────────────────────────────────
-  const pnlData = [
-    220, 380, 310, 460, 420, 530, 500, 640, 610, 720, 700, 790, 760, 860, 840,
-    940, 920, 1020, 1000, 1100, 1080, 1200, 1180, 1300, 1280, 1420, 1400, 1540,
-    1520, 1660, 1640, 1760, 1740, 1880, 1920, 2020, 2000, 2140, 2120, 2240,
-    2220, 2360, 2420, 2400, 2540, 2520, 2660, 2640, 2780, 2840, 2820, 2960,
-    2940, 3080, 3160, 3240, 3320, 3400, 3520, 3640, 3780, 3920, 4080, 4220,
-    4360, 4500, 4660, 4800, 4960, 5120, 5280, 5440, 5600, 5760, 5940, 6100,
-    6280, 6460, 6640, 6800, 6980, 7180, 7360, 7540, 7740, 7940, 8140, 8360,
-    8580, 8820, 9080, 9360, 9620, 9900, 10180, 10460, 10760, 11060, 11356,
-  ];
-
-  const chartW = 1200;
-  const chartH = 72;
-
-  const linePath = $derived(buildLine(pnlData));
-  const areaPath = $derived(buildArea(pnlData));
-
-  function buildLine(pts: number[]): string {
-    if (pts.length < 2) return "";
-    const min = Math.min(...pts);
-    const max = Math.max(...pts);
-    const rng = max - min || 1;
-    const pad = 2;
-    return (
-      "M " +
-      pts
-        .map((v, i) => {
-          const x = pad + (i / (pts.length - 1)) * (chartW - pad * 2);
-          const y = pad + (1 - (v - min) / rng) * (chartH - pad * 2);
-          return `${x.toFixed(1)},${y.toFixed(1)}`;
-        })
-        .join(" L ")
-    );
-  }
-
-  function buildArea(pts: number[]): string {
-    const line = buildLine(pts);
-    if (!line) return "";
-    const pad = 2;
-    return `${line} L ${chartW - pad},${chartH - pad} L ${pad},${chartH - pad} Z`;
-  }
-
-  // ── Colour helpers ─────────────────────────────────────────────────────────
-  function labelColor(label: string): string {
-    switch (label) {
-      case "ENTER":
-      case "MATCH":
-        return "var(--m3-positive)";
-      case "EXIT":
-      case "CUT":
-      case "KILL":
-      case "TIMEOUT":
-        return "var(--tv-negative)";
-      case "LAG":
-        return "var(--tv-highlight-soft)";
-      case "SCAN":
-        return "var(--status-warn)";
-      default:
-        return "var(--tv-text-muted)";
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function kindColor(kind: string): string {
+    switch (kind) {
+      case "ENTER": return "#1ddf72";
+      case "EXIT":  return "#b026ff";
+      case "KILL":  return "#ff4d57";
+      case "LAG":   return "#d56bff";
+      case "SCAN":  return "#f5a623";
+      default:      return "#9aa7a0";
     }
   }
-
-  function tagColor(tag: SignalTag): string {
+  function tagColor(tag: Tag): string {
     switch (tag) {
-      case "MATCH":
-      case "ENTER":
-      case "GAP":
-        return "var(--m3-positive)";
-      case "SKIP":
-      case "CUT":
-      case "TIMEOUT":
-        return "var(--tv-negative)";
-      default:
-        return "var(--status-warn)";
+      case "MATCH": case "ENTER":  return "#1ddf72";
+      case "SKIP":  case "CUT":    return "#ff4d57";
+      case "TIMEOUT":              return "#ff4d57";
+      case "PENDING": case "SCAN": return "#f5a623";
+      default:                     return "#9aa7a0";
     }
-  }
-
-  function actionColor(action: "ENTER" | "SKIP" | null): string {
-    if (action === "ENTER") return "var(--m3-positive)";
-    if (action === "SKIP") return "var(--tv-negative)";
-    return "var(--tv-text-muted)";
-  }
-
-  function barColor(pct: number): string {
-    if (pct >= 75) return "var(--m3-positive)";
-    if (pct >= 50) return "var(--tv-highlight)";
-    if (pct >= 35) return "var(--status-warn)";
-    return "var(--tv-negative)";
   }
 </script>
 
-<div class="terminal-root">
-  <!-- ── TICKER BAR ──────────────────────────────────────────────────────── -->
-  <header class="ticker-bar">
-    <div class="ticker-left">
-      <span class="brand-dot">◉</span>
-      <span class="brand-label">YACT</span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-pair">BTC/USD</span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-tf">5M</span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-price">$94,208</span>
-      <span class="ticker-change pos">▲ +1.24%</span>
+<div class="t-root">
+  <!-- ══ NAV HEADER ══════════════════════════════════════════════════════════ -->
+  <div class="t-topbar">
+    <div class="t-topbar-l">
+      <a href="/" class="t-brand-wrap" aria-label="YACT home">
+        <span class="t-brand-badge">YACT</span>
+      </a>
+      <span class="t-sep">│</span>
+      <nav class="t-nav" aria-label="Primary">
+        <a href="/" class="t-nav-link">Markets</a>
+        <a href="/watchlist" class="t-nav-link">Watchlist</a>
+        <a href="/dashboard" class="t-nav-link">Dashboard</a>
+        <span class="t-nav-link t-nav-active">Terminal</span>
+      </nav>
+      <span class="t-sep">│</span>
+      <span class="t-live-dot" class:blink={blinkOn}>●</span>
+      <span class="t-live-label">LIVE</span>
+      <span class="t-sep">│</span>
+      <span class="t-pair">BTC/USD</span>
+      <span class="t-price">$94,208</span>
+      <span class="t-chg pos">▲+1.24%</span>
     </div>
-    <div class="ticker-center">
-      <span class="ticker-stat">MARKETS <em>400+</em></span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-stat">WALLETS <em>3</em></span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-stat">DISP <em>$2,000</em></span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-stat">WIN <em>74%</em></span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-stat">SEED <em>$10,000</em></span>
-      <span class="ticker-sep">·</span>
-      <span class="ticker-stat">BTC DOM <em>54.3%</em></span>
-    </div>
-    <div class="ticker-right">
-      <span class="live-dot">◉</span>
-      <span class="live-label">LIVE</span>
-      <span class="ticker-clock">{clockTime} UTC</span>
-    </div>
-  </header>
-
-  <!-- ── HERO STATS ──────────────────────────────────────────────────────── -->
-  <div class="hero-row">
-    <div class="hero-stat accent">
-      <div class="hero-value">+$11,356</div>
-      <div class="hero-label">P&L TODAY</div>
-    </div>
-    <div class="hero-stat">
-      <div class="hero-value">30</div>
-      <div class="hero-label">TRADES</div>
-    </div>
-    <div class="hero-stat">
-      <div class="hero-value">74%</div>
-      <div class="hero-label">WIN RATE</div>
-    </div>
-    <div class="hero-stat">
-      <div class="hero-value">2.59B</div>
-      <div class="hero-label">24H VOLUME</div>
-    </div>
-    <div class="hero-stat">
-      <div class="hero-value">$25</div>
-      <div class="hero-label">AVG FILL</div>
-    </div>
-    <div class="hero-stat">
-      <div class="hero-value">1,847</div>
-      <div class="hero-label">COINS IN DB</div>
-    </div>
-    <div class="hero-stat">
-      <div class="hero-value">85%</div>
-      <div class="hero-label">COVERAGE</div>
-    </div>
-    <div class="hero-balance-block">
-      <div class="balance-row">
-        <span class="balance-label">ACCT 1</span>
-        <span class="balance-bar-wrap">
-          <span class="balance-bar" style="width: 82%"></span>
-        </span>
-        <span class="balance-val pos">+$53,400</span>
-      </div>
-      <div class="balance-row">
-        <span class="balance-label">ACCT 2</span>
-        <span class="balance-bar-wrap">
-          <span class="balance-bar neg" style="width: 28%"></span>
-        </span>
-        <span class="balance-val neg">-$2,000</span>
-      </div>
-      <div class="balance-row">
-        <span class="balance-label">ACCT 3</span>
-        <span class="balance-bar-wrap">
-          <span class="balance-bar" style="width: 65%"></span>
-        </span>
-        <span class="balance-val pos">+$4,100</span>
-      </div>
-      <div class="balance-row">
-        <span class="balance-label">ACCT 4</span>
-        <span class="balance-bar-wrap">
-          <span class="balance-bar neg" style="width: 18%"></span>
-        </span>
-        <span class="balance-val neg">-$9,100</span>
-      </div>
+    <div class="t-topbar-r">
+      <span class="t-kv">ETH <b>$3,821</b></span>
+      <span class="t-kv">BTC.DOM <b>54.3%</b></span>
+      <span class="t-kv">MCAP <b>$3.2T</b></span>
+      <span class="t-sep">│</span>
+      <span class="t-clock">{clockTime} UTC</span>
     </div>
   </div>
 
-  <!-- ── PnL CHART ───────────────────────────────────────────────────────── -->
-  <div class="chart-band">
-    <div class="chart-label-tl">
-      <span class="chart-pnl-label">+$11 356</span>
-      <span class="chart-sub"
-        >Claude code · Beta BTC windows · 1,847 trades · Total 12.4m</span
-      >
-    </div>
-    <div class="chart-label-tr">+$11k</div>
-    <svg
-      class="pnl-svg"
-      viewBox={`0 0 ${chartW} ${chartH}`}
-      preserveAspectRatio="none"
-      xmlns="http://www.w3.org/2000/svg"
-    >
-      <defs>
-        <linearGradient id="pnl-fill" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0%" stop-color="rgba(29, 223, 114, 0.35)" />
-          <stop offset="100%" stop-color="rgba(29, 223, 114, 0)" />
-        </linearGradient>
-      </defs>
-      <path d={areaPath} fill="url(#pnl-fill)" />
-      <path d={linePath} fill="none" stroke="#1ddf72" stroke-width="1.5" />
-    </svg>
-  </div>
+  <!-- ══ MAIN AREA ═══════════════════════════════════════════════════════════ -->
+  <div class="t-main">
 
-  <!-- ── MAIN PANELS ─────────────────────────────────────────────────────── -->
-  <div class="panels-grid">
-    <!-- Signal 1 — Log feed -->
-    <div class="panel panel-log">
-      <div class="panel-header">
-        <span class="panel-dot" style="background: var(--tv-highlight)"></span>
-        SIGNAL LOG
-        <span class="panel-sub">// 167</span>
-      </div>
-      <div class="log-feed">
-        {#each signalLog as entry}
-          <div class="log-row">
-            <span class="log-label" style="color:{labelColor(entry.label)}"
-              >{entry.label}</span
-            >
-            <span class="log-detail">{entry.detail}</span>
-            <span class="log-tag" style="color:{tagColor(entry.tag)}"
-              >{entry.tag}</span
-            >
-          </div>
-        {/each}
-      </div>
-    </div>
+    <!-- ── LEFT COLUMN ───────────────────────────────────────────────────── -->
+    <div class="t-col-left">
 
-    <!-- Signal 2 — Imbalance / Order book -->
-    <div class="panel panel-imbalance">
-      <div class="panel-header">
-        <span class="panel-dot" style="background: var(--status-warn)"></span>
-        IMBALANCE
-        <span class="panel-sub">// 1–2</span>
-      </div>
-      <div class="log-feed">
-        {#each imbalanceLog as entry}
-          <div class="log-row imbalance-row">
-            <span class="imb-key">{entry.key}</span>
-            <span class="imb-val">{entry.value}</span>
-            <span class="imb-detail">{entry.detail}</span>
-            {#if entry.action}
-              <span class="imb-action" style="color:{actionColor(entry.action)}"
-                >{entry.action}</span
-              >
-            {/if}
+      <!-- Portfolio tracker -->
+      <div class="t-panel port-panel">
+        <div class="t-panel-label">PORTFOLIO // LIVE</div>
+        <div class="t-panel-body port-body">
+          <div class="port-value">$21,356</div>
+          <div class="port-row">
+            <span class="port-label">TODAY</span>
+            <span class="port-pnl pos">+$11,356</span>
+            <span class="port-pct pos">+112.4%</span>
           </div>
-        {/each}
-      </div>
-      <!-- Live order book mini-visualisation -->
-      <div class="ob-mini">
-        <div class="ob-row ob-header">
-          <span>SIDE</span><span>SIZE</span><span>PRICE</span>
+          <div class="port-row">
+            <span class="port-label">TOTAL</span>
+            <span class="port-pnl pos">+$55,400</span>
+            <span class="port-pct pos">+554%</span>
+          </div>
+          <div class="port-row">
+            <span class="port-label">SEED</span>
+            <span class="port-val">$10,000</span>
+            <span class="port-sub">30 sessions</span>
+          </div>
         </div>
-        {#each [{ s: "ASK", size: "+$1,448", price: "$94,209", cls: "neg" }, { s: "ASK", size: "+$2,200", price: "$94,215", cls: "neg" }, { s: "ASK", size: "+$1,100", price: "$94,220", cls: "neg" }, { s: "BID", size: "+$1,440", price: "$94,204", cls: "pos" }, { s: "BID", size: "+$4,380", price: "$94,198", cls: "pos" }, { s: "BID", size: "+$3,100", price: "$94,190", cls: "pos" }] as row}
-          <div class="ob-row">
-            <span class={row.cls}>{row.s}</span>
-            <span>{row.size}</span>
-            <span class={row.cls}>{row.price}</span>
-          </div>
-        {/each}
-        <div class="ob-spread">SPREAD: 0.029</div>
       </div>
-    </div>
 
-    <!-- Entry window -->
-    <div class="panel panel-entry">
-      <div class="panel-header">
-        <span class="panel-dot scanning"></span>
-        ENTRY WINDOW
-        <span class="panel-sub">// 10–1001</span>
-      </div>
-      <div class="entry-status-row">
-        <span class="entry-status-badge">● SCANNING</span>
-        <span class="entry-elapsed">4:55</span>
-      </div>
-      <div class="entry-details">
-        <div class="entry-row">
-          <span class="ek">RATIO</span>
-          <span class="ev">2.08</span>
-          <span class="ed">30s window — both signals agree</span>
-        </div>
-        <div class="entry-row">
-          <span class="ek">ELAPSED</span>
-          <span class="ev warn">1:35s</span>
-          <span class="ed">entered valid window 50–100s</span>
-        </div>
-        <div class="entry-row">
-          <span class="ek">BID DEPTH</span>
-          <span class="ev">$3,848</span>
-          <span class="ed">ask depth $998 — ratio 1.0x</span>
-        </div>
-        <div class="entry-row">
-          <span class="ek">RATIO</span>
-          <span class="ev">1.04</span>
-          <span class="ed">60–90s window has 70% win rate · sweet spot</span>
-        </div>
-        <div class="entry-row">
-          <span class="ek">ELAPSED</span>
-          <span class="ev warn">1:05s</span>
-          <span class="ed">entered valid window 60–100s</span>
-        </div>
-        <div class="entry-row">
-          <span class="ek">NEW MARKET</span>
-          <span class="ev warn">5-min BTC</span>
-          <span class="ed">above/below $94,200</span>
-        </div>
-      </div>
-      <div class="entry-signals">
-        <div class="entry-sig-label">● ENTRY SIGNALS</div>
-        {#each [{ k: "IMBALANCE", v: "1.84", color: "var(--m3-positive)" }, { k: "LAG RATIO", v: "2.08", color: "var(--tv-highlight)" }, { k: "CHAINLINK", v: "SYNCED", color: "var(--status-warn)" }, { k: "BID/ASK", v: "0.48", color: "var(--tv-negative)" }] as sig}
-          <div class="entry-sig-row">
-            <span class="entry-sig-key">{sig.k}</span>
-            <span class="entry-sig-val" style="color:{sig.color}">{sig.v}</span>
-          </div>
-        {/each}
-      </div>
-    </div>
-
-    <!-- Active positions + signal tree -->
-    <div class="panel panel-positions">
-      <div class="panel-header">
-        <span class="panel-dot" style="background: var(--m3-positive)"></span>
-        ACTIVE POSITIONS
-        <span class="panel-sub">// IN DB PAIRS</span>
-      </div>
-      <div class="positions-list">
-        {#each positions as pos}
-          <div class="pos-row">
-            <div class="pos-left">
-              <span class="pos-pair">{pos.pair}</span>
-              <span class="pos-price">{pos.price}</span>
+      <!-- Positions panel -->
+      <div class="t-panel">
+        <div class="t-panel-label">POSITIONS // {positions.length}</div>
+        <div class="t-panel-body">
+          {#each positions as p}
+            <div class="pos-row">
+              <span class="pos-pair">{p.pair}</span>
+              <span class="pos-price">{p.price}</span>
+              <span class="pos-pnl" class:pos={p.dir > 0} class:neg={p.dir < 0}>{p.pnl}</span>
+              <span class="pos-dir" class:pos={p.dir > 0} class:neg={p.dir < 0}>{p.dir > 0 ? "▲" : "▼"}</span>
             </div>
-            <div class="pos-right">
-              <span class="pos-pnl {pos.status}">{pos.pnlAbs}</span>
-              <span class="pos-badge {pos.status}"
-                >{pos.status === "profit" ? "PROFIT" : "LOSS"}</span
-              >
-            </div>
-          </div>
-        {/each}
-      </div>
-      <div class="signal-tree-header panel-sub-header">SIGNAL TREE</div>
-      <div class="signal-tree">
-        {#each signalTree as node}
-          <div class="tree-row" style="padding-left:{node.indent * 12 + 4}px">
-            <span class="tree-label" style="color:{labelColor(node.label)}"
-              >{node.label}</span
-            >
-            <span class="tree-detail">{node.detail}</span>
-            <span
-              class="tree-tag"
-              style="color:{tagColor(node.tag as SignalTag)}">{node.tag}</span
-            >
-          </div>
-        {/each}
-      </div>
-    </div>
-  </div>
-
-  <!-- ── BOTTOM ROW ──────────────────────────────────────────────────────── -->
-  <div class="bottom-row">
-    <!-- Recent trades -->
-    <div class="panel panel-trades">
-      <div class="panel-header">
-        <span class="panel-dot" style="background: var(--tv-highlight)"></span>
-        LAST TRADES
-        <span class="panel-sub">// TOP 5 CLOSED</span>
-      </div>
-      <table class="trades-table">
-        <thead>
-          <tr>
-            <th>TIME</th>
-            <th>SIZE</th>
-            <th>LAG</th>
-            <th>PCT</th>
-            <th>P&amp;L</th>
-            <th>SIG%</th>
-          </tr>
-        </thead>
-        <tbody>
-          {#each recentTrades as t}
-            <tr class="trade-row {t.dir}">
-              <td class="mono">{t.time}</td>
-              <td class="mono">{t.size}</td>
-              <td class="mono">{t.lag}</td>
-              <td class="mono">{t.pct}</td>
-              <td class="mono {t.dir === 'buy' ? 'pos' : 'neg'}">{t.pnl}</td>
-              <td class="mono muted">{t.sigPct}</td>
-            </tr>
           {/each}
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Signal analysis A -->
-    <div class="panel panel-signals-a">
-      <div class="panel-header">
-        <span class="panel-dot" style="background: var(--tv-highlight-soft)"
-        ></span>
-        SIGNAL ANALYSIS
-        <span class="panel-sub">// 24–2s</span>
+        </div>
       </div>
-      <div class="signal-bars">
-        {#each signalBarsA as bar}
-          <div class="signal-bar-row">
-            <span class="sbar-label">{bar.label}</span>
-            <div class="sbar-track">
-              <div
-                class="sbar-fill"
-                style="width:{bar.pct}%; background:{barColor(bar.pct)}"
-              ></div>
+
+      <!-- Session metrics -->
+      <div class="t-panel">
+        <div class="t-panel-label">SESSION METRICS</div>
+        <div class="t-panel-body">
+          {#each [
+            { k: "P&L TODAY",  v: "+$11,356", c: "pos" },
+            { k: "TRADES",     v: "30",        c: ""    },
+            { k: "WIN RATE",   v: "74%",       c: "pos" },
+            { k: "AVG FILL",   v: "$25",       c: ""    },
+            { k: "MAX DD",     v: "-$157",     c: "neg" },
+            { k: "COVERAGE",   v: "85%",       c: ""    },
+            { k: "PAIRS",      v: "1,847",     c: ""    },
+            { k: "SEED",       v: "$10,000",   c: ""    },
+          ] as m}
+            <div class="metric-row">
+              <span class="metric-k">{m.k}</span>
+              <span class="metric-v {m.c}">{m.v}</span>
             </div>
-            <span class="sbar-pct" style="color:{barColor(bar.pct)}"
-              >{bar.pct}%</span
-            >
-          </div>
-        {/each}
+          {/each}
+        </div>
       </div>
-    </div>
 
-    <!-- Signal analysis B — by timeframe -->
-    <div class="panel panel-signals-b">
-      <div class="panel-header">
-        <span class="panel-dot" style="background: var(--status-warn)"></span>
-        BY SIGNAL WINDOW
-        <span class="panel-sub">// TF BUCKETS</span>
-      </div>
-      <div class="signal-bars">
-        {#each signalBarsB as bar}
-          <div class="signal-bar-row">
-            <span class="sbar-label">{bar.label}</span>
-            <div class="sbar-track">
-              <div
-                class="sbar-fill"
-                style="width:{bar.pct}%; background:{barColor(bar.pct)}"
-              ></div>
+      <!-- Signal bars -->
+      <div class="t-panel t-panel-grow">
+        <div class="t-panel-label">SIGNAL STRENGTH</div>
+        <div class="t-panel-body">
+          {#each [
+            { l: "MOMENTUM",    pct: 74 },
+            { l: "VOL DELTA",   pct: 62 },
+            { l: "LAG DETECT",  pct: 85 },
+            { l: "CHAINLINK",   pct: 45 },
+            { l: "1m–15s",      pct: 70 },
+            { l: "5m–1m",       pct: 85 },
+            { l: "5m–5m",       pct: 43 },
+          ] as b}
+            <div class="bar-row">
+              <span class="bar-l">{b.l}</span>
+              <span class="bar-track"><span class="bar-fill" style="width:{b.pct}%; opacity:{0.4 + b.pct/100*0.6}"></span></span>
+              <span class="bar-pct" class:pos={b.pct >= 70} class:warn={b.pct >= 50 && b.pct < 70} class:neg={b.pct < 50}>{b.pct}%</span>
             </div>
-            <span class="sbar-pct" style="color:{barColor(bar.pct)}"
-              >{bar.pct}%</span
-            >
+          {/each}
+        </div>
+      </div>
+
+    </div>
+
+    <!-- ── CENTER COLUMN — SIGNAL STREAM ─────────────────────────────────── -->
+    <div class="t-col-center">
+      <div class="t-panel t-panel-fill">
+        <div class="t-panel-label">SIGNAL STREAM // {log.length} EVENTS  ──  BTC 5m  ──  SCANNING</div>
+        <div class="t-stream" bind:this={streamEl}>
+          <!-- Column headers -->
+          <div class="stream-hdr">
+            <span class="sh-ts">TIME</span>
+            <span class="sh-kind">KIND</span>
+            <span class="sh-detail">DETAIL</span>
+            <span class="sh-tag">TAG</span>
           </div>
-        {/each}
+          <div class="stream-divider">────────────────────────────────────────────────────────────────────────────────</div>
+          {#each log as e}
+            <div class="stream-row">
+              <span class="sr-ts">{e.ts}</span>
+              <span class="sr-kind" style="color:{kindColor(e.kind)}">[{e.kind}]</span>
+              <span class="sr-detail">{e.detail}</span>
+              <span class="sr-tag" style="color:{tagColor(e.tag)}">{e.tag}</span>
+            </div>
+          {/each}
+          <!-- Cursor line -->
+          <div class="stream-row stream-cursor">
+            <span class="sr-ts">{clockTime}</span>
+            <span class="sr-kind" style="color:#f5a623">[SCAN]</span>
+            <span class="sr-detail">watching 1,847 pairs…<span class="cursor" class:visible={blinkOn}>█</span></span>
+            <span class="sr-tag" style="color:#f5a623">LIVE</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recent trades -->
+      <div class="t-panel">
+        <div class="t-panel-label">RECENT TRADES // LAST {trades.length}</div>
+        <div class="t-panel-body">
+          <div class="trades-hdr">
+            <span>TIME</span><span>DUR</span><span>LAG</span><span>P&amp;L</span><span>RESULT</span>
+          </div>
+          {#each trades as t}
+            <div class="trade-row">
+              <span>{t.ts}</span>
+              <span>{t.dur}</span>
+              <span>{t.lag}</span>
+              <span class:pos={t.win} class:neg={!t.win}>{t.pnl}</span>
+              <span class:pos={t.win} class:neg={!t.win}>{t.win ? "WIN" : "LOSS"}</span>
+            </div>
+          {/each}
+        </div>
       </div>
     </div>
 
-    <!-- Minimap / heatmap block -->
-    <div class="panel panel-heatmap">
-      <div class="panel-header">
-        <span class="panel-dot" style="background: var(--tv-negative)"></span>
-        ORDER FLOW
-        <span class="panel-sub">// $22.3k</span>
-      </div>
-      <div class="heatmap-grid">
-        {#each [0.54, 0.735, 0.708, 0.775, 0.74, 0.755, 0.72, 0.7, 0.475] as v, i}
-          <div
-            class="heatmap-cell"
-            style="opacity:{0.3 + v * 0.7}; background:{v > 0.72
-              ? 'rgba(29,223,114,0.6)'
-              : v > 0.6
-                ? 'rgba(176,38,255,0.5)'
-                : 'rgba(255,77,87,0.5)'}"
-          >
-            {v.toFixed(3)}
+    <!-- ── RIGHT COLUMN ───────────────────────────────────────────────────── -->
+    <div class="t-col-right">
+
+      <!-- Order book -->
+      <div class="t-panel">
+        <div class="t-panel-label">ORDER BOOK // BTC/USD</div>
+        <div class="t-panel-body ob-body">
+          <div class="ob-hdr"><span>PRICE</span><span>DEPTH</span><span>SIZE $</span></div>
+          <!-- Asks (reversed: highest first) -->
+          {#each [...asks].reverse() as lvl}
+            <div class="ob-row ask-row">
+              <span class="ob-price neg">{lvl.price}</span>
+              <span class="ob-bar-wrap"><span class="ob-bar ask-bar" style="width:{lvl.depth}%"></span></span>
+              <span class="ob-size">{lvl.size}</span>
+            </div>
+          {/each}
+          <!-- Spread -->
+          <div class="ob-spread">
+            <span>─────</span>
+            <span class="spread-price">94,208 <span class="muted">LAST</span></span>
+            <span>SPRD: $5</span>
           </div>
-        {/each}
+          <!-- Bids -->
+          {#each bids as lvl}
+            <div class="ob-row bid-row">
+              <span class="ob-price pos">{lvl.price}</span>
+              <span class="ob-bar-wrap"><span class="ob-bar bid-bar" style="width:{lvl.depth}%"></span></span>
+              <span class="ob-size">{lvl.size}</span>
+            </div>
+          {/each}
+        </div>
       </div>
-      <div class="flow-spread">SPREAD: 0.029</div>
-      <div class="flow-stats">
-        {#each [{ k: "GAPS / HOUR", v: "213" }, { k: "AVG FILL", v: "1.39s" }, { k: "CAPITAL USED", v: "$80K" }] as stat}
-          <div class="flow-stat-row">
-            <span class="flow-stat-k">{stat.k}</span>
-            <span class="flow-stat-v">{stat.v}</span>
+
+      <!-- PnL sparkline -->
+      <div class="t-panel">
+        <div class="t-panel-label">PNL CURVE // {pnlSeries.length} SESSIONS</div>
+        <div class="t-panel-body">
+          <div class="spark-line">{sparkline}</div>
+          <div class="spark-stats">
+            <div class="spark-stat"><span class="muted">TODAY</span> <span class="pos">+$11,356</span></div>
+            <div class="spark-stat"><span class="muted">TOTAL</span> <span class="pos">+$55,400</span></div>
+            <div class="spark-stat"><span class="muted">MAX DD</span> <span class="neg">-$157</span></div>
           </div>
-        {/each}
+        </div>
       </div>
+
+      <!-- Entry window status -->
+      <div class="t-panel t-panel-grow">
+        <div class="t-panel-label">ENTRY WINDOW // ACTIVE</div>
+        <div class="t-panel-body">
+          {#each [
+            { k: "STATUS",    v: "● SCANNING",  c: "warn" },
+            { k: "RATIO",     v: "2.08",         c: "pos"  },
+            { k: "ELAPSED",   v: "1:35s",        c: "warn" },
+            { k: "BID DEPTH", v: "$3,848",       c: ""     },
+            { k: "IMBALANCE", v: "1.84",         c: "pos"  },
+            { k: "CHAINLINK", v: "SYNCED",       c: "pos"  },
+            { k: "WINDOW",    v: "60–100s",      c: ""     },
+            { k: "WIN RATE",  v: "70%",          c: "pos"  },
+          ] as s}
+            <div class="metric-row">
+              <span class="metric-k">{s.k}</span>
+              <span class="metric-v {s.c}">{s.v}</span>
+            </div>
+          {/each}
+        </div>
+      </div>
+
     </div>
   </div>
+
+  <!-- ══ BOTTOM STATUS BAR ═══════════════════════════════════════════════════ -->
+  <div class="t-botbar">
+    <span class="t-key">[j/k]</span><span class="t-keylabel">scroll</span>
+    <span class="t-key">[Tab]</span><span class="t-keylabel">panel</span>
+    <span class="t-key">[r]</span><span class="t-keylabel">refresh</span>
+    <span class="t-key">[f]</span><span class="t-keylabel">filter</span>
+    <span class="t-key">[?]</span><span class="t-keylabel">help</span>
+    <span class="t-key">[q]</span><span class="t-keylabel">quit</span>
+    <span class="t-sep-r">│</span>
+    <span class="t-branch">feat/trading-terminal</span>
+    <span class="t-sep-r">│</span>
+    <span class="muted">yact v0.1  ·  1,847 pairs  ·  3 accounts  ·  85% coverage</span>
+  </div>
+
+  <!-- CRT scanline overlay -->
+  <div class="t-scanlines" aria-hidden="true"></div>
 </div>
 
 <style>
-  /* ── Root / layout ────────────────────────────────────────────────────── */
-  .terminal-root {
-    font-family: "JetBrains Mono", "Consolas", "Courier New", monospace;
-    font-size: 0.72rem;
-    line-height: 1.4;
-    background: var(--tv-bg);
-    color: var(--tv-text-primary);
-    min-height: 100vh;
+  /* ── Reset / root ──────────────────────────────────────────────────────── */
+  .t-root {
+    position: fixed;
+    inset: 0;
     display: flex;
     flex-direction: column;
-    gap: 0;
-    /* Break out of AppShell max-width */
-    width: 100vw;
-    position: relative;
-    left: 50%;
-    right: 50%;
-    margin-left: -50vw;
-    margin-right: -50vw;
+    background: #000;
+    color: #c8d4cf;
+    font-family: "JetBrains Mono", "Menlo", "Consolas", monospace;
+    font-size: 0.7rem;
+    line-height: 1.45;
+    overflow: hidden;
+    /* Must exceed market-floating-bar (80) + backdrop-filter compositing + RouteProgress (200) */
+    z-index: 9998;
   }
 
-  /* ── Ticker bar ───────────────────────────────────────────────────────── */
-  .ticker-bar {
+  /* ── CRT scanlines ─────────────────────────────────────────────────────── */
+  .t-scanlines {
+    position: fixed;
+    inset: 0;
+    pointer-events: none;
+    z-index: 9999;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 1px,
+      rgba(0, 0, 0, 0.04) 1px,
+      rgba(0, 0, 0, 0.04) 2px
+    );
+  }
+
+  /* ── Nav header ─────────────────────────────────────────────────────────── */
+  .t-topbar {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
-    padding: 0.3rem 1rem;
-    background: #050507;
-    border-bottom: 1px solid var(--tv-border);
+    padding: 0 0.75rem;
+    height: 2.4rem;
+    border-bottom: 1px solid rgba(160, 60, 240, 0.4);
+    /* Match main app's market-floating-bar exactly */
+    background: #1e0938;
+    box-shadow: 0 2px 20px rgba(120, 20, 200, 0.22);
     flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
   }
 
-  .ticker-left,
-  .ticker-center,
-  .ticker-right {
+  .t-topbar-l,
+  .t-topbar-r {
     display: flex;
     align-items: center;
-    gap: 0.45rem;
+    gap: 0.55rem;
   }
 
-  .brand-dot {
-    color: var(--tv-highlight);
-    font-size: 0.8rem;
+  /* Brand badge — matches app shell */
+  .t-brand-wrap {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    flex-shrink: 0;
   }
-
-  .brand-label {
-    color: var(--tv-highlight-soft);
-    font-weight: 600;
-    letter-spacing: 0.08em;
-  }
-
-  .ticker-sep {
-    color: var(--tv-border);
-  }
-
-  .ticker-pair {
-    color: var(--tv-text-primary);
-    font-weight: 600;
-    letter-spacing: 0.05em;
-  }
-
-  .ticker-tf {
-    color: var(--tv-text-muted);
-    font-size: 0.65rem;
-    padding: 0.1rem 0.35rem;
-    border: 1px solid var(--tv-border);
-    border-radius: 3px;
-  }
-
-  .ticker-price {
-    color: #fff;
-    font-weight: 600;
-    font-size: 0.8rem;
-  }
-
-  .ticker-change.pos {
-    color: var(--m3-positive);
-  }
-
-  .ticker-stat {
-    color: var(--tv-text-muted);
-  }
-
-  .ticker-stat em {
-    color: var(--tv-text-primary);
-    font-style: normal;
-  }
-
-  .live-dot {
-    color: var(--m3-positive);
-    animation: pulse-dot 1.8s ease-in-out infinite;
-  }
-
-  .live-label {
-    color: var(--m3-positive);
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    font-size: 0.65rem;
-  }
-
-  .ticker-clock {
-    color: var(--tv-text-muted);
+  .t-brand-badge {
     font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    border: 1px solid #b355ff;
+    color: #efc9ff;
+    background: #0d0712;
+    padding: 0.2rem 0.45rem;
+    line-height: 1;
+    box-shadow: 0 0 8px rgba(179, 85, 255, 0.22);
   }
 
-  @keyframes pulse-dot {
-    0%,
-    100% {
-      opacity: 1;
-    }
-    50% {
-      opacity: 0.3;
-    }
-  }
-
-  /* ── Hero stats row ───────────────────────────────────────────────────── */
-  .hero-row {
+  /* Nav links — matches app shell */
+  .t-nav {
     display: flex;
-    align-items: stretch;
-    border-bottom: 1px solid var(--tv-border);
-    flex-shrink: 0;
-  }
-
-  .hero-stat {
-    flex: 1;
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
     align-items: center;
-    padding: 0.65rem 0.5rem;
-    border-right: 1px solid var(--tv-border);
-    gap: 0.2rem;
   }
-
-  .hero-stat.accent .hero-value {
-    color: var(--m3-positive);
-    font-size: 1.25rem;
-  }
-
-  .hero-value {
-    font-size: 1.1rem;
+  .t-nav-link {
+    border: 0;
+    border-right: 1px solid rgba(46, 53, 58, 0.8);
+    padding: 0.2rem 0.65rem;
+    background: transparent;
+    color: rgba(217, 228, 223, 0.65);
+    font-size: 0.7rem;
     font-weight: 600;
-    color: var(--tv-text-primary);
-    letter-spacing: -0.02em;
+    font-family: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s;
+    white-space: nowrap;
+  }
+  .t-nav-link:last-child { border-right: 0; }
+  .t-nav-link:hover { color: #e3a4ff; }
+  .t-nav-active {
+    color: #e3a4ff !important;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
   }
 
-  .hero-label {
-    font-size: 0.58rem;
-    color: var(--tv-text-muted);
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
-  }
-
-  .hero-balance-block {
-    padding: 0.45rem 0.75rem;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    gap: 0.2rem;
-    min-width: 200px;
-  }
-
-  .balance-row {
-    display: flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .balance-label {
-    width: 3.2rem;
-    color: var(--tv-text-muted);
+  .t-live-dot {
+    color: #1ddf72;
     font-size: 0.6rem;
-    flex-shrink: 0;
+    opacity: 1;
+    transition: opacity 0.1s;
+  }
+  .t-live-dot.blink { opacity: 0.2; }
+  .t-live-label {
+    color: rgba(200, 212, 207, 0.45);
+    font-size: 0.63rem;
   }
 
-  .balance-bar-wrap {
-    flex: 1;
-    height: 5px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 2px;
-    overflow: hidden;
-  }
+  .t-sep { color: rgba(176, 38, 255, 0.3); }
 
-  .balance-bar {
-    height: 100%;
-    background: var(--m3-positive);
-    border-radius: 2px;
-    display: block;
-  }
+  .t-pair  { color: #edf5f1; font-weight: 600; font-size: 0.7rem; }
+  .t-price { color: #fff; font-weight: 600; font-size: 0.7rem; }
 
-  .balance-bar.neg {
-    background: var(--tv-negative);
-  }
+  .t-chg.pos { color: #1ddf72; }
+  .t-chg.neg { color: #ff4d57; }
 
-  .balance-val {
+  .t-kv {
+    color: rgba(200, 212, 207, 0.5);
     font-size: 0.65rem;
-    width: 4.5rem;
-    text-align: right;
-    flex-shrink: 0;
+  }
+  .t-kv b { color: #c8d4cf; font-weight: 500; }
+
+  .t-clock {
+    color: rgba(200, 212, 207, 0.45);
+    font-size: 0.65rem;
+    font-variant-numeric: tabular-nums;
   }
 
-  /* ── Chart band ───────────────────────────────────────────────────────── */
-  .chart-band {
-    position: relative;
-    height: 82px;
-    border-bottom: 1px solid var(--tv-border);
-    background: #02040a;
-    flex-shrink: 0;
-    overflow: hidden;
-  }
-
-  .chart-label-tl {
-    position: absolute;
-    top: 6px;
-    left: 10px;
-    z-index: 2;
-    display: flex;
-    flex-direction: column;
-    gap: 1px;
-  }
-
-  .chart-pnl-label {
-    font-size: 1.2rem;
-    font-weight: 600;
-    color: var(--m3-positive);
-    letter-spacing: -0.02em;
-  }
-
-  .chart-sub {
-    font-size: 0.58rem;
-    color: var(--tv-text-muted);
-  }
-
-  .chart-label-tr {
-    position: absolute;
-    top: 6px;
-    right: 12px;
-    z-index: 2;
-    font-size: 0.62rem;
-    color: var(--m3-positive);
-  }
-
-  .pnl-svg {
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    height: 100%;
-  }
-
-  /* ── 4-panel main grid ────────────────────────────────────────────────── */
-  .panels-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr;
+  /* ── Main grid ─────────────────────────────────────────────────────────── */
+  .t-main {
     flex: 1;
-    border-bottom: 1px solid var(--tv-border);
+    min-height: 0;   /* allow flex item to shrink below content height */
+    display: grid;
+    grid-template-columns: 18rem 1fr 20rem;
     overflow: hidden;
+    border-bottom: 1px solid rgba(176, 38, 255, 0.2);
   }
 
-  /* ── Panel base ───────────────────────────────────────────────────────── */
-  .panel {
-    border-right: 1px solid var(--tv-border);
+  /* ── Columns ───────────────────────────────────────────────────────────── */
+  /* Left + right: scroll as a whole column so all fixed panels are reachable */
+  .t-col-left,
+  .t-col-right {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-right: 1px solid rgba(176, 38, 255, 0.15);
+    /* Space above first panel so its absolute label isn't clipped */
+    padding-top: 0.75rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(176, 38, 255, 0.2) transparent;
+  }
+
+  /* Center: overflow:hidden so the stream panel fills remaining height */
+  .t-col-center {
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    min-height: 320px;
+    min-height: 0;
+    border-right: 1px solid rgba(176, 38, 255, 0.15);
+    padding-top: 0.75rem;
   }
 
-  .panel:last-child {
+  .t-col-right {
     border-right: none;
   }
 
-  .panel-header {
+  /* ── Panels ────────────────────────────────────────────────────────────── */
+  .t-panel {
+    position: relative;
+    border-bottom: 1px solid rgba(176, 38, 255, 0.12);
+    flex-shrink: 0;
+  }
+
+  .t-panel-fill {
+    flex: 1;
+    min-height: 0;   /* critical: allow flex item to shrink and not push siblings */
+    overflow: hidden;
     display: flex;
-    align-items: center;
-    gap: 0.4rem;
-    padding: 0.3rem 0.6rem;
-    background: #04060a;
-    border-bottom: 1px solid var(--tv-border);
-    font-size: 0.62rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: var(--tv-text-muted);
-    flex-shrink: 0;
+    flex-direction: column;
   }
 
-  .panel-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    flex-shrink: 0;
+  .t-panel-grow {
+    flex: 1;
+    min-height: 0;
+    min-height: 8rem; /* ensure it's always visible even when column is short */
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
   }
 
-  .panel-dot.scanning {
-    background: var(--status-warn);
-    animation: pulse-dot 1.2s ease-in-out infinite;
-  }
-
-  .panel-sub {
-    color: rgba(154, 167, 160, 0.5);
-    font-weight: 400;
-  }
-
-  .panel-sub-header {
-    padding: 0.25rem 0.6rem;
-    font-size: 0.58rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: var(--tv-text-muted);
-    border-top: 1px solid var(--tv-border);
-    border-bottom: 1px solid var(--tv-border);
-    background: #04060a;
-    flex-shrink: 0;
-  }
-
-  /* ── Log feed (signal log + imbalance log) ────────────────────────────── */
-  .log-feed {
+  .t-panel-grow .t-panel-body {
+    flex: 1;
+    min-height: 0;
     overflow-y: auto;
-    flex: 1;
-    padding: 0.25rem 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(176, 38, 255, 0.2) transparent;
   }
 
-  .log-row {
-    display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-    padding: 0.12rem 0.55rem;
-    border-bottom: 1px solid rgba(43, 47, 51, 0.4);
-    font-size: 0.65rem;
-  }
-
-  .log-row:hover {
-    background: rgba(176, 38, 255, 0.06);
-  }
-
-  .log-label {
+  .t-panel-label {
+    position: absolute;
+    top: -0.55em;
+    left: 0.8rem;
+    padding: 0 0.3rem;
+    background: #000;
+    color: rgba(176, 38, 255, 0.7);
     font-size: 0.6rem;
-    font-weight: 600;
-    letter-spacing: 0.05em;
-    flex-shrink: 0;
-    width: 2.8rem;
-  }
-
-  .log-detail {
-    color: var(--tv-text-muted);
-    flex: 1;
-    overflow: hidden;
+    letter-spacing: 0.1em;
     white-space: nowrap;
-    text-overflow: ellipsis;
+    z-index: 1;
+    pointer-events: none;
   }
 
-  .log-tag {
-    font-size: 0.55rem;
+  .t-panel-body {
+    padding: 0.9rem 0.5rem 0.4rem;
+    /* No height:100% — let non-growing panels size naturally */
+    overflow: visible;
+  }
+
+  /* ── Portfolio tracker ─────────────────────────────────────────────────── */
+  .port-panel { border-bottom: 1px solid rgba(176, 38, 255, 0.18); }
+
+  .port-body {
+    padding: 0.9rem 0.6rem 0.5rem;
+  }
+
+  .port-value {
+    font-size: 1.6rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
-    flex-shrink: 0;
+    color: #1ddf72;
+    line-height: 1.1;
+    letter-spacing: -0.03em;
+    text-shadow: 0 0 14px rgba(29, 223, 114, 0.3);
+    padding-bottom: 0.35rem;
   }
 
-  /* ── Imbalance panel specific ─────────────────────────────────────────── */
-  .imbalance-row {
-    flex-wrap: nowrap;
+  .port-row {
+    display: grid;
+    grid-template-columns: 5ch 1fr auto;
+    gap: 0.3rem;
+    padding: 0.1rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
+    align-items: baseline;
   }
 
-  .imb-key {
-    font-size: 0.58rem;
-    color: var(--tv-text-muted);
-    flex-shrink: 0;
-    width: 5rem;
+  .port-label { color: rgba(200, 212, 207, 0.4); font-size: 0.62rem; }
+  .port-pnl   { font-variant-numeric: tabular-nums; }
+  .port-pct   { color: rgba(200, 212, 207, 0.45); font-size: 0.62rem; text-align: right; }
+  .port-val   { font-variant-numeric: tabular-nums; color: #c8d4cf; }
+  .port-sub   { color: rgba(200, 212, 207, 0.35); font-size: 0.62rem; text-align: right; }
+
+  /* ── Positions ─────────────────────────────────────────────────────────── */
+  .pos-row {
+    display: grid;
+    grid-template-columns: 6ch 7ch 1fr 1.5ch;
+    gap: 0.3rem;
+    padding: 0.12rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
   }
 
-  .imb-val {
-    color: var(--tv-text-primary);
-    font-weight: 600;
-    flex-shrink: 0;
-    width: 4rem;
-  }
+  .pos-pair  { color: #c8d4cf; font-size: 0.65rem; }
+  .pos-price { color: rgba(200, 212, 207, 0.55); }
+  .pos-pnl   { font-variant-numeric: tabular-nums; }
+  .pos-dir   { text-align: right; }
 
-  .imb-detail {
-    color: var(--tv-text-muted);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .imb-action {
-    font-size: 0.58rem;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  /* ── Order book mini ──────────────────────────────────────────────────── */
-  .ob-mini {
-    border-top: 1px solid var(--tv-border);
-    padding: 0.3rem 0.55rem;
-    flex-shrink: 0;
-  }
-
-  .ob-row {
+  /* ── Metric rows ───────────────────────────────────────────────────────── */
+  .metric-row {
     display: flex;
     justify-content: space-between;
     padding: 0.1rem 0;
-    font-size: 0.62rem;
-    border-bottom: 1px solid rgba(43, 47, 51, 0.3);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.03);
   }
 
-  .ob-row span {
+  .metric-k { color: rgba(200, 212, 207, 0.45); font-size: 0.63rem; letter-spacing: 0.06em; }
+  .metric-v { font-variant-numeric: tabular-nums; }
+
+  /* ── Signal bars ───────────────────────────────────────────────────────── */
+  .bar-row {
+    display: grid;
+    grid-template-columns: 9ch 1fr 4ch;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.12rem 0;
+  }
+
+  .bar-l    { color: rgba(200, 212, 207, 0.5); font-size: 0.63rem; }
+  .bar-pct  { text-align: right; font-size: 0.63rem; font-variant-numeric: tabular-nums; }
+
+  .bar-track {
+    height: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .bar-fill {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    background: #b026ff;
+    transition: width 0.3s;
+  }
+
+  /* ── Signal stream ─────────────────────────────────────────────────────── */
+  .t-stream {
     flex: 1;
+    min-height: 0;   /* allow flex child to shrink */
+    overflow-y: auto;
+    padding: 0.9rem 0.5rem 0.4rem;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(176, 38, 255, 0.3) transparent;
   }
 
-  .ob-row span:last-child {
-    text-align: right;
+  .stream-hdr,
+  .stream-row {
+    display: grid;
+    grid-template-columns: 7ch 8ch 1fr 8ch;
+    gap: 0.5rem;
+    padding: 0.08rem 0;
   }
 
-  .ob-header {
-    color: var(--tv-text-muted);
-    font-size: 0.58rem;
+  .stream-hdr {
+    color: rgba(176, 38, 255, 0.6);
+    font-size: 0.6rem;
     letter-spacing: 0.08em;
+    padding-bottom: 0.25rem;
   }
+
+  .stream-divider {
+    color: rgba(176, 38, 255, 0.15);
+    font-size: 0.55rem;
+    padding-bottom: 0.2rem;
+    overflow: hidden;
+    white-space: nowrap;
+  }
+
+  .sr-ts     { color: rgba(200, 212, 207, 0.35); font-variant-numeric: tabular-nums; }
+  .sr-kind   { font-weight: 600; }
+  .sr-detail { color: rgba(200, 212, 207, 0.7); }
+  .sr-tag    { text-align: right; font-size: 0.62rem; letter-spacing: 0.06em; }
+
+  .stream-cursor .sr-detail { color: rgba(200, 212, 207, 0.45); }
+
+  .cursor { color: #b026ff; }
+  .cursor:not(.visible) { visibility: hidden; }
+
+  /* ── Trades ────────────────────────────────────────────────────────────── */
+  .trades-hdr,
+  .trade-row {
+    display: grid;
+    grid-template-columns: 8ch 6ch 5ch 7ch 5ch;
+    gap: 0.5rem;
+    padding: 0.08rem 0;
+  }
+
+  .trades-hdr {
+    color: rgba(176, 38, 255, 0.6);
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid rgba(176, 38, 255, 0.1);
+    margin-bottom: 0.2rem;
+  }
+
+  .trade-row {
+    color: rgba(200, 212, 207, 0.65);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ── Order book ────────────────────────────────────────────────────────── */
+  .ob-body {
+    padding-top: 0.9rem;
+  }
+
+  .ob-hdr,
+  .ob-row {
+    display: grid;
+    grid-template-columns: 7ch 1fr 5ch;
+    gap: 0.3rem;
+    padding: 0.07rem 0;
+    align-items: center;
+  }
+
+  .ob-hdr {
+    color: rgba(176, 38, 255, 0.6);
+    font-size: 0.6rem;
+    letter-spacing: 0.08em;
+    padding-bottom: 0.2rem;
+    border-bottom: 1px solid rgba(176, 38, 255, 0.1);
+    margin-bottom: 0.15rem;
+  }
+
+  .ob-price { font-variant-numeric: tabular-nums; font-size: 0.67rem; }
+
+  .ob-bar-wrap {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ob-bar {
+    position: absolute;
+    inset-block: 0;
+    right: 0;
+    height: 100%;
+  }
+
+  .ask-bar { background: rgba(255, 77, 87, 0.55); left: auto; }
+  .bid-bar { background: rgba(29, 223, 114, 0.45); left: 0; right: auto; }
+
+  .ob-size { color: rgba(200, 212, 207, 0.4); font-size: 0.63rem; text-align: right; }
 
   .ob-spread {
-    font-size: 0.6rem;
-    color: var(--tv-highlight-soft);
-    text-align: center;
-    padding-top: 0.25rem;
-  }
-
-  /* ── Entry window panel ───────────────────────────────────────────────── */
-  .entry-status-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.4rem 0.6rem;
-    border-bottom: 1px solid var(--tv-border);
-    flex-shrink: 0;
-  }
-
-  .entry-status-badge {
-    color: var(--status-warn);
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-  }
-
-  .entry-elapsed {
-    color: var(--tv-text-muted);
-    font-size: 0.7rem;
-    font-weight: 600;
-  }
-
-  .entry-details {
-    flex: 1;
-    padding: 0.2rem 0;
-    overflow-y: auto;
-  }
-
-  .entry-row {
-    display: flex;
-    align-items: baseline;
-    gap: 0.4rem;
-    padding: 0.12rem 0.55rem;
-    border-bottom: 1px solid rgba(43, 47, 51, 0.3);
-    font-size: 0.65rem;
-  }
-
-  .ek {
-    color: var(--tv-text-muted);
-    font-size: 0.58rem;
-    flex-shrink: 0;
-    width: 5.5rem;
-  }
-
-  .ev {
-    color: var(--tv-text-primary);
-    font-weight: 600;
-    flex-shrink: 0;
-    width: 3.5rem;
-  }
-
-  .ev.warn {
-    color: var(--status-warn);
-  }
-
-  .ed {
-    color: rgba(154, 167, 160, 0.7);
-    flex: 1;
-    font-size: 0.6rem;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .entry-signals {
-    border-top: 1px solid var(--tv-border);
-    padding: 0.3rem 0.55rem;
-    flex-shrink: 0;
-  }
-
-  .entry-sig-label {
-    font-size: 0.58rem;
-    font-weight: 600;
-    letter-spacing: 0.1em;
-    color: var(--tv-text-muted);
-    margin-bottom: 0.25rem;
-  }
-
-  .entry-sig-row {
     display: flex;
     justify-content: space-between;
-    padding: 0.08rem 0;
-    font-size: 0.63rem;
-  }
-
-  .entry-sig-key {
-    color: var(--tv-text-muted);
-  }
-
-  .entry-sig-val {
-    font-weight: 600;
-  }
-
-  /* ── Positions panel ──────────────────────────────────────────────────── */
-  .positions-list {
-    flex-shrink: 0;
-  }
-
-  .pos-row {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 0.3rem 0.55rem;
-    border-bottom: 1px solid rgba(43, 47, 51, 0.4);
-    font-size: 0.65rem;
-  }
-
-  .pos-row:hover {
-    background: rgba(176, 38, 255, 0.06);
-  }
-
-  .pos-left {
-    display: flex;
-    flex-direction: column;
-    gap: 0.05rem;
-  }
-
-  .pos-pair {
-    color: var(--tv-text-primary);
-    font-weight: 600;
-  }
-
-  .pos-price {
-    color: var(--tv-text-muted);
-    font-size: 0.6rem;
-  }
-
-  .pos-right {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.05rem;
-  }
-
-  .pos-pnl.profit {
-    color: var(--m3-positive);
-    font-weight: 600;
-  }
-
-  .pos-pnl.loss {
-    color: var(--tv-negative);
-    font-weight: 600;
-  }
-
-  .pos-badge {
-    font-size: 0.55rem;
-    padding: 0.05rem 0.3rem;
-    border-radius: 2px;
-    letter-spacing: 0.06em;
-  }
-
-  .pos-badge.profit {
-    background: rgba(29, 223, 114, 0.12);
-    color: var(--m3-positive);
-    border: 1px solid rgba(29, 223, 114, 0.25);
-  }
-
-  .pos-badge.loss {
-    background: rgba(255, 77, 87, 0.12);
-    color: var(--tv-negative);
-    border: 1px solid rgba(255, 77, 87, 0.25);
-  }
-
-  /* ── Signal tree ──────────────────────────────────────────────────────── */
-  .signal-tree {
-    overflow-y: auto;
-    flex: 1;
-  }
-
-  .tree-row {
-    display: flex;
-    align-items: baseline;
-    gap: 0.35rem;
-    padding: 0.1rem 0.55rem;
-    border-bottom: 1px solid rgba(43, 47, 51, 0.3);
-    font-size: 0.63rem;
-  }
-
-  .tree-row:hover {
-    background: rgba(176, 38, 255, 0.05);
-  }
-
-  .tree-label {
-    font-size: 0.58rem;
-    font-weight: 600;
-    flex-shrink: 0;
-    width: 2.8rem;
-  }
-
-  .tree-detail {
-    color: var(--tv-text-muted);
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  .tree-tag {
-    font-size: 0.55rem;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  /* ── Bottom row ───────────────────────────────────────────────────────── */
-  .bottom-row {
-    display: grid;
-    grid-template-columns: 2fr 1fr 1fr 1fr;
-    border-top: 1px solid var(--tv-border);
-    flex-shrink: 0;
-  }
-
-  .panel-trades {
-    min-height: 0;
-  }
-
-  /* ── Trades table ─────────────────────────────────────────────────────── */
-  .trades-table {
-    width: 100%;
-    border-collapse: collapse;
-    font-size: 0.63rem;
-  }
-
-  .trades-table th {
-    padding: 0.2rem 0.55rem;
-    text-align: left;
-    color: var(--tv-text-muted);
-    font-size: 0.58rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    border-bottom: 1px solid var(--tv-border);
-    background: #04060a;
-  }
-
-  .trades-table td {
-    padding: 0.2rem 0.55rem;
-    border-bottom: 1px solid rgba(43, 47, 51, 0.35);
-  }
-
-  .trade-row.buy:hover {
-    background: rgba(29, 223, 114, 0.04);
-  }
-
-  .trade-row.sell:hover {
-    background: rgba(255, 77, 87, 0.04);
-  }
-
-  .mono {
-    font-family: "JetBrains Mono", monospace;
-  }
-
-  /* ── Signal bar panels ────────────────────────────────────────────────── */
-  .signal-bars {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    padding: 0.5rem 0.6rem;
-    flex: 1;
-  }
-
-  .signal-bar-row {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-  }
-
-  .sbar-label {
-    width: 5.5rem;
-    font-size: 0.6rem;
-    color: var(--tv-text-muted);
-    flex-shrink: 0;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-  }
-
-  .sbar-track {
-    flex: 1;
-    height: 6px;
-    background: rgba(255, 255, 255, 0.06);
-    border-radius: 2px;
-    overflow: hidden;
-  }
-
-  .sbar-fill {
-    height: 100%;
-    border-radius: 2px;
-    transition: width 0.4s ease;
-  }
-
-  .sbar-pct {
-    width: 2.5rem;
-    text-align: right;
-    font-size: 0.62rem;
-    font-weight: 600;
-    flex-shrink: 0;
-  }
-
-  /* ── Heatmap / order flow ─────────────────────────────────────────────── */
-  .panel-heatmap {
-    border-right: none;
-  }
-
-  .heatmap-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 2px;
-    padding: 0.4rem 0.5rem;
-    flex-shrink: 0;
-  }
-
-  .heatmap-cell {
     padding: 0.25rem 0;
-    text-align: center;
-    font-size: 0.58rem;
-    border-radius: 2px;
-    color: rgba(255, 255, 255, 0.85);
-    font-weight: 500;
+    color: rgba(176, 38, 255, 0.55);
+    font-size: 0.63rem;
+    border-top: 1px solid rgba(176, 38, 255, 0.1);
+    border-bottom: 1px solid rgba(176, 38, 255, 0.1);
+    margin: 0.1rem 0;
   }
 
-  .flow-spread {
-    font-size: 0.62rem;
-    color: var(--tv-highlight-soft);
-    text-align: center;
-    padding: 0.1rem 0 0.3rem;
-    border-top: 1px solid var(--tv-border);
-  }
-
-  .flow-stats {
-    padding: 0.25rem 0.6rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.2rem;
-  }
-
-  .flow-stat-row {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.62rem;
-  }
-
-  .flow-stat-k {
-    color: var(--tv-text-muted);
-  }
-
-  .flow-stat-v {
-    color: var(--tv-text-primary);
+  .spread-price {
+    color: #edf5f1;
     font-weight: 600;
   }
 
-  /* ── Shared color utilities ───────────────────────────────────────────── */
-  .pos {
-    color: var(--m3-positive);
+  /* ── Sparkline ─────────────────────────────────────────────────────────── */
+  .spark-line {
+    font-size: 0.85rem;
+    letter-spacing: -0.05em;
+    color: #1ddf72;
+    padding: 0.5rem 0 0.3rem;
+    line-height: 1;
+    word-break: break-all;
+    text-shadow: 0 0 6px rgba(29, 223, 114, 0.4);
   }
 
-  .neg {
-    color: var(--tv-negative);
+  .spark-stats {
+    display: flex;
+    gap: 1rem;
+    padding-top: 0.3rem;
+    flex-wrap: wrap;
   }
 
-  .warn {
-    color: var(--status-warn);
+  .spark-stat {
+    display: flex;
+    gap: 0.3rem;
+    font-size: 0.63rem;
   }
 
-  .muted {
-    color: var(--tv-text-muted);
+  /* ── Bottom bar ────────────────────────────────────────────────────────── */
+  .t-botbar {
+    display: flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0 0.6rem;
+    height: 1.5rem;
+    background: #050008;
+    border-top: 1px solid rgba(176, 38, 255, 0.2);
+    flex-shrink: 0;
+    white-space: nowrap;
+    overflow: hidden;
   }
+
+  .t-key {
+    color: #b026ff;
+    font-size: 0.62rem;
+  }
+
+  .t-keylabel {
+    color: rgba(200, 212, 207, 0.45);
+    font-size: 0.62rem;
+    margin-right: 0.3rem;
+  }
+
+  .t-sep-r {
+    color: rgba(176, 38, 255, 0.3);
+    margin: 0 0.2rem;
+  }
+
+  .t-branch {
+    color: rgba(176, 38, 255, 0.6);
+    font-size: 0.62rem;
+  }
+
+  /* ── Utility ───────────────────────────────────────────────────────────── */
+  .pos  { color: #1ddf72; }
+  .neg  { color: #ff4d57; }
+  .warn { color: #f5a623; }
+  .muted { color: rgba(200, 212, 207, 0.38); }
+
+  /* ── Scrollbar styling ─────────────────────────────────────────────────── */
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: rgba(176, 38, 255, 0.3); border-radius: 2px; }
 </style>
