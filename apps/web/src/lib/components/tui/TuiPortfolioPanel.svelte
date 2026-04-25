@@ -15,12 +15,6 @@
       <div class="port-value">{portfolio.value}</div>
       <span class="port-badge pos">{portfolio.badge}</span>
     </div>
-    <div class="port-progress" title="Today's gain vs seed">
-      <div
-        class="port-progress-fill"
-        style="width:{portfolio.progressPct}%"
-      ></div>
-    </div>
     {#each portfolio.rows as r}
       <div class="port-row">
         <span class="port-label">{r.k}</span>
@@ -55,24 +49,17 @@
   .port-badge {
     font-size: 0.65rem;
     font-weight: 700;
-    padding: 0.1rem 0.35rem;
-    border: 1px solid currentColor;
-    opacity: 0.8;
+    padding: 0.15rem 0.4rem;
+    border-radius: 2px;
+    color: #000;
   }
-  .port-progress {
-    height: 2px;
-    background: rgba(255, 255, 255, 0.06);
-    margin: 0.25rem 0 0.3rem;
-    overflow: hidden;
+  .port-badge.pos {
+    background: #1ddf72;
+    color: #000;
   }
-  .port-progress-fill {
-    height: 100%;
-    background: linear-gradient(
-      90deg,
-      #1ddf72 0%,
-      rgba(29, 223, 114, 0.4) 100%
-    );
-    box-shadow: 0 0 6px rgba(29, 223, 114, 0.5);
+  .port-badge.neg {
+    background: #ff4d57;
+    color: #fff;
   }
   .port-row {
     display: grid;
