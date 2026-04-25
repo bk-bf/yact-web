@@ -1,5 +1,6 @@
 <script lang="ts">
   import { browser } from "$app/environment";
+  import TuiStreamToolbar from "$lib/components/tui/TuiStreamToolbar.svelte";
   import type { LogEntry, SignalTag } from "$lib/types/terminal";
 
   interface Props {
@@ -13,12 +14,16 @@
   let { rows, newestKey, clockTime, blinkOn, streamLabel }: Props = $props();
 
   let streamEl: HTMLElement | null = $state(null);
+  let reversed = $state(false);
+
+  const displayRows = $derived(reversed ? [...rows].toReversed() : rows);
 
   $effect(() => {
     if (browser && streamEl && newestKey >= 0) {
       const el = streamEl;
       requestAnimationFrame(() => {
-        el.scrollTop = el.scrollHeight;
+        if (reversed) el.scrollTop = 0;
+        else el.scrollTop = el.scrollHeight;
       });
     }
   });
@@ -41,13 +46,19 @@
 </script>
 
 <div class="t-panel t-panel-fill">
-  <div class="t-plabel">SIGNAL STREAM // {streamLabel}</div>
+  <div class="t-plabel-row">
+    <span class="t-plabel-text">SIGNAL STREAM // {streamLabel}</span>
+    <TuiStreamToolbar
+      reversed={reversed}
+      onFlip={() => { reversed = !reversed; }}
+    />
+  </div>
   <div class="t-stream" bind:this={streamEl}>
     <div class="stream-hdr">
       <span>TIME</span><span>KIND</span><span>DETAIL</span><span>TAG</span>
     </div>
     <div class="stream-rule" aria-hidden="true"></div>
-    {#each rows as row (row.key)}
+    {#each displayRows as row (row.key)}
       <div class="stream-row" class:stream-new={row.key === newestKey}>
         <span class="sr-ts">{row.ts}</span>
         <span class="sr-kind" style="color:{kindColor(row.kind)}"
@@ -83,17 +94,26 @@
     display: flex;
     flex-direction: column;
   }
-  .t-plabel {
-    padding: 0.28rem 0.5rem 0.22rem;
+  .t-plabel-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.18rem 0.3rem 0.18rem 0.5rem;
     background: rgba(176, 38, 255, 0.055);
     border-bottom: 1px solid rgba(176, 38, 255, 0.1);
+    flex-shrink: 0;
+    gap: 0.4rem;
+    overflow: hidden;
+  }
+  .t-plabel-text {
     color: rgba(176, 38, 255, 0.72);
     font-size: 0.59rem;
     letter-spacing: 0.1em;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
-    flex-shrink: 0;
+    flex: 1;
+    min-width: 0;
   }
   .t-stream {
     flex: 1;
