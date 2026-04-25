@@ -13,23 +13,30 @@
 </script>
 
 <TuiPanel label="ORDER BOOK // {pair}">
-  <div class="ob-hdr"><span>PRICE</span><span>DEPTH</span><span>SIZE</span></div>
+  <div class="ob-hdr">
+    <span>PRICE</span><span>DEPTH</span><span>SIZE</span>
+  </div>
   {#each [...asks].reverse() as lvl}
     <div class="ob-row">
       <span class="ob-price neg">{lvl.price}</span>
-      <span class="ob-bar-wrap"><span class="ob-bar ask-bar" style="width:{lvl.depth}%"></span></span>
+      <span class="ob-bar-wrap"
+        ><span class="ob-bar ask-bar" style="width:{lvl.depth}%"></span></span
+      >
       <span class="ob-size">{lvl.size}</span>
     </div>
   {/each}
   <div class="ob-spread">
     <span>─────</span>
-    <span class="spread-mid">{spread.last} <span class="muted">LAST</span></span>
+    <span class="spread-mid">{spread.last} <span class="muted">LAST</span></span
+    >
     <span>SPRD {spread.sprd}</span>
   </div>
   {#each bids as lvl}
     <div class="ob-row">
       <span class="ob-price pos">{lvl.price}</span>
-      <span class="ob-bar-wrap"><span class="ob-bar bid-bar" style="width:{lvl.depth}%"></span></span>
+      <span class="ob-bar-wrap"
+        ><span class="ob-bar bid-bar" style="width:{lvl.depth}%"></span></span
+      >
       <span class="ob-size">{lvl.size}</span>
     </div>
   {/each}
@@ -53,12 +60,35 @@
     border-bottom: 1px solid rgba(176, 38, 255, 0.1);
     margin-bottom: 0.1rem;
   }
-  .ob-price    { font-variant-numeric: tabular-nums; font-size: 0.67rem; }
-  .ob-bar-wrap { height: 3px; background: rgba(255, 255, 255, 0.05); position: relative; overflow: hidden; }
-  .ob-bar      { position: absolute; inset-block: 0; height: 100%; }
-  .ask-bar     { background: rgba(255, 77, 87, 0.55); right: 0; left: auto; }
-  .bid-bar     { background: rgba(29, 223, 114, 0.45); left: 0; }
-  .ob-size     { color: rgba(200, 212, 207, 0.38); font-size: 0.62rem; text-align: right; }
+  .ob-price {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.67rem;
+  }
+  .ob-bar-wrap {
+    height: 3px;
+    background: rgba(255, 255, 255, 0.05);
+    position: relative;
+    overflow: hidden;
+  }
+  .ob-bar {
+    position: absolute;
+    inset-block: 0;
+    height: 100%;
+  }
+  .ask-bar {
+    background: rgba(255, 77, 87, 0.55);
+    right: 0;
+    left: auto;
+  }
+  .bid-bar {
+    background: rgba(29, 223, 114, 0.45);
+    left: 0;
+  }
+  .ob-size {
+    color: rgba(200, 212, 207, 0.38);
+    font-size: 0.62rem;
+    text-align: right;
+  }
   .ob-spread {
     display: flex;
     justify-content: space-between;
@@ -69,8 +99,17 @@
     border-bottom: 1px solid rgba(176, 38, 255, 0.08);
     margin: 0.08rem 0;
   }
-  .spread-mid { color: #edf5f1; font-weight: 600; }
-  .muted { color: rgba(200, 212, 207, 0.35); }
-  .pos   { color: #1ddf72; }
-  .neg   { color: #ff4d57; }
+  .spread-mid {
+    color: #edf5f1;
+    font-weight: 600;
+  }
+  .muted {
+    color: rgba(200, 212, 207, 0.35);
+  }
+  .pos {
+    color: #1ddf72;
+  }
+  .neg {
+    color: #ff4d57;
+  }
 </style>

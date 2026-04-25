@@ -16,7 +16,10 @@
       <span class="port-badge pos">{portfolio.badge}</span>
     </div>
     <div class="port-progress" title="Today's gain vs seed">
-      <div class="port-progress-fill" style="width:{portfolio.progressPct}%"></div>
+      <div
+        class="port-progress-fill"
+        style="width:{portfolio.progressPct}%"
+      ></div>
     </div>
     {#each portfolio.rows as r}
       <div class="port-row">
@@ -29,7 +32,9 @@
 </TuiPanel>
 
 <style>
-  .port-body { padding: 0.4rem 0.55rem 0.4rem; }
+  .port-body {
+    padding: 0.4rem 0.55rem 0.4rem;
+  }
   .port-hero {
     display: flex;
     align-items: baseline;
@@ -42,7 +47,9 @@
     color: #1ddf72;
     line-height: 1.05;
     letter-spacing: -0.03em;
-    text-shadow: 0 0 22px rgba(29, 223, 114, 0.38), 0 0 50px rgba(29, 223, 114, 0.12);
+    text-shadow:
+      0 0 22px rgba(29, 223, 114, 0.38),
+      0 0 50px rgba(29, 223, 114, 0.12);
     font-variant-numeric: tabular-nums;
   }
   .port-badge {
@@ -60,7 +67,11 @@
   }
   .port-progress-fill {
     height: 100%;
-    background: linear-gradient(90deg, #1ddf72 0%, rgba(29, 223, 114, 0.4) 100%);
+    background: linear-gradient(
+      90deg,
+      #1ddf72 0%,
+      rgba(29, 223, 114, 0.4) 100%
+    );
     box-shadow: 0 0 6px rgba(29, 223, 114, 0.5);
   }
   .port-row {
@@ -71,9 +82,23 @@
     border-bottom: 1px solid rgba(255, 255, 255, 0.03);
     align-items: baseline;
   }
-  .port-label { color: rgba(200, 212, 207, 0.38); font-size: 0.62rem; }
-  .port-pnl   { font-variant-numeric: tabular-nums; font-size: 0.72rem; }
-  .port-sub   { color: rgba(200, 212, 207, 0.35); font-size: 0.62rem; text-align: right; }
-  .pos { color: #1ddf72; }
-  .neg { color: #ff4d57; }
+  .port-label {
+    color: rgba(200, 212, 207, 0.38);
+    font-size: 0.62rem;
+  }
+  .port-pnl {
+    font-variant-numeric: tabular-nums;
+    font-size: 0.72rem;
+  }
+  .port-sub {
+    color: rgba(200, 212, 207, 0.35);
+    font-size: 0.62rem;
+    text-align: right;
+  }
+  .pos {
+    color: #1ddf72;
+  }
+  .neg {
+    color: #ff4d57;
+  }
 </style>

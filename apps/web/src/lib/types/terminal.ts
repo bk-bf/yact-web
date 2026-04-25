@@ -1,8 +1,16 @@
 // Types for the TUI terminal design system and trading terminal components.
 
 export type SignalTag =
-  | "SKIP" | "WATCH" | "GAP" | "PENDING"
-  | "MATCH" | "ENTER" | "EXIT" | "CUT" | "TIMEOUT" | "SCAN";
+  | "SKIP"
+  | "WATCH"
+  | "GAP"
+  | "PENDING"
+  | "MATCH"
+  | "ENTER"
+  | "EXIT"
+  | "CUT"
+  | "TIMEOUT"
+  | "SCAN";
 
 export interface LogEntry {
   ts: string;

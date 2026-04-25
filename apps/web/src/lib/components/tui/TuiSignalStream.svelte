@@ -17,23 +17,25 @@
   $effect(() => {
     if (browser && streamEl && newestKey >= 0) {
       const el = streamEl;
-      requestAnimationFrame(() => { el.scrollTop = el.scrollHeight; });
+      requestAnimationFrame(() => {
+        el.scrollTop = el.scrollHeight;
+      });
     }
   });
 
   function kindColor(k: string): string {
     if (k === "ENTER") return "#1ddf72";
-    if (k === "EXIT")  return "#b026ff";
-    if (k === "KILL")  return "#ff4d57";
-    if (k === "LAG")   return "#d56bff";
-    if (k === "SCAN")  return "#f5a623";
+    if (k === "EXIT") return "#b026ff";
+    if (k === "KILL") return "#ff4d57";
+    if (k === "LAG") return "#d56bff";
+    if (k === "SCAN") return "#f5a623";
     return "#9aa7a0";
   }
 
   function tagColor(t: SignalTag): string {
-    if (t === "MATCH" || t === "ENTER")                    return "#1ddf72";
-    if (t === "SKIP"  || t === "CUT" || t === "TIMEOUT")   return "#ff4d57";
-    if (t === "PENDING" || t === "SCAN")                   return "#f5a623";
+    if (t === "MATCH" || t === "ENTER") return "#1ddf72";
+    if (t === "SKIP" || t === "CUT" || t === "TIMEOUT") return "#ff4d57";
+    if (t === "PENDING" || t === "SCAN") return "#f5a623";
     return "#9aa7a0";
   }
 </script>
@@ -48,7 +50,9 @@
     {#each rows as row (row.key)}
       <div class="stream-row" class:stream-new={row.key === newestKey}>
         <span class="sr-ts">{row.ts}</span>
-        <span class="sr-kind" style="color:{kindColor(row.kind)}">[{row.kind}]</span>
+        <span class="sr-kind" style="color:{kindColor(row.kind)}"
+          >[{row.kind}]</span
+        >
         <span class="sr-detail">{row.detail}</span>
         <span class="sr-tag" style="color:{tagColor(row.tag)}">{row.tag}</span>
       </div>
@@ -56,7 +60,11 @@
     <div class="stream-row stream-cursor">
       <span class="sr-ts">{clockTime}</span>
       <span class="sr-kind" style="color:#f5a623">[SCAN]</span>
-      <span class="sr-detail">watching 1,847 pairs…<span class="cursor" class:visible={blinkOn}>█</span></span>
+      <span class="sr-detail"
+        >watching 1,847 pairs…<span class="cursor" class:visible={blinkOn}
+          >█</span
+        ></span
+      >
       <span class="sr-tag" style="color:#f5a623">LIVE</span>
     </div>
   </div>
@@ -117,15 +125,43 @@
     line-height: 1.55;
   }
   @keyframes row-in {
-    from { opacity: 0; transform: translateY(5px); }
-    to   { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
-  .stream-new { animation: row-in 0.22s ease-out forwards; }
-  .sr-ts     { color: rgba(200, 212, 207, 0.3); font-variant-numeric: tabular-nums; }
-  .sr-kind   { font-weight: 600; }
-  .sr-detail { color: rgba(200, 212, 207, 0.72); overflow: hidden; text-overflow: ellipsis; }
-  .sr-tag    { text-align: right; font-size: 0.61rem; letter-spacing: 0.05em; }
-  .stream-cursor .sr-detail { color: rgba(200, 212, 207, 0.38); }
-  .cursor         { color: #b026ff; visibility: hidden; }
-  .cursor.visible { visibility: visible; }
+  .stream-new {
+    animation: row-in 0.22s ease-out forwards;
+  }
+  .sr-ts {
+    color: rgba(200, 212, 207, 0.3);
+    font-variant-numeric: tabular-nums;
+  }
+  .sr-kind {
+    font-weight: 600;
+  }
+  .sr-detail {
+    color: rgba(200, 212, 207, 0.72);
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .sr-tag {
+    text-align: right;
+    font-size: 0.61rem;
+    letter-spacing: 0.05em;
+  }
+  .stream-cursor .sr-detail {
+    color: rgba(200, 212, 207, 0.38);
+  }
+  .cursor {
+    color: #b026ff;
+    visibility: hidden;
+  }
+  .cursor.visible {
+    visibility: visible;
+  }
 </style>

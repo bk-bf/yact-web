@@ -13,8 +13,8 @@
   function fmtCompact(n: number): string {
     if (!isFinite(n) || n === 0) return "--";
     if (n >= 1e12) return "$" + (n / 1e12).toFixed(2) + "T";
-    if (n >= 1e9)  return "$" + (n / 1e9).toFixed(1) + "B";
-    if (n >= 1e6)  return "$" + (n / 1e6).toFixed(1) + "M";
+    if (n >= 1e9) return "$" + (n / 1e9).toFixed(1) + "B";
+    if (n >= 1e6) return "$" + (n / 1e6).toFixed(1) + "M";
     return "$" + Math.round(n).toLocaleString("en-US");
   }
 </script>
@@ -36,19 +36,33 @@
     <span class="t-live-label">LIVE</span>
     <span class="t-sep">│</span>
     <span class="t-pair">MCAP</span>
-    <span class="t-price">{globalData ? fmtCompact(globalData.totalMarketCapUsd) : '–'}</span>
+    <span class="t-price"
+      >{globalData ? fmtCompact(globalData.totalMarketCapUsd) : "–"}</span
+    >
     {#if globalData}
-      <span class="t-chg" class:pos={globalData.marketCapChangePercentage24hUsd >= 0} class:neg={globalData.marketCapChangePercentage24hUsd < 0}>
-        {globalData.marketCapChangePercentage24hUsd >= 0 ? '▲' : '▼'}{Math.abs(globalData.marketCapChangePercentage24hUsd).toFixed(2)}%
+      <span
+        class="t-chg"
+        class:pos={globalData.marketCapChangePercentage24hUsd >= 0}
+        class:neg={globalData.marketCapChangePercentage24hUsd < 0}
+      >
+        {globalData.marketCapChangePercentage24hUsd >= 0 ? "▲" : "▼"}{Math.abs(
+          globalData.marketCapChangePercentage24hUsd,
+        ).toFixed(2)}%
       </span>
     {/if}
     <span class="t-sep">│</span>
     <span class="t-pair">VOL·24H</span>
-    <span class="t-price-muted">{globalData ? fmtCompact(globalData.totalVolumeUsd) : '–'}</span>
+    <span class="t-price-muted"
+      >{globalData ? fmtCompact(globalData.totalVolumeUsd) : "–"}</span
+    >
   </div>
   <div class="t-topbar-r">
-    <span class="t-kv">BTC.DOM <b>{globalData ? globalData.btcDominance.toFixed(1) + '%' : '54.3%'}</b></span>
-    <span class="t-kv">COINS <b>{coinCount > 0 ? coinCount : '—'}</b></span>
+    <span class="t-kv"
+      >BTC.DOM <b
+        >{globalData ? globalData.btcDominance.toFixed(1) + "%" : "54.3%"}</b
+      ></span
+    >
+    <span class="t-kv">COINS <b>{coinCount > 0 ? coinCount : "—"}</b></span>
     <span class="t-sep">│</span>
     <span class="t-clock">{clockTime} UTC</span>
   </div>
@@ -68,42 +82,105 @@
     white-space: nowrap;
     overflow: hidden;
   }
-  .t-topbar-l, .t-topbar-r {
+  .t-topbar-l,
+  .t-topbar-r {
     display: flex;
     align-items: center;
     gap: 0.55rem;
     min-width: 0;
   }
-  .t-brand-wrap  { display: flex; align-items: center; text-decoration: none; flex-shrink: 0; }
+  .t-brand-wrap {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    flex-shrink: 0;
+  }
   .t-brand-text {
     font-size: 0.78rem;
     font-weight: 700;
     letter-spacing: 0.12em;
     color: #fff;
   }
-  .t-nav        { display: flex; align-items: center; }
-  .t-nav-link   {
-    border: 0; border-right: 1px solid rgba(46, 53, 58, 0.8);
-    padding: 0.18rem 0.65rem; background: transparent;
-    color: rgba(217, 228, 223, 0.6); font-size: 0.7rem; font-weight: 600;
-    font-family: inherit; text-decoration: none; cursor: pointer;
-    transition: color 0.15s; white-space: nowrap;
+  .t-nav {
+    display: flex;
+    align-items: center;
   }
-  .t-nav-link:last-child { border-right: 0; }
-  .t-nav-link:hover      { color: #e3a4ff; }
-  .t-nav-active { color: #e3a4ff !important; text-decoration: underline; text-decoration-thickness: 1px; text-underline-offset: 4px; }
-  .t-live-dot   { color: #1ddf72; font-size: 0.6rem; transition: opacity 0.1s; }
-  .t-live-dot.blink { opacity: 0.18; }
-  .t-live-label { color: rgba(200, 212, 207, 0.4); font-size: 0.63rem; }
-  .t-sep        { color: rgba(176, 38, 255, 0.3); }
-  .t-pair       { color: #edf5f1; font-weight: 600; }
-  .t-price      { color: #fff; font-weight: 600; }
-  .t-price-muted { color: rgba(200, 212, 207, 0.65); font-weight: 500; }
-  .t-chg.pos    { color: #1ddf72; }
-  .t-chg.neg    { color: #ff4d57; }
-  .t-kv         { color: rgba(200, 212, 207, 0.5); font-size: 0.65rem; }
-  .t-kv b       { color: #c8d4cf; font-weight: 500; }
-  .t-clock      { color: rgba(200, 212, 207, 0.4); font-size: 0.65rem; font-variant-numeric: tabular-nums; }
-  .pos   { color: #1ddf72; }
-  .neg   { color: #ff4d57; }
+  .t-nav-link {
+    border: 0;
+    border-right: 1px solid rgba(46, 53, 58, 0.8);
+    padding: 0.18rem 0.65rem;
+    background: transparent;
+    color: rgba(217, 228, 223, 0.6);
+    font-size: 0.7rem;
+    font-weight: 600;
+    font-family: inherit;
+    text-decoration: none;
+    cursor: pointer;
+    transition: color 0.15s;
+    white-space: nowrap;
+  }
+  .t-nav-link:last-child {
+    border-right: 0;
+  }
+  .t-nav-link:hover {
+    color: #e3a4ff;
+  }
+  .t-nav-active {
+    color: #e3a4ff !important;
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 4px;
+  }
+  .t-live-dot {
+    color: #1ddf72;
+    font-size: 0.6rem;
+    transition: opacity 0.1s;
+  }
+  .t-live-dot.blink {
+    opacity: 0.18;
+  }
+  .t-live-label {
+    color: rgba(200, 212, 207, 0.4);
+    font-size: 0.63rem;
+  }
+  .t-sep {
+    color: rgba(176, 38, 255, 0.3);
+  }
+  .t-pair {
+    color: #edf5f1;
+    font-weight: 600;
+  }
+  .t-price {
+    color: #fff;
+    font-weight: 600;
+  }
+  .t-price-muted {
+    color: rgba(200, 212, 207, 0.65);
+    font-weight: 500;
+  }
+  .t-chg.pos {
+    color: #1ddf72;
+  }
+  .t-chg.neg {
+    color: #ff4d57;
+  }
+  .t-kv {
+    color: rgba(200, 212, 207, 0.5);
+    font-size: 0.65rem;
+  }
+  .t-kv b {
+    color: #c8d4cf;
+    font-weight: 500;
+  }
+  .t-clock {
+    color: rgba(200, 212, 207, 0.4);
+    font-size: 0.65rem;
+    font-variant-numeric: tabular-nums;
+  }
+  .pos {
+    color: #1ddf72;
+  }
+  .neg {
+    color: #ff4d57;
+  }
 </style>

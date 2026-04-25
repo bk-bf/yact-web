@@ -11,7 +11,9 @@
 
 <TuiPanel label="RECENT TRADES // LAST {trades.length}">
   <div class="trades-hdr">
-    <span>TIME</span><span>DUR</span><span>LAG</span><span>P&L</span><span>RESULT</span>
+    <span>TIME</span><span>DUR</span><span>LAG</span><span>P&L</span><span
+      >RESULT</span
+    >
   </div>
   {#each trades as t}
     <div class="trade-row">
@@ -41,7 +43,14 @@
     border-bottom: 1px solid rgba(176, 38, 255, 0.1);
     margin-bottom: 0.15rem;
   }
-  .trade-row { color: rgba(200, 212, 207, 0.62); font-variant-numeric: tabular-nums; }
-  .pos { color: #1ddf72; }
-  .neg { color: #ff4d57; }
+  .trade-row {
+    color: rgba(200, 212, 207, 0.62);
+    font-variant-numeric: tabular-nums;
+  }
+  .pos {
+    color: #1ddf72;
+  }
+  .neg {
+    color: #ff4d57;
+  }
 </style>

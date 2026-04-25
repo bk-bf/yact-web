@@ -34,9 +34,25 @@
     white-space: nowrap;
     overflow: hidden;
   }
-  .t-key      { color: #b026ff; font-size: 0.62rem; }
-  .t-keylabel { color: rgba(200, 212, 207, 0.42); font-size: 0.62rem; margin-right: 0.2rem; }
-  .t-sep-r    { color: rgba(176, 38, 255, 0.28); margin: 0 0.15rem; }
-  .t-branch   { color: rgba(176, 38, 255, 0.55); font-size: 0.62rem; }
-  .muted      { color: rgba(200, 212, 207, 0.35); font-size: 0.62rem; }
+  .t-key {
+    color: #b026ff;
+    font-size: 0.62rem;
+  }
+  .t-keylabel {
+    color: rgba(200, 212, 207, 0.42);
+    font-size: 0.62rem;
+    margin-right: 0.2rem;
+  }
+  .t-sep-r {
+    color: rgba(176, 38, 255, 0.28);
+    margin: 0 0.15rem;
+  }
+  .t-branch {
+    color: rgba(176, 38, 255, 0.55);
+    font-size: 0.62rem;
+  }
+  .muted {
+    color: rgba(200, 212, 207, 0.35);
+    font-size: 0.62rem;
+  }
 </style>

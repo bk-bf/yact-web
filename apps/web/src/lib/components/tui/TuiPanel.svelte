@@ -9,7 +9,13 @@
     children: Snippet;
   }
 
-  let { label, grow = false, fill = false, noPadding = false, children }: Props = $props();
+  let {
+    label,
+    grow = false,
+    fill = false,
+    noPadding = false,
+    children,
+  }: Props = $props();
 </script>
 
 <div class="t-panel" class:t-panel-grow={grow} class:t-panel-fill={fill}>
@@ -63,5 +69,7 @@
     padding: 0.35rem 0.5rem 0.3rem;
     overflow: visible;
   }
-  .no-padding { padding: 0; }
+  .no-padding {
+    padding: 0;
+  }
 </style>
