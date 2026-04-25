@@ -4,7 +4,12 @@
   import M3Surface from "$lib/components/M3Surface.svelte";
   import LoadingDots from "$lib/components/LoadingDots.svelte";
   import CoverageDetail from "$lib/components/CoverageDetail.svelte";
-  import type { RefreshStateData, ProgressOverview, DbCohorts, FieldVelocity } from "./+page";
+  import type {
+    RefreshStateData,
+    ProgressOverview,
+    DbCohorts,
+    FieldVelocity,
+  } from "./+page";
 
   type ProviderStatus = "healthy" | "rate_limited" | "error";
 
