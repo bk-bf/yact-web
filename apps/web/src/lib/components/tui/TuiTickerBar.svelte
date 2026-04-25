@@ -4,9 +4,10 @@
   interface Props {
     coins: TuiCoinItem[];
     coinDur: number;
+    loading?: boolean;
   }
 
-  let { coins, coinDur }: Props = $props();
+  let { coins, coinDur, loading = false }: Props = $props();
 
   function fmtPrice(p: number): string {
     if (!isFinite(p)) return "--";
@@ -51,7 +52,9 @@
       </div>
     </div>
   {:else}
-    <span class="ticker-placeholder">Loading…</span>
+    <span class="ticker-placeholder" class:ticker-loading={loading}>
+      {loading ? "· · ·" : "Waiting for live data…"}
+    </span>
   {/if}
 </div>
 
@@ -121,6 +124,13 @@
     padding: 0 0.75rem;
     color: rgba(200, 212, 207, 0.3);
     font-size: 0.65rem;
+  }
+  .ticker-loading {
+    animation: ticker-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes ticker-pulse {
+    0%, 100% { opacity: 0.3; }
+    50% { opacity: 0.7; }
   }
   .pos {
     color: #1ddf72;

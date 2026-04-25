@@ -40,6 +40,7 @@
   let headlines: TuiHeadline[] = $state([]);
   let newsRows: (TuiHeadline & { key: number })[] = $state([]);
   let globalData: TuiGlobalData | null = $state(null);
+  let liveDataLoading: boolean = $state(true);
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const coinDur = $derived(Math.max(24, coins.length * 4));
@@ -81,7 +82,7 @@
     }, 2800);
 
     // Top coins by market cap + global data (live DB)
-    fetch("/api/markets")
+    fetch("/api/topcoins")
       .then((r) => r.json())
       .then((d: { coins?: TuiCoinItem[]; global?: TuiGlobalData }) => {
         coins = (d.coins ?? [])
@@ -90,7 +91,10 @@
           .slice(0, 12);
         if (d.global?.totalMarketCapUsd) globalData = d.global;
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => {
+        liveDataLoading = false;
+      });
 
     // News headlines (live DB)
     fetch("/api/headlines")
@@ -110,8 +114,8 @@
 </script>
 
 <div class="t-root">
-  <TuiTopbar {globalData} coinCount={coins.length} {clockTime} {blinkOn} />
-  <TuiTickerBar {coins} {coinDur} />
+  <TuiTopbar {globalData} coinCount={coins.length} {clockTime} {blinkOn} loading={liveDataLoading} />
+  <TuiTickerBar {coins} {coinDur} loading={liveDataLoading} />
 
   <!-- ══ MAIN 3-COLUMN AREA ════════════════════════════════════════════════ -->
   <div class="t-main">

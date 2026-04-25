@@ -6,9 +6,10 @@
     coinCount: number;
     clockTime: string;
     blinkOn: boolean;
+    loading?: boolean;
   }
 
-  let { globalData, coinCount, clockTime, blinkOn }: Props = $props();
+  let { globalData, coinCount, clockTime, blinkOn, loading = false }: Props = $props();
 
   function fmtCompact(n: number): string {
     if (!isFinite(n) || n === 0) return "--";
@@ -36,8 +37,8 @@
     <span class="t-live-label">LIVE</span>
     <span class="t-sep">│</span>
     <span class="t-pair">MCAP</span>
-    <span class="t-price"
-      >{globalData ? fmtCompact(globalData.totalMarketCapUsd) : "–"}</span
+    <span class="t-price" class:t-loading={loading && !globalData}
+      >{globalData ? fmtCompact(globalData.totalMarketCapUsd) : "···"}</span
     >
     {#if globalData && globalData.marketCapChangePercentage24hUsd != null && isFinite(globalData.marketCapChangePercentage24hUsd)}
       {@const pct = globalData.marketCapChangePercentage24hUsd}
@@ -47,14 +48,14 @@
     {/if}
     <span class="t-sep">│</span>
     <span class="t-pair">VOL·24H</span>
-    <span class="t-price-muted"
-      >{globalData ? fmtCompact(globalData.totalVolumeUsd) : "–"}</span
+    <span class="t-price-muted" class:t-loading={loading && !globalData}
+      >{globalData ? fmtCompact(globalData.totalVolumeUsd) : "···"}</span
     >
   </div>
   <div class="t-topbar-r">
     <span class="t-kv"
-      >BTC.DOM <b
-        >{globalData ? globalData.btcDominance.toFixed(1) + "%" : "54.3%"}</b
+      >BTC.DOM <b class:t-loading={loading && !globalData}
+        >{globalData ? globalData.btcDominance.toFixed(1) + "%" : "···"}</b
       ></span
     >
     <span class="t-kv">COINS <b>{coinCount > 0 ? coinCount : "—"}</b></span>
@@ -177,5 +178,13 @@
   }
   .neg {
     color: #ff4d57;
+  }
+  .t-loading {
+    opacity: 0.35;
+    animation: t-pulse 1.2s ease-in-out infinite;
+  }
+  @keyframes t-pulse {
+    0%, 100% { opacity: 0.35; }
+    50% { opacity: 0.7; }
   }
 </style>
