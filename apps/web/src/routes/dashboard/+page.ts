@@ -85,6 +85,21 @@ export interface ProgressOverview {
   };
 }
 
+export interface FieldVelocityEntry {
+  field: string;
+  total: number;
+  window_1h: number;
+  window_7h: number;
+  window_24h: number;
+  delta: number;
+}
+
+export interface FieldVelocity {
+  asOf: string;
+  totalCoins: number;
+  fields: FieldVelocityEntry[];
+}
+
 export interface DashboardPageData {
   refreshState: RefreshStateData | null;
   progress: ProgressOverview | null;
