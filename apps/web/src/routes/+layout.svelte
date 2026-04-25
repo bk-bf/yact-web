@@ -81,11 +81,18 @@
 
 <svelte:head>
   <link rel="preconnect" href={tuiFonts.googleFontsPreconnect} />
-  <link rel="preconnect" href={tuiFonts.googleFontsPreconnectCross} crossorigin="anonymous" />
+  <link
+    rel="preconnect"
+    href={tuiFonts.googleFontsPreconnectCross}
+    crossorigin="anonymous"
+  />
   <link href={tuiFonts.googleFontsHref} rel="stylesheet" />
 </svelte:head>
 
-<div class="app-root" style="font-family: {tuiFonts.fontFamily}; font-size: {tuiFonts.fontSize}; line-height: {tuiFonts.lineHeight}">
+<div
+  class="app-root"
+  style="font-family: {tuiFonts.fontFamily}; font-size: {tuiFonts.fontSize}; line-height: {tuiFonts.lineHeight}"
+>
   <TuiTopbar
     {globalData}
     {coinCount}

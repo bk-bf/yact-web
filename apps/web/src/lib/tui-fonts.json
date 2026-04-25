@@ -1,8 +1,8 @@
 {
-  "fontFamily": "\"JetBrains Mono\", \"Menlo\", \"Consolas\", monospace",
-  "fontSize": "0.7rem",
-  "lineHeight": "1.55",
-  "googleFontsPreconnect": "https://fonts.googleapis.com",
-  "googleFontsPreconnectCross": "https://fonts.gstatic.com",
-  "googleFontsHref": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
+    "fontFamily": "\"JetBrains Mono\", \"Menlo\", \"Consolas\", monospace",
+    "fontSize": "0.7rem",
+    "lineHeight": "1.55",
+    "googleFontsPreconnect": "https://fonts.googleapis.com",
+    "googleFontsPreconnectCross": "https://fonts.gstatic.com",
+    "googleFontsHref": "https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap"
 }
