@@ -39,15 +39,10 @@
     <span class="t-price"
       >{globalData ? fmtCompact(globalData.totalMarketCapUsd) : "–"}</span
     >
-    {#if globalData}
-      <span
-        class="t-chg"
-        class:pos={globalData.marketCapChangePercentage24hUsd >= 0}
-        class:neg={globalData.marketCapChangePercentage24hUsd < 0}
-      >
-        {globalData.marketCapChangePercentage24hUsd >= 0 ? "▲" : "▼"}{Math.abs(
-          globalData.marketCapChangePercentage24hUsd,
-        ).toFixed(2)}%
+    {#if globalData && globalData.marketCapChangePercentage24hUsd != null && isFinite(globalData.marketCapChangePercentage24hUsd)}
+      {@const pct = globalData.marketCapChangePercentage24hUsd}
+      <span class="t-chg" class:pos={pct >= 0} class:neg={pct < 0}>
+        {pct >= 0 ? "▲" : "▼"}{Math.abs(pct).toFixed(2)}%
       </span>
     {/if}
     <span class="t-sep">│</span>

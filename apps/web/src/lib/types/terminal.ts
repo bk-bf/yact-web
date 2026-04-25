@@ -94,7 +94,7 @@ export interface TuiCoinItem {
 export interface TuiGlobalData {
   totalMarketCapUsd: number;
   totalVolumeUsd: number;
-  marketCapChangePercentage24hUsd: number;
+  marketCapChangePercentage24hUsd?: number | null;
   btcDominance: number;
 }
 
