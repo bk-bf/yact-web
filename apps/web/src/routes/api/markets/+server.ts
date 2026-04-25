@@ -15,7 +15,7 @@ function getHighlights(coins: Array<{ priceChangePercentage24h: number; totalVol
 
 export async function GET({ fetch }) {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 9000);
+    const timer = setTimeout(() => controller.abort(), 30000);
 
     let marketsResponse: Response;
     try {
