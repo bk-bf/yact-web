@@ -45,9 +45,10 @@
       logLoading = false;
       if (e.data.trim()) {
         // Keep latest 500 lines; newest rendered at top via parsedLogLines.toReversed()
-        logLines = logLines.length >= 500
-          ? [...logLines.slice(-499), e.data]
-          : [...logLines, e.data];
+        logLines =
+          logLines.length >= 500
+            ? [...logLines.slice(-499), e.data]
+            : [...logLines, e.data];
       }
     };
 
@@ -57,47 +58,63 @@
       logLoading = false;
     };
 
-    return () => { es.close(); };
+    return () => {
+      es.close();
+    };
   });
 
   // ── Log parsing ──────────────────────────────────────────────────────────────
   // Matches localized lines: YYYY-MM-DD HH:MM:SS  [LEVEL]  name  message
   // Also accepts bare LEVEL (legacy / uvicorn lines) for robustness.
-  const _LOG_LEVEL_RE = /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\s+\[?(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL)\]?\s+(.*)/i;
+  const _LOG_LEVEL_RE =
+    /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})\s+\[?(DEBUG|INFO|WARNING|WARN|ERROR|CRITICAL)\]?\s+(.*)/i;
 
-  function parseLogLine(raw: string): { ts: string; level: string; detail: string } {
+  function parseLogLine(raw: string): {
+    ts: string;
+    level: string;
+    detail: string;
+  } {
     const loc = localizeLogLine(raw);
     const m = _LOG_LEVEL_RE.exec(loc);
     if (m) return { ts: m[1], level: m[2].toUpperCase(), detail: m[3] };
     const ts = /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})/.exec(loc);
-    return { ts: ts ? ts[1] : '', level: '', detail: loc };
+    return { ts: ts ? ts[1] : "", level: "", detail: loc };
   }
 
   function levelColor(level: string): string {
-    if (level === 'ERROR' || level === 'CRITICAL') return '#ff4d57';
-    if (level === 'WARNING' || level === 'WARN')   return '#f5a623';
-    if (level === 'INFO')  return 'rgba(200,212,207,0.65)';
-    return 'rgba(200,212,207,0.28)';
+    if (level === "ERROR" || level === "CRITICAL") return "#ff4d57";
+    if (level === "WARNING" || level === "WARN") return "#f5a623";
+    if (level === "INFO") return "rgba(200,212,207,0.65)";
+    return "rgba(200,212,207,0.28)";
   }
 
-  function levelTag(level: string, detail: string): { label: string; color: string } {
+  function levelTag(
+    level: string,
+    detail: string,
+  ): { label: string; color: string } {
     const d = detail.toLowerCase();
-    if (level === 'ERROR' || level === 'CRITICAL')                           return { label: 'ERR',   color: '#ff4d57' };
-    if (d.includes('429') || d.includes('rate limit'))                       return { label: 'LIMIT', color: '#f5a623' };
-    if (level === 'WARNING' || level === 'WARN')                             return { label: 'WARN',  color: '#f5a623' };
-    if (d.includes('start') || d.includes('launch') || d.includes('init'))  return { label: 'START', color: '#1ddf72' };
-    if (d.includes('complete') || d.includes('success') || d.includes('finish')) return { label: 'OK', color: '#1ddf72' };
-    if (d.includes('skip'))                                                  return { label: 'SKIP',  color: '#9aa7a0' };
-    if (level === 'INFO')                                                    return { label: 'INFO',  color: '#9aa7a0' };
-    if (level === 'DEBUG')                                                   return { label: 'DBG',   color: 'rgba(200,212,207,0.25)' };
-    return { label: '—', color: 'rgba(200,212,207,0.2)' };
+    if (level === "ERROR" || level === "CRITICAL")
+      return { label: "ERR", color: "#ff4d57" };
+    if (d.includes("429") || d.includes("rate limit"))
+      return { label: "LIMIT", color: "#f5a623" };
+    if (level === "WARNING" || level === "WARN")
+      return { label: "WARN", color: "#f5a623" };
+    if (d.includes("start") || d.includes("launch") || d.includes("init"))
+      return { label: "START", color: "#1ddf72" };
+    if (d.includes("complete") || d.includes("success") || d.includes("finish"))
+      return { label: "OK", color: "#1ddf72" };
+    if (d.includes("skip")) return { label: "SKIP", color: "#9aa7a0" };
+    if (level === "INFO") return { label: "INFO", color: "#9aa7a0" };
+    if (level === "DEBUG")
+      return { label: "DBG", color: "rgba(200,212,207,0.25)" };
+    return { label: "—", color: "rgba(200,212,207,0.2)" };
   }
 
   const parsedLogLines = $derived(
     logLines
       .filter((l) => l.trim().length > 0)
       .map((raw) => parseLogLine(raw))
-      .toReversed()
+      .toReversed(),
   );
 
   function parseServerDate(iso: string): Date {
@@ -345,7 +362,9 @@
           })
         : "--:--:--"} UTC</span
     >
-    <button class="t-btn t-btn-icon" onclick={fetchAll} title="Refresh">↻</button>
+    <button class="t-btn t-btn-icon" onclick={fetchAll} title="Refresh"
+      >↻</button
+    >
   </div>
 
   {#if coreLoading}
@@ -355,13 +374,17 @@
     <div class="t-main">
       <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
       <div class="t-col t-col-l">
-
         <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
         {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
           <div class="t-panel alert-panel">
             <div class="t-panel-label alert-label">⚠ ALERT</div>
             <div class="t-panel-body">
-              <div class="alert-title">CYCLE FAILING{(refreshState.current_state.consecutive_failures ?? 0) > 1 ? ` · ${refreshState.current_state.consecutive_failures}×` : ""}</div>
+              <div class="alert-title">
+                CYCLE FAILING{(refreshState.current_state
+                  .consecutive_failures ?? 0) > 1
+                  ? ` · ${refreshState.current_state.consecutive_failures}×`
+                  : ""}
+              </div>
               <div class="alert-msg">{refreshState.current_state.error}</div>
             </div>
           </div>
@@ -508,22 +531,34 @@
       <div class="t-col t-col-c">
         <div class="t-panel t-panel-fill">
           <div class="t-panel-label">
-            LOG STREAM // {logSource.toUpperCase()} // LIVE{logLines.length > 0 ? ` // ${logLines.length}` : ""}
+            LOG STREAM // {logSource.toUpperCase()} // LIVE{logLines.length > 0
+              ? ` // ${logLines.length}`
+              : ""}
           </div>
           <div class="t-panel-tools">
             <div class="log-toggle">
               <button
                 class="t-tab"
                 class:active={logSource === "miner"}
-                onclick={() => { logSource = "miner"; }}>MINER</button
+                onclick={() => {
+                  logSource = "miner";
+                }}>MINER</button
               >
               <button
                 class="t-tab"
                 class:active={logSource === "api"}
-                onclick={() => { logSource = "api"; }}>API</button
+                onclick={() => {
+                  logSource = "api";
+                }}>API</button
               >
             </div>
-            <button class="t-btn t-btn-tiny t-btn-icon" onclick={() => { reconnectKey += 1; }} title="Reconnect stream">↻</button>
+            <button
+              class="t-btn t-btn-tiny t-btn-icon"
+              onclick={() => {
+                reconnectKey += 1;
+              }}
+              title="Reconnect stream">↻</button
+            >
           </div>
           <div class="t-stream" bind:this={streamEl}>
             {#if logLoading && logLines.length === 0}
@@ -532,16 +567,22 @@
               <p class="t-empty">no log lines found</p>
             {:else}
               <div class="stream-hdr">
-                <span>TIME</span><span>LEVEL</span><span>DETAIL</span><span>TAG</span>
+                <span>TIME</span><span>LEVEL</span><span>DETAIL</span><span
+                  >TAG</span
+                >
               </div>
               <div class="stream-rule" aria-hidden="true"></div>
               {#each parsedLogLines as row, i (i)}
                 {@const tag = levelTag(row.level, row.detail)}
                 <div class="stream-row">
                   <span class="sr-ts">{row.ts}</span>
-                  <span class="sr-kind" style="color:{levelColor(row.level)};">{row.level ? `[${row.level}]` : ''}</span>
+                  <span class="sr-kind" style="color:{levelColor(row.level)};"
+                    >{row.level ? `[${row.level}]` : ""}</span
+                  >
                   <span class="sr-detail">{row.detail}</span>
-                  <span class="sr-tag" style="color:{tag.color};">{tag.label}</span>
+                  <span class="sr-tag" style="color:{tag.color};"
+                    >{tag.label}</span
+                  >
                 </div>
               {/each}
             {/if}
@@ -1041,10 +1082,27 @@
     font-size: 0.65rem;
   }
 
-  .sr-ts     { color: rgba(200, 212, 207, 0.3); font-variant-numeric: tabular-nums; }
-  .sr-kind   { font-weight: 600; font-size: 0.62rem; }
-  .sr-detail { color: rgba(200, 212, 207, 0.72); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
-  .sr-tag    { text-align: right; font-size: 0.6rem; letter-spacing: 0.05em; font-weight: 600; }
+  .sr-ts {
+    color: rgba(200, 212, 207, 0.3);
+    font-variant-numeric: tabular-nums;
+  }
+  .sr-kind {
+    font-weight: 600;
+    font-size: 0.62rem;
+  }
+  .sr-detail {
+    color: rgba(200, 212, 207, 0.72);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .sr-tag {
+    text-align: right;
+    font-size: 0.6rem;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
 
   /* ── Empty state ────────────────────────────────────────────────────────── */
   .t-empty {
