@@ -9,13 +9,10 @@ export async function GET({ fetch }) {
 
   let res: Response;
   try {
-    res = await fetch(
-      `${ANALYTICS_BASE_URL}/api/v1/progress/field-velocity`,
-      {
-        headers: { Accept: "application/json" },
-        signal: controller.signal,
-      },
-    );
+    res = await fetch(`${ANALYTICS_BASE_URL}/api/v1/progress/field-velocity`, {
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
   } catch {
     clearTimeout(timer);
     return json(null);

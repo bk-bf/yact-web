@@ -17,9 +17,11 @@
 
   let refreshState = $state<RefreshStateData | null>(null);
   let progress = $state<ProgressOverview | null>(null);
+  let fieldVelocity = $state<FieldVelocity | null>(null);
   let providers = $state<ProviderHealth[]>([]);
   let coreLoading = $state(true);
   let progressLoading = $state(true);
+  let velocityLoading = $state(true);
   let lastUpdated = $state<Date | null>(null);
 
   // ── Log viewer state ────────────────────────────────────────────────────────
@@ -272,6 +274,20 @@
         progressLoading = false;
       });
 
+    const velocityPromise = fetch("/api/progress/velocity")
+      .then(async (res) => {
+        if (res.ok) {
+          const payload = await res.json();
+          if (payload) fieldVelocity = payload as FieldVelocity;
+        }
+      })
+      .catch(() => {
+        /* keep last known state */
+      })
+      .finally(() => {
+        velocityLoading = false;
+      });
+
     try {
       await corePromise;
     } catch {
@@ -281,8 +297,9 @@
       lastUpdated = new Date();
     }
 
-    // progress settles in the background; lastUpdated is already set
+    // progress and velocity settle in the background
     await progressPromise;
+    await velocityPromise;
   }
 
   onMount(() => {
@@ -485,7 +502,7 @@
         </div>
 
         <!-- DB Cohorts -->
-        <div class="t-panel t-panel-grow">
+        <div class="t-panel">
           <div class="t-panel-label">
             DB COIN COHORTS // {progress?.dbCohorts
               ? progress.dbCohorts.totalInDb.toLocaleString() + " TOTAL"
@@ -522,6 +539,65 @@
                   >{c.coingeckoEnriched.toLocaleString()}</span
                 >
               </div>
+            {/if}
+          </div>
+        </div>
+
+        <!-- Fill Tracker -->
+        <div class="t-panel t-panel-grow">
+          <div class="t-panel-label">
+            FILL TRACKER // {fieldVelocity
+              ? `${fieldVelocity.totalCoins} COINS`
+              : "—"}
+          </div>
+          <div class="t-panel-body">
+            {#if velocityLoading}
+              <LoadingDots label="Loading" />
+            {:else if !fieldVelocity}
+              <p class="t-empty">no velocity data</p>
+            {:else}
+              <div class="vt-hdr">
+                <span class="vt-name">FIELD</span>
+                <span class="vt-num">FILLED</span>
+                <span class="vt-num">+1H</span>
+                <span class="vt-num">+7H</span>
+                <span class="vt-num">+24H</span>
+                <span class="vt-dlt">Δ</span>
+              </div>
+              {#each fieldVelocity.fields as entry}
+                {@const pct =
+                  fieldVelocity.totalCoins > 0
+                    ? Math.round((entry.total / fieldVelocity.totalCoins) * 100)
+                    : 0}
+                <div class="vt-row">
+                  <span class="vt-name">{entry.field}</span>
+                  <span class="vt-num"
+                    >{entry.total}<span class="vt-pct"> {pct}%</span></span
+                  >
+                  <span class="vt-num"
+                    >{entry.window_1h > 0 ? entry.window_1h : "—"}</span
+                  >
+                  <span class="vt-num"
+                    >{entry.window_7h > 0 ? entry.window_7h : "—"}</span
+                  >
+                  <span class="vt-num"
+                    >{entry.window_24h > 0 ? entry.window_24h : "—"}</span
+                  >
+                  <span
+                    class="vt-dlt"
+                    style="color:{entry.delta > 0
+                      ? 'var(--status-ok)'
+                      : entry.delta < 0
+                        ? 'var(--status-error)'
+                        : 'rgba(200,212,207,0.22)'};"
+                    >{entry.delta > 0
+                      ? "+" + entry.delta
+                      : entry.delta === 0
+                        ? "—"
+                        : entry.delta}</span
+                  >
+                </div>
+              {/each}
             {/if}
           </div>
         </div>
@@ -1007,6 +1083,44 @@
     font-variant-numeric: tabular-nums;
     text-align: right;
     min-width: 9ch;
+  }
+
+  /* ── Fill Tracker table ─────────────────────────────────────────────────── */
+  .vt-hdr,
+  .vt-row {
+    display: grid;
+    grid-template-columns: 1fr 6ch 4ch 4ch 5ch 4ch;
+    gap: 0.1rem 0.3rem;
+    font-size: 0.6rem;
+    padding: 0.05rem 0;
+    line-height: 1.4;
+  }
+  .vt-hdr {
+    color: rgba(200, 212, 207, 0.3);
+    font-size: 0.55rem;
+    border-bottom: 1px solid rgba(43, 47, 51, 0.8);
+    padding-bottom: 0.2rem;
+    margin-bottom: 0.1rem;
+  }
+  .vt-name {
+    color: rgba(200, 212, 207, 0.72);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
+  }
+  .vt-num {
+    color: var(--tv-text-primary);
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .vt-pct {
+    color: rgba(200, 212, 207, 0.38);
+    font-size: 0.55rem;
+  }
+  .vt-dlt {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
   }
 
   .cohort-hl {
