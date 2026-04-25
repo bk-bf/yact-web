@@ -389,11 +389,8 @@
     >
   </div>
 
-  {#if coreLoading}
-    <div class="t-loading"><LoadingDots label="Loading dashboard" /></div>
-  {:else}
-    <!-- ══ MAIN 3-PANE GRID ═══════════════════════════════════════════════════ -->
-    <div class="t-main">
+  <!-- ══ MAIN 3-PANE GRID ═══════════════════════════════════════════════════ -->
+  <div class="t-main">
       <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
       <div class="t-col t-col-l">
         <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
@@ -807,7 +804,6 @@
         </div>
       </div>
     </div>
-  {/if}
 </main>
 
 <style>
@@ -923,11 +919,6 @@
     line-height: 1;
     padding: 0.05rem 0.45rem;
     letter-spacing: 0;
-  }
-
-  /* ── Loading ────────────────────────────────────────────────────────────── */
-  .t-loading {
-    padding: 2rem;
   }
 
   /* ── Alert panel (in left column — no layout shift) ─────────────────────── */

@@ -101,6 +101,7 @@
   let sharedGlobal = $state<GlobalMarketSummary | null>(null);
   let sharedHeadlines = $state<CryptoHeadline[]>([]);
   let activeNavigationKey = $state<string | null>(null);
+  let dbStatus = $state<"ok" | "down" | "unknown">("unknown");
 
   const pageGlobalForShell = $derived(
     ($page.data?.global as GlobalMarketSummary | undefined) ?? null,
@@ -258,6 +259,34 @@
     return () => {
       cancelled = true;
       window.clearInterval(timer);
+    };
+  });
+
+  // DB heartbeat — polls /api/health every 15 s; shows status pill in header on all pages.
+  $effect(() => {
+    if (!browser) return;
+    let alive = true;
+
+    const checkDb = async () => {
+      try {
+        const res = await fetch("/api/health");
+        if (!alive) return;
+        if (res.ok) {
+          const body = (await res.json()) as { db?: string };
+          dbStatus = body.db === "ok" ? "ok" : body.db === "down" ? "down" : "unknown";
+        } else {
+          dbStatus = "down";
+        }
+      } catch {
+        if (alive) dbStatus = "unknown";
+      }
+    };
+
+    void checkDb();
+    const id = window.setInterval(() => void checkDb(), 15_000);
+    return () => {
+      alive = false;
+      window.clearInterval(id);
     };
   });
 
@@ -510,6 +539,17 @@
           >
         </nav>
 
+        <div
+          class="db-heartbeat"
+          class:db-heartbeat--ok={dbStatus === "ok"}
+          class:db-heartbeat--down={dbStatus === "down"}
+          title="Database status: {dbStatus}"
+          aria-label="Database status: {dbStatus}"
+        >
+          <span class="db-dot"></span>
+          <span class="db-label">{dbStatus === "down" ? "DB DOWN" : "DB"}</span>
+        </div>
+
         <div class="nav-actions">
           <ViewSettingsMenu settings={viewSettings} />
 
@@ -527,3 +567,68 @@
 
   {@render children?.()}
 </div>
+
+<style>
+  /* ── DB heartbeat pill ──────────────────────────────────────────────────── */
+  .db-heartbeat {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    padding: 0.22rem 0.55rem;
+    border-radius: 999px;
+    border: 1px solid rgba(154, 167, 160, 0.2);
+    background: rgba(154, 167, 160, 0.06);
+    cursor: default;
+    user-select: none;
+    flex-shrink: 0;
+  }
+
+  .db-dot {
+    display: inline-block;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: rgba(154, 167, 160, 0.4); /* unknown — muted */
+    flex-shrink: 0;
+  }
+
+  .db-label {
+    font-size: 0.65rem;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    color: rgba(154, 167, 160, 0.7);
+    font-family: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+  }
+
+  /* OK state */
+  .db-heartbeat--ok {
+    border-color: rgba(29, 223, 114, 0.25);
+    background: rgba(29, 223, 114, 0.06);
+  }
+  .db-heartbeat--ok .db-dot {
+    background: #1ddf72;
+    box-shadow: 0 0 6px rgba(29, 223, 114, 0.6);
+  }
+  .db-heartbeat--ok .db-label {
+    color: rgba(29, 223, 114, 0.85);
+  }
+
+  /* DOWN state */
+  .db-heartbeat--down {
+    border-color: rgba(255, 77, 87, 0.35);
+    background: rgba(255, 77, 87, 0.07);
+  }
+  .db-heartbeat--down .db-dot {
+    background: #ff4d57;
+    box-shadow: 0 0 6px rgba(255, 77, 87, 0.6);
+    animation: db-blink 0.9s ease-in-out infinite;
+  }
+  .db-heartbeat--down .db-label {
+    color: #ff4d57;
+  }
+
+  @keyframes db-blink {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.35; }
+  }
+</style>
