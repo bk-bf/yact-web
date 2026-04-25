@@ -95,7 +95,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 1.15rem;
+    height: 0.9rem;
     padding: 0 0.32rem;
     font-family: inherit;
     font-size: 0.58rem;
