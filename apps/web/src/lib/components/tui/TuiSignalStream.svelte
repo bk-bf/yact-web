@@ -49,8 +49,10 @@
   <div class="t-plabel-row">
     <span class="t-plabel-text">SIGNAL STREAM // {streamLabel}</span>
     <TuiStreamToolbar
-      reversed={reversed}
-      onFlip={() => { reversed = !reversed; }}
+      {reversed}
+      onFlip={() => {
+        reversed = !reversed;
+      }}
     />
   </div>
   <div class="t-stream" bind:this={streamEl}>
@@ -98,7 +100,7 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 0.18rem 0.3rem 0.18rem 0.5rem;
+    padding: 0.28rem 0.3rem 0.22rem 0.5rem;
     background: rgba(176, 38, 255, 0.055);
     border-bottom: 1px solid rgba(176, 38, 255, 0.1);
     flex-shrink: 0;
