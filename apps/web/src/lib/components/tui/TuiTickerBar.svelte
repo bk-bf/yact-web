@@ -129,8 +129,13 @@
     animation: ticker-pulse 1.2s ease-in-out infinite;
   }
   @keyframes ticker-pulse {
-    0%, 100% { opacity: 0.3; }
-    50% { opacity: 0.7; }
+    0%,
+    100% {
+      opacity: 0.3;
+    }
+    50% {
+      opacity: 0.7;
+    }
   }
   .pos {
     color: #1ddf72;
