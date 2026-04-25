@@ -7,9 +7,10 @@
     clockTime: string;
     blinkOn: boolean;
     loading?: boolean;
+    activePage?: "markets" | "watchlist" | "dashboard" | "terminal";
   }
 
-  let { globalData, coinCount, clockTime, blinkOn, loading = false }: Props = $props();
+  let { globalData, coinCount, clockTime, blinkOn, loading = false, activePage = "terminal" }: Props = $props();
 
   function fmtCompact(n: number): string {
     if (!isFinite(n) || n === 0) return "--";
@@ -27,10 +28,10 @@
     </a>
     <span class="t-sep">│</span>
     <nav class="t-nav" aria-label="Primary">
-      <a href="/" class="t-nav-link">Markets</a>
-      <a href="/watchlist" class="t-nav-link">Watchlist</a>
-      <a href="/dashboard" class="t-nav-link">Dashboard</a>
-      <span class="t-nav-link t-nav-active">Terminal</span>
+      <a href="/" class="t-nav-link" class:t-nav-active={activePage === "markets"}>Markets</a>
+      <a href="/watchlist" class="t-nav-link" class:t-nav-active={activePage === "watchlist"}>Watchlist</a>
+      <a href="/dashboard" class="t-nav-link" class:t-nav-active={activePage === "dashboard"}>Dashboard</a>
+      <a href="/terminal" class="t-nav-link" class:t-nav-active={activePage === "terminal"}>Terminal</a>
     </nav>
     <span class="t-sep">│</span>
     <span class="t-live-dot" class:blink={blinkOn}>●</span>

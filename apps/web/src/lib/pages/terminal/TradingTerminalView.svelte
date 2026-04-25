@@ -8,7 +8,7 @@
   import TuiPositionsPanel from "$lib/components/tui/TuiPositionsPanel.svelte";
   import TuiSessionMetrics from "$lib/components/tui/TuiSessionMetrics.svelte";
   import TuiSignalBars from "$lib/components/tui/TuiSignalBars.svelte";
-  import TuiSignalStream from "$lib/components/tui/TuiSignalStream.svelte";
+  import TuiLogPanel from "$lib/components/tui/TuiLogPanel.svelte";
   import TuiRecentTrades from "$lib/components/tui/TuiRecentTrades.svelte";
   import TuiOrderBook from "$lib/components/tui/TuiOrderBook.svelte";
   import TuiPnlSparkline from "$lib/components/tui/TuiPnlSparkline.svelte";
@@ -21,7 +21,6 @@
     TuiCoinItem,
     TuiGlobalData,
     TuiHeadline,
-    LogEntry,
     Position,
     OBLevel,
   } from "$lib/types/terminal";
@@ -34,8 +33,6 @@
   // ── Reactive state ─────────────────────────────────────────────────────────
   let clockTime: string = $state("--:--:--");
   let blinkOn: boolean = $state(true);
-  let streamRows: (LogEntry & { key: number })[] = $state([]);
-  let newestKey: number = $state(-1);
   let coins: TuiCoinItem[] = $state([]);
   let headlines: TuiHeadline[] = $state([]);
   let newsRows: (TuiHeadline & { key: number })[] = $state([]);
@@ -55,20 +52,6 @@
     tick();
     const clockId = setInterval(tick, 1000);
     const blinkId = setInterval(() => (blinkOn = !blinkOn), 600);
-
-    // Streaming signal log — infinite loop through placeholder log[], no pause/reset
-    let logIdx = 0,
-      rowKey = 0;
-    const streamId = setInterval(() => {
-      const e = placeholder.signalLog[logIdx % placeholder.signalLog.length];
-      logIdx++;
-      const k = ++rowKey;
-      newestKey = k;
-      streamRows = [
-        ...streamRows.slice(-54),
-        { ...e, ts: clockTime, key: k },
-      ] as (LogEntry & { key: number })[];
-    }, 480);
 
     // Vertical news feed — stream in one headline every 2.8 s
     let newsIdx = 0,
@@ -107,7 +90,6 @@
     return () => {
       clearInterval(clockId);
       clearInterval(blinkId);
-      clearInterval(streamId);
       clearInterval(newsId);
     };
   });
@@ -129,13 +111,7 @@
 
     <!-- ── CENTER COLUMN ─────────────────────────────────────────────────── -->
     <div class="t-col-center">
-      <TuiSignalStream
-        rows={streamRows}
-        {newestKey}
-        {clockTime}
-        {blinkOn}
-        streamLabel={placeholder.signalStreamLabel}
-      />
+      <TuiLogPanel />
       <TuiRecentTrades trades={placeholder.trades} />
     </div>
 

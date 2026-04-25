@@ -14,7 +14,8 @@
   }
 
   // 2025-04-24 10:30:15  [INFO]      logger.name  rest…
-  const LINE_RE = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+\S+\s+(.*)/;
+  const LINE_RE =
+    /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})\s+\[(\w+)\]\s+\S+\s+(.*)/;
   // tag prefix in the message body: [auto-refresh] or [ticker-loop]
   const TAG_RE = /^\[([a-z0-9_-]+)\]/;
 
@@ -31,7 +32,15 @@
   function parseLine(raw: string): ParsedLine {
     const m = LINE_RE.exec(raw);
     if (!m) {
-      return { raw, ts: null, tsStr: "", level: null, tag: null, message: raw, key: ++keyCounter };
+      return {
+        raw,
+        ts: null,
+        tsStr: "",
+        level: null,
+        tag: null,
+        message: raw,
+        key: ++keyCounter,
+      };
     }
     const [, tsStr, levelStr, rest] = m;
     const trimmed = rest.trimStart();
@@ -48,7 +57,7 @@
   }
 
   const knownTags = $derived(
-    [...new Set(rawLines.flatMap((l) => (l.tag ? [l.tag] : [])))].sort()
+    [...new Set(rawLines.flatMap((l) => (l.tag ? [l.tag] : [])))].sort(),
   );
 
   const filteredLines = $derived.by(() => {
@@ -61,7 +70,11 @@
     }
     if (filterTime !== "ALL") {
       const windowMs =
-        filterTime === "5m" ? 5 * 60_000 : filterTime === "15m" ? 15 * 60_000 : 60 * 60_000;
+        filterTime === "5m"
+          ? 5 * 60_000
+          : filterTime === "15m"
+            ? 15 * 60_000
+            : 60 * 60_000;
       const cutoff = Date.now() - windowMs;
       lines = lines.filter((l) => l.ts !== null && l.ts.getTime() >= cutoff);
     }
@@ -107,12 +120,18 @@
 
   function levelColor(level: LogLevel | null): string {
     switch (level) {
-      case "DEBUG":    return "#6b7a74";
-      case "INFO":     return "#9aa7a0";
-      case "WARNING":  return "#f5a623";
-      case "ERROR":    return "#ff4d57";
-      case "CRITICAL": return "#b026ff";
-      default:         return "#6b7a74";
+      case "DEBUG":
+        return "#6b7a74";
+      case "INFO":
+        return "#9aa7a0";
+      case "WARNING":
+        return "#f5a623";
+      case "ERROR":
+        return "#ff4d57";
+      case "CRITICAL":
+        return "#b026ff";
+      default:
+        return "#6b7a74";
     }
   }
 </script>
@@ -125,15 +144,19 @@
         <button
           class="lp-src-btn"
           class:lp-src-active={source === "miner"}
-          onclick={() => (source = "miner")}
-        >miner</button>
+          onclick={() => (source = "miner")}>miner</button
+        >
         <button
           class="lp-src-btn"
           class:lp-src-active={source === "api"}
-          onclick={() => (source = "api")}
-        >api</button>
+          onclick={() => (source = "api")}>api</button
+        >
       </div>
-      <select class="lp-select" bind:value={filterLevel} aria-label="Filter by level">
+      <select
+        class="lp-select"
+        bind:value={filterLevel}
+        aria-label="Filter by level"
+      >
         <option value="ALL">level:ALL</option>
         <option value="DEBUG">DEBUG</option>
         <option value="INFO">INFO</option>
@@ -141,13 +164,21 @@
         <option value="ERROR">ERROR</option>
         <option value="CRITICAL">CRIT</option>
       </select>
-      <select class="lp-select" bind:value={filterTag} aria-label="Filter by tag">
+      <select
+        class="lp-select"
+        bind:value={filterTag}
+        aria-label="Filter by tag"
+      >
         <option value="ALL">tag:ALL</option>
         {#each knownTags as t (t)}
           <option value={t}>[{t}]</option>
         {/each}
       </select>
-      <select class="lp-select" bind:value={filterTime} aria-label="Filter by time">
+      <select
+        class="lp-select"
+        bind:value={filterTime}
+        aria-label="Filter by time"
+      >
         <option value="ALL">time:ALL</option>
         <option value="5m">last 5m</option>
         <option value="15m">last 15m</option>
@@ -238,7 +269,9 @@
     letter-spacing: 0.06em;
     padding: 0.1rem 0.35rem;
     cursor: pointer;
-    transition: background 0.15s, color 0.15s;
+    transition:
+      background 0.15s,
+      color 0.15s;
   }
   .lp-src-btn:not(:first-child) {
     border-left: 1px solid rgba(176, 38, 255, 0.25);
