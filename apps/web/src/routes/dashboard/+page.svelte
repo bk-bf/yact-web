@@ -1092,9 +1092,10 @@
   }
   .sr-detail {
     color: rgba(200, 212, 207, 0.72);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: visible;
+    text-overflow: unset;
+    white-space: pre-wrap;
+    word-break: break-all;
     min-width: 0;
   }
   .sr-tag {
