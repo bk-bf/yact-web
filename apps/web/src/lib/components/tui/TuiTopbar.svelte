@@ -10,7 +10,14 @@
     activePage?: "markets" | "watchlist" | "dashboard" | "terminal";
   }
 
-  let { globalData, coinCount, clockTime, blinkOn, loading = false, activePage = "terminal" }: Props = $props();
+  let {
+    globalData,
+    coinCount,
+    clockTime,
+    blinkOn,
+    loading = false,
+    activePage = "terminal",
+  }: Props = $props();
 
   function fmtCompact(n: number): string {
     if (!isFinite(n) || n === 0) return "--";
@@ -28,10 +35,26 @@
     </a>
     <span class="t-sep">│</span>
     <nav class="t-nav" aria-label="Primary">
-      <a href="/" class="t-nav-link" class:t-nav-active={activePage === "markets"}>Markets</a>
-      <a href="/watchlist" class="t-nav-link" class:t-nav-active={activePage === "watchlist"}>Watchlist</a>
-      <a href="/dashboard" class="t-nav-link" class:t-nav-active={activePage === "dashboard"}>Dashboard</a>
-      <a href="/terminal" class="t-nav-link" class:t-nav-active={activePage === "terminal"}>Terminal</a>
+      <a
+        href="/"
+        class="t-nav-link"
+        class:t-nav-active={activePage === "markets"}>Markets</a
+      >
+      <a
+        href="/watchlist"
+        class="t-nav-link"
+        class:t-nav-active={activePage === "watchlist"}>Watchlist</a
+      >
+      <a
+        href="/dashboard"
+        class="t-nav-link"
+        class:t-nav-active={activePage === "dashboard"}>Dashboard</a
+      >
+      <a
+        href="/terminal"
+        class="t-nav-link"
+        class:t-nav-active={activePage === "terminal"}>Terminal</a
+      >
     </nav>
     <span class="t-sep">│</span>
     <span class="t-live-dot" class:blink={blinkOn}>●</span>
@@ -185,7 +208,12 @@
     animation: t-pulse 1.2s ease-in-out infinite;
   }
   @keyframes t-pulse {
-    0%, 100% { opacity: 0.35; }
-    50% { opacity: 0.7; }
+    0%,
+    100% {
+      opacity: 0.35;
+    }
+    50% {
+      opacity: 0.7;
+    }
   }
 </style>

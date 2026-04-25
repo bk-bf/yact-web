@@ -96,7 +96,13 @@
 </script>
 
 <div class="t-root">
-  <TuiTopbar {globalData} coinCount={coins.length} {clockTime} {blinkOn} loading={liveDataLoading} />
+  <TuiTopbar
+    {globalData}
+    coinCount={coins.length}
+    {clockTime}
+    {blinkOn}
+    loading={liveDataLoading}
+  />
   <TuiTickerBar {coins} {coinDur} loading={liveDataLoading} />
 
   <!-- ══ MAIN 3-COLUMN AREA ════════════════════════════════════════════════ -->

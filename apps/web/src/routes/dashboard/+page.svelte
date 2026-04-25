@@ -208,7 +208,11 @@
     loading={liveDataLoading}
     activePage="dashboard"
   />
-  <TuiTickerBar {coins} coinDur={Math.max(24, coins.length * 4)} loading={liveDataLoading} />
+  <TuiTickerBar
+    {coins}
+    coinDur={Math.max(24, coins.length * 4)}
+    loading={liveDataLoading}
+  />
 
   <div class="d-content">
     <div class="d-header">
@@ -240,8 +244,12 @@
           <div class="cycle-grid">
             <div class="cycle-stat">
               <span class="cycle-stat-label">Status</span>
-              <span class="cycle-stat-value" style="color: {cycleStatusColor()};">
-                <span class="dot" style="background: {cycleStatusColor()};"></span>
+              <span
+                class="cycle-stat-value"
+                style="color: {cycleStatusColor()};"
+              >
+                <span class="dot" style="background: {cycleStatusColor()};"
+                ></span>
                 {cycleStatus() === "ok"
                   ? "Healthy"
                   : cycleStatus() === "warn"
@@ -253,7 +261,9 @@
             </div>
             <div class="cycle-stat">
               <span class="cycle-stat-label">Cycles completed</span>
-              <span class="cycle-stat-value">{refreshState.cycle_count ?? "—"}</span>
+              <span class="cycle-stat-value"
+                >{refreshState.cycle_count ?? "—"}</span
+              >
             </div>
             <div class="cycle-stat">
               <span class="cycle-stat-label">Last cycle</span>
@@ -263,7 +273,10 @@
             </div>
             <div class="cycle-stat">
               <span class="cycle-stat-label">Last cycle age</span>
-              <span class="cycle-stat-value" style="color: {cycleStatusColor()};">
+              <span
+                class="cycle-stat-value"
+                style="color: {cycleStatusColor()};"
+              >
                 {formatRelative(refreshState.last_cycle_at)}
               </span>
             </div>
@@ -281,7 +294,9 @@
             <div class="cycle-stat">
               <span class="cycle-stat-label">Interval</span>
               <span class="cycle-stat-value"
-                >{progress?.intervalSec ? `${progress.intervalSec}s` : "—"}</span
+                >{progress?.intervalSec
+                  ? `${progress.intervalSec}s`
+                  : "—"}</span
               >
             </div>
           </div>
@@ -310,7 +325,9 @@
               <span class="coverage-card-label">Market coins</span>
               <span
                 class="coverage-card-pct"
-                style="color: {coverageColor(progress.sections.marketCoins.coveragePct)};"
+                style="color: {coverageColor(
+                  progress.sections.marketCoins.coveragePct,
+                )};"
               >
                 {formatPct(progress.sections.marketCoins.coveragePct)}
               </span>
@@ -323,40 +340,54 @@
               <span class="coverage-card-label">Coin breakdown</span>
               <span
                 class="coverage-card-pct"
-                style="color: {coverageColor(progress.sections.coinBreakdown.coveragePct)};"
+                style="color: {coverageColor(
+                  progress.sections.coinBreakdown.coveragePct,
+                )};"
               >
                 {formatPct(progress.sections.coinBreakdown.coveragePct)}
               </span>
               <span class="coverage-card-sub"
-                >{progress.sections.coinBreakdown.populated} / {progress.sections
-                  .coinBreakdown.expected}</span
+                >{progress.sections.coinBreakdown.populated} / {progress
+                  .sections.coinBreakdown.expected}</span
               >
             </div>
             <div class="coverage-card">
               <span class="coverage-card-label">Charts</span>
               <span
                 class="coverage-card-pct"
-                style="color: {coverageColor(progress.sections.charts.coveragePct)};"
+                style="color: {coverageColor(
+                  progress.sections.charts.coveragePct,
+                )};"
               >
                 {formatPct(progress.sections.charts.coveragePct)}
               </span>
               <span class="coverage-card-sub"
-                >{progress.sections.charts.populated} / {progress.sections.charts
-                  .expected}</span
+                >{progress.sections.charts.populated} / {progress.sections
+                  .charts.expected}</span
               >
             </div>
           </div>
 
           <div class="freshness-row">
             <span class="freshness-label">Freshness</span>
-            <span class="freshness-badge fresh">{progress.freshness.fresh} fresh</span>
-            <span class="freshness-badge warn">{progress.freshness.warning} warning</span>
-            <span class="freshness-badge stale">{progress.freshness.stale} stale</span>
+            <span class="freshness-badge fresh"
+              >{progress.freshness.fresh} fresh</span
+            >
+            <span class="freshness-badge warn"
+              >{progress.freshness.warning} warning</span
+            >
+            <span class="freshness-badge stale"
+              >{progress.freshness.stale} stale</span
+            >
             {#if progress.freshness.unknown > 0}
-              <span class="freshness-badge unknown">{progress.freshness.unknown} unknown</span>
+              <span class="freshness-badge unknown"
+                >{progress.freshness.unknown} unknown</span
+              >
             {/if}
             <span class="freshness-as-of"
-              >as of {formatRelative(progress.snapshotTs ?? progress.asOf)}</span
+              >as of {formatRelative(
+                progress.snapshotTs ?? progress.asOf,
+              )}</span
             >
           </div>
         {/if}
@@ -464,7 +495,9 @@
     letter-spacing: 0.08em;
     padding: 0.1rem 0.5rem;
     cursor: pointer;
-    transition: border-color 0.15s, color 0.15s;
+    transition:
+      border-color 0.15s,
+      color 0.15s;
   }
 
   .d-refresh-btn:hover {
@@ -667,4 +700,3 @@
     font-variant-numeric: tabular-nums;
   }
 </style>
-
