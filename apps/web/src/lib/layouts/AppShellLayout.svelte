@@ -273,7 +273,8 @@
         if (!alive) return;
         if (res.ok) {
           const body = (await res.json()) as { db?: string };
-          dbStatus = body.db === "ok" ? "ok" : body.db === "down" ? "down" : "unknown";
+          dbStatus =
+            body.db === "ok" ? "ok" : body.db === "down" ? "down" : "unknown";
         } else {
           dbStatus = "down";
         }
@@ -628,7 +629,12 @@
   }
 
   @keyframes db-blink {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.35; }
+    0%,
+    100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.35;
+    }
   }
 </style>

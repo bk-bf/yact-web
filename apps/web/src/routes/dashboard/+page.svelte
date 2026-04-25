@@ -391,419 +391,414 @@
 
   <!-- ══ MAIN 3-PANE GRID ═══════════════════════════════════════════════════ -->
   <div class="t-main">
-      <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
-      <div class="t-col t-col-l">
-        <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
-        {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
-          <div class="t-panel alert-panel">
-            <div class="t-panel-label alert-label">⚠ ALERT</div>
-            <div class="t-panel-body">
-              <div class="alert-title">
-                CYCLE FAILING{(refreshState.current_state
-                  .consecutive_failures ?? 0) > 1
-                  ? ` · ${refreshState.current_state.consecutive_failures}×`
-                  : ""}
-              </div>
-              <div class="alert-msg">{refreshState.current_state.error}</div>
+    <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
+    <div class="t-col t-col-l">
+      <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
+      {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
+        <div class="t-panel alert-panel">
+          <div class="t-panel-label alert-label">⚠ ALERT</div>
+          <div class="t-panel-body">
+            <div class="alert-title">
+              CYCLE FAILING{(refreshState.current_state.consecutive_failures ??
+                0) > 1
+                ? ` · ${refreshState.current_state.consecutive_failures}×`
+                : ""}
             </div>
-          </div>
-        {/if}
-        <!-- Miner Cycle -->
-        <div class="t-panel">
-          <div class="t-panel-label">
-            MINER CYCLE // {refreshState
-              ? cycleStatus() === "ok"
-                ? "HEALTHY"
-                : cycleStatus() === "warn"
-                  ? "WARNING"
-                  : cycleStatus() === "error"
-                    ? "STALLED"
-                    : "UNKNOWN"
-              : "—"}
-          </div>
-          <div class="t-panel-body">
-            {#if !refreshState}
-              <p class="t-empty">no cycle data</p>
-            {:else}
-              <div class="m-row">
-                <span class="m-k">cycles</span><span class="m-v"
-                  >{refreshState.cycle_count ?? "—"}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">last cycle</span><span class="m-v"
-                  >{formatDateTime(refreshState.last_cycle_at)}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">age</span><span
-                  class="m-v"
-                  style="color:{cycleStatusColor()};"
-                  >{formatRelative(refreshState.last_cycle_at)}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">last success</span><span
-                  class="m-v"
-                  style="color:{refreshState.last_cycle_success
-                    ? 'var(--status-ok)'
-                    : 'var(--status-error)'};"
-                  >{refreshState.last_cycle_success ? "YES" : "NO"}</span
-                >
-              </div>
-              {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
-                <div class="m-row">
-                  <span class="m-k">failures</span><span
-                    class="m-v"
-                    style="color:var(--status-error);"
-                    >{refreshState.current_state?.consecutive_failures}</span
-                  >
-                </div>
-              {/if}
-              <div class="m-row">
-                <span class="m-k">interval</span><span class="m-v"
-                  >{progress?.intervalSec
-                    ? `${progress.intervalSec}s`
-                    : "—"}</span
-                >
-              </div>
-            {/if}
+            <div class="alert-msg">{refreshState.current_state.error}</div>
           </div>
         </div>
-
-        <!-- Provider Health -->
-        <div class="t-panel">
-          <div class="t-panel-label">
-            PROVIDER HEALTH // {providers.filter((p) => p.status === "healthy")
-              .length}/{providers.length} OK
-          </div>
-          <div class="t-panel-body">
-            {#if providers.length === 0}
-              <p class="t-empty">no provider data</p>
-            {:else}
-              {#each providers as p (p.provider)}
-                <div class="prov-row">
-                  <span class="prov-name">{p.provider}</span>
-                  <span
-                    class="prov-status"
-                    style="color:{providerStatusColor(p.status)};"
-                  >
-                    {#if p.status === "error" && p.error_streak > 0}{p.error_streak}
-                      ERR{:else if p.status === "rate_limited" && p.error_streak > 0}LIMIT
-                      · {p.error_streak}{:else}{providerStatusLabel(
-                        p.status,
-                      ).toUpperCase()}{/if}
-                  </span>
-                  <span class="prov-last"
-                    >{formatRelative(p.last_success_at)}</span
-                  >
-                </div>
-              {/each}
-            {/if}
-          </div>
+      {/if}
+      <!-- Miner Cycle -->
+      <div class="t-panel">
+        <div class="t-panel-label">
+          MINER CYCLE // {refreshState
+            ? cycleStatus() === "ok"
+              ? "HEALTHY"
+              : cycleStatus() === "warn"
+                ? "WARNING"
+                : cycleStatus() === "error"
+                  ? "STALLED"
+                  : "UNKNOWN"
+            : "—"}
         </div>
-
-        <!-- DB Cohorts -->
-        <div class="t-panel">
-          <div class="t-panel-label">
-            DB COIN COHORTS // {progress?.dbCohorts
-              ? progress.dbCohorts.totalInDb.toLocaleString() + " TOTAL"
-              : "—"}
-          </div>
-          <div class="t-panel-body">
-            {#if !progress?.dbCohorts}
-              <p class="t-empty">no cohort data</p>
-            {:else}
-              {@const c = progress.dbCohorts as DbCohorts}
-              <div class="m-row">
-                <span class="m-k">total in db</span><span class="m-v"
-                  >{c.totalInDb.toLocaleString()}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">paprika-ranked</span><span class="m-v"
-                  >{c.paprikaTracked.toLocaleString()}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">ticker-only</span><span class="m-v"
-                  >{c.tickerOnly.toLocaleString()}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">current snapshot</span><span
-                  class="m-v cohort-hl"
-                  >{c.currentSnapshot.toLocaleString()}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">coingecko-enriched</span><span class="m-v"
-                  >{c.coingeckoEnriched.toLocaleString()}</span
-                >
-              </div>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Fill Tracker -->
-        <div class="t-panel t-panel-grow">
-          <div class="t-panel-label">
-            FILL TRACKER // {fieldVelocity
-              ? `${fieldVelocity.totalCoins} COINS`
-              : "—"}
-          </div>
-          <div class="t-panel-body">
-            {#if velocityLoading}
-              <LoadingDots label="Loading" />
-            {:else if !fieldVelocity}
-              <p class="t-empty">no velocity data</p>
-            {:else}
-              <div class="vt-hdr">
-                <span class="vt-name">FIELD</span>
-                <span class="vt-num">FILLED</span>
-                <span class="vt-num">+1H</span>
-                <span class="vt-num">+7H</span>
-                <span class="vt-num">+24H</span>
-                <span class="vt-dlt">Δ</span>
-              </div>
-              {#each fieldVelocity.fields as entry}
-                {@const pct =
-                  fieldVelocity.totalCoins > 0
-                    ? Math.round((entry.total / fieldVelocity.totalCoins) * 100)
-                    : 0}
-                <div class="vt-row">
-                  <span class="vt-name">{entry.field}</span>
-                  <span class="vt-num"
-                    >{entry.total}<span class="vt-pct"> {pct}%</span></span
-                  >
-                  <span class="vt-num"
-                    >{entry.window_1h > 0 ? entry.window_1h : "—"}</span
-                  >
-                  <span class="vt-num"
-                    >{entry.window_7h > 0 ? entry.window_7h : "—"}</span
-                  >
-                  <span class="vt-num"
-                    >{entry.window_24h > 0 ? entry.window_24h : "—"}</span
-                  >
-                  <span
-                    class="vt-dlt"
-                    style="color:{entry.delta > 0
-                      ? 'var(--status-ok)'
-                      : entry.delta < 0
-                        ? 'var(--status-error)'
-                        : 'rgba(200,212,207,0.22)'};"
-                    >{entry.delta > 0
-                      ? "+" + entry.delta
-                      : entry.delta === 0
-                        ? "—"
-                        : entry.delta}</span
-                  >
-                </div>
-              {/each}
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <!-- ── CENTER COLUMN: LOG STREAM ───────────────────────────────────── -->
-      <div class="t-col t-col-c">
-        <div class="t-panel t-panel-fill">
-          <div class="t-panel-label">
-            LOG STREAM // {logSource.toUpperCase()} // LIVE{logLines.length > 0
-              ? ` // ${logLines.length}`
-              : ""}
-          </div>
-          <div class="t-panel-tools">
-            <div class="log-toggle">
-              <button
-                class="t-tab"
-                class:active={logSource === "miner"}
-                onclick={() => {
-                  logSource = "miner";
-                }}>MINER</button
-              >
-              <button
-                class="t-tab"
-                class:active={logSource === "api"}
-                onclick={() => {
-                  logSource = "api";
-                }}>API</button
+        <div class="t-panel-body">
+          {#if !refreshState}
+            <p class="t-empty">no cycle data</p>
+          {:else}
+            <div class="m-row">
+              <span class="m-k">cycles</span><span class="m-v"
+                >{refreshState.cycle_count ?? "—"}</span
               >
             </div>
-            <button
-              class="t-btn t-btn-tiny t-btn-icon"
-              onclick={() => {
-                reconnectKey += 1;
-              }}
-              title="Reconnect stream">↻</button
-            >
-          </div>
-          <div class="t-stream" bind:this={streamEl}>
-            {#if logLoading && logLines.length === 0}
-              <LoadingDots label="Loading logs" />
-            {:else if parsedLogLines.length === 0}
-              <p class="t-empty">no log lines found</p>
-            {:else}
-              <div class="stream-hdr">
-                <span>TIME</span><span>LEVEL</span><span>DETAIL</span><span
-                  >TAG</span
-                >
-              </div>
-              <div class="stream-rule" aria-hidden="true"></div>
-              {#each parsedLogLines as row, i (i)}
-                {@const tag = levelTag(row.level, row.detail)}
-                <div class="stream-row">
-                  <span class="sr-ts">{row.ts}</span>
-                  <span class="sr-kind" style="color:{levelColor(row.level)};"
-                    >{row.level ? `[${row.level}]` : ""}</span
-                  >
-                  <span class="sr-detail">{row.detail}</span>
-                  <span class="sr-tag" style="color:{tag.color};"
-                    >{tag.label}</span
-                  >
-                </div>
-              {/each}
-            {/if}
-          </div>
-        </div>
-      </div>
-
-      <!-- ── RIGHT COLUMN: Data Health ───────────────────────────────────── -->
-      <div class="t-col t-col-r">
-        <!-- Data Coverage -->
-        <div class="t-panel">
-          <div class="t-panel-label">
-            DATA COVERAGE // {progress
-              ? formatPct(progress.totals.coveragePct)
-              : "—"}
-          </div>
-          <div class="t-panel-body">
-            {#if progressLoading}
-              <LoadingDots label="Loading" />
-            {:else if !progress}
-              <p class="t-empty">no coverage data</p>
-            {:else}
+            <div class="m-row">
+              <span class="m-k">last cycle</span><span class="m-v"
+                >{formatDateTime(refreshState.last_cycle_at)}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">age</span><span
+                class="m-v"
+                style="color:{cycleStatusColor()};"
+                >{formatRelative(refreshState.last_cycle_at)}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">last success</span><span
+                class="m-v"
+                style="color:{refreshState.last_cycle_success
+                  ? 'var(--status-ok)'
+                  : 'var(--status-error)'};"
+                >{refreshState.last_cycle_success ? "YES" : "NO"}</span
+              >
+            </div>
+            {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
               <div class="m-row">
-                <span class="m-k">overall</span><span
-                  class="m-v"
-                  style="color:{coverageColor(progress.totals.coveragePct)};"
-                  >{formatPct(progress.totals.coveragePct)}</span
-                ><span class="m-s"
-                  >{progress.totals.populated}/{progress.totals.expected}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">market</span><span
-                  class="m-v"
-                  style="color:{coverageColor(
-                    progress.sections.marketCoins.coveragePct,
-                  )};"
-                  >{formatPct(progress.sections.marketCoins.coveragePct)}</span
-                ><span class="m-s"
-                  >{progress.sections.marketCoins.populated}/{progress.sections
-                    .marketCoins.expected}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">breakdown</span><span
-                  class="m-v"
-                  style="color:{coverageColor(
-                    progress.sections.coinBreakdown.coveragePct,
-                  )};"
-                  >{formatPct(
-                    progress.sections.coinBreakdown.coveragePct,
-                  )}</span
-                ><span class="m-s"
-                  >{progress.sections.coinBreakdown.populated}/{progress
-                    .sections.coinBreakdown.expected}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">charts</span><span
-                  class="m-v"
-                  style="color:{coverageColor(
-                    progress.sections.charts.coveragePct,
-                  )};">{formatPct(progress.sections.charts.coveragePct)}</span
-                ><span class="m-s"
-                  >{progress.sections.charts.populated}/{progress.sections
-                    .charts.expected}</span
-                >
-              </div>
-            {/if}
-          </div>
-        </div>
-
-        <!-- Freshness -->
-        <div class="t-panel">
-          <div class="t-panel-label">
-            FRESHNESS // {progress
-              ? `AS OF ${formatRelative(progress.snapshotTs ?? progress.asOf)}`
-              : "—"}
-          </div>
-          <div class="t-panel-body">
-            {#if !progress}
-              <p class="t-empty">—</p>
-            {:else}
-              <div class="m-row">
-                <span class="m-k">fresh</span><span
-                  class="m-v"
-                  style="color:var(--status-ok);"
-                  >{progress.freshness.fresh}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">warning</span><span
-                  class="m-v"
-                  style="color:var(--status-warn);"
-                  >{progress.freshness.warning}</span
-                >
-              </div>
-              <div class="m-row">
-                <span class="m-k">stale</span><span
+                <span class="m-k">failures</span><span
                   class="m-v"
                   style="color:var(--status-error);"
-                  >{progress.freshness.stale}</span
+                  >{refreshState.current_state?.consecutive_failures}</span
                 >
               </div>
-              {#if progress.freshness.unknown > 0}
-                <div class="m-row">
-                  <span class="m-k">unknown</span><span class="m-v"
-                    >{progress.freshness.unknown}</span
-                  >
-                </div>
-              {/if}
             {/if}
-          </div>
+            <div class="m-row">
+              <span class="m-k">interval</span><span class="m-v"
+                >{progress?.intervalSec
+                  ? `${progress.intervalSec}s`
+                  : "—"}</span
+              >
+            </div>
+          {/if}
         </div>
+      </div>
 
-        <!-- Coverage Detail (compact) -->
-        <div class="t-panel t-panel-grow">
-          <div class="t-panel-label">
-            COVERAGE DETAIL // {progress?.missingClarity
-              ? progress.missingClarity.expectedCoins.toLocaleString() +
-                " COINS"
-              : "—"}
-          </div>
-          <div class="t-panel-body">
-            {#if progressLoading}
-              <LoadingDots label="Loading" />
-            {:else if !progress}
-              <p class="t-empty">no coverage data</p>
-            {:else if !progress.missingClarity}
-              <p class="t-empty">no field-level breakdown</p>
-            {:else}
-              <CoverageDetail
-                missingClarity={progress.missingClarity}
-                metadataStage={progress.metadataStage}
-                chartTimeframes={progress.chartTimeframes}
-                totalCoins={progress.missingClarity.expectedCoins}
-                priceTier={progress.priceTier}
-              />
-            {/if}
-          </div>
+      <!-- Provider Health -->
+      <div class="t-panel">
+        <div class="t-panel-label">
+          PROVIDER HEALTH // {providers.filter((p) => p.status === "healthy")
+            .length}/{providers.length} OK
+        </div>
+        <div class="t-panel-body">
+          {#if providers.length === 0}
+            <p class="t-empty">no provider data</p>
+          {:else}
+            {#each providers as p (p.provider)}
+              <div class="prov-row">
+                <span class="prov-name">{p.provider}</span>
+                <span
+                  class="prov-status"
+                  style="color:{providerStatusColor(p.status)};"
+                >
+                  {#if p.status === "error" && p.error_streak > 0}{p.error_streak}
+                    ERR{:else if p.status === "rate_limited" && p.error_streak > 0}LIMIT
+                    · {p.error_streak}{:else}{providerStatusLabel(
+                      p.status,
+                    ).toUpperCase()}{/if}
+                </span>
+                <span class="prov-last"
+                  >{formatRelative(p.last_success_at)}</span
+                >
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+
+      <!-- DB Cohorts -->
+      <div class="t-panel">
+        <div class="t-panel-label">
+          DB COIN COHORTS // {progress?.dbCohorts
+            ? progress.dbCohorts.totalInDb.toLocaleString() + " TOTAL"
+            : "—"}
+        </div>
+        <div class="t-panel-body">
+          {#if !progress?.dbCohorts}
+            <p class="t-empty">no cohort data</p>
+          {:else}
+            {@const c = progress.dbCohorts as DbCohorts}
+            <div class="m-row">
+              <span class="m-k">total in db</span><span class="m-v"
+                >{c.totalInDb.toLocaleString()}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">paprika-ranked</span><span class="m-v"
+                >{c.paprikaTracked.toLocaleString()}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">ticker-only</span><span class="m-v"
+                >{c.tickerOnly.toLocaleString()}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">current snapshot</span><span
+                class="m-v cohort-hl">{c.currentSnapshot.toLocaleString()}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">coingecko-enriched</span><span class="m-v"
+                >{c.coingeckoEnriched.toLocaleString()}</span
+              >
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Fill Tracker -->
+      <div class="t-panel t-panel-grow">
+        <div class="t-panel-label">
+          FILL TRACKER // {fieldVelocity
+            ? `${fieldVelocity.totalCoins} COINS`
+            : "—"}
+        </div>
+        <div class="t-panel-body">
+          {#if velocityLoading}
+            <LoadingDots label="Loading" />
+          {:else if !fieldVelocity}
+            <p class="t-empty">no velocity data</p>
+          {:else}
+            <div class="vt-hdr">
+              <span class="vt-name">FIELD</span>
+              <span class="vt-num">FILLED</span>
+              <span class="vt-num">+1H</span>
+              <span class="vt-num">+7H</span>
+              <span class="vt-num">+24H</span>
+              <span class="vt-dlt">Δ</span>
+            </div>
+            {#each fieldVelocity.fields as entry}
+              {@const pct =
+                fieldVelocity.totalCoins > 0
+                  ? Math.round((entry.total / fieldVelocity.totalCoins) * 100)
+                  : 0}
+              <div class="vt-row">
+                <span class="vt-name">{entry.field}</span>
+                <span class="vt-num"
+                  >{entry.total}<span class="vt-pct"> {pct}%</span></span
+                >
+                <span class="vt-num"
+                  >{entry.window_1h > 0 ? entry.window_1h : "—"}</span
+                >
+                <span class="vt-num"
+                  >{entry.window_7h > 0 ? entry.window_7h : "—"}</span
+                >
+                <span class="vt-num"
+                  >{entry.window_24h > 0 ? entry.window_24h : "—"}</span
+                >
+                <span
+                  class="vt-dlt"
+                  style="color:{entry.delta > 0
+                    ? 'var(--status-ok)'
+                    : entry.delta < 0
+                      ? 'var(--status-error)'
+                      : 'rgba(200,212,207,0.22)'};"
+                  >{entry.delta > 0
+                    ? "+" + entry.delta
+                    : entry.delta === 0
+                      ? "—"
+                      : entry.delta}</span
+                >
+              </div>
+            {/each}
+          {/if}
         </div>
       </div>
     </div>
+
+    <!-- ── CENTER COLUMN: LOG STREAM ───────────────────────────────────── -->
+    <div class="t-col t-col-c">
+      <div class="t-panel t-panel-fill">
+        <div class="t-panel-label">
+          LOG STREAM // {logSource.toUpperCase()} // LIVE{logLines.length > 0
+            ? ` // ${logLines.length}`
+            : ""}
+        </div>
+        <div class="t-panel-tools">
+          <div class="log-toggle">
+            <button
+              class="t-tab"
+              class:active={logSource === "miner"}
+              onclick={() => {
+                logSource = "miner";
+              }}>MINER</button
+            >
+            <button
+              class="t-tab"
+              class:active={logSource === "api"}
+              onclick={() => {
+                logSource = "api";
+              }}>API</button
+            >
+          </div>
+          <button
+            class="t-btn t-btn-tiny t-btn-icon"
+            onclick={() => {
+              reconnectKey += 1;
+            }}
+            title="Reconnect stream">↻</button
+          >
+        </div>
+        <div class="t-stream" bind:this={streamEl}>
+          {#if logLoading && logLines.length === 0}
+            <LoadingDots label="Loading logs" />
+          {:else if parsedLogLines.length === 0}
+            <p class="t-empty">no log lines found</p>
+          {:else}
+            <div class="stream-hdr">
+              <span>TIME</span><span>LEVEL</span><span>DETAIL</span><span
+                >TAG</span
+              >
+            </div>
+            <div class="stream-rule" aria-hidden="true"></div>
+            {#each parsedLogLines as row, i (i)}
+              {@const tag = levelTag(row.level, row.detail)}
+              <div class="stream-row">
+                <span class="sr-ts">{row.ts}</span>
+                <span class="sr-kind" style="color:{levelColor(row.level)};"
+                  >{row.level ? `[${row.level}]` : ""}</span
+                >
+                <span class="sr-detail">{row.detail}</span>
+                <span class="sr-tag" style="color:{tag.color};"
+                  >{tag.label}</span
+                >
+              </div>
+            {/each}
+          {/if}
+        </div>
+      </div>
+    </div>
+
+    <!-- ── RIGHT COLUMN: Data Health ───────────────────────────────────── -->
+    <div class="t-col t-col-r">
+      <!-- Data Coverage -->
+      <div class="t-panel">
+        <div class="t-panel-label">
+          DATA COVERAGE // {progress
+            ? formatPct(progress.totals.coveragePct)
+            : "—"}
+        </div>
+        <div class="t-panel-body">
+          {#if progressLoading}
+            <LoadingDots label="Loading" />
+          {:else if !progress}
+            <p class="t-empty">no coverage data</p>
+          {:else}
+            <div class="m-row">
+              <span class="m-k">overall</span><span
+                class="m-v"
+                style="color:{coverageColor(progress.totals.coveragePct)};"
+                >{formatPct(progress.totals.coveragePct)}</span
+              ><span class="m-s"
+                >{progress.totals.populated}/{progress.totals.expected}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">market</span><span
+                class="m-v"
+                style="color:{coverageColor(
+                  progress.sections.marketCoins.coveragePct,
+                )};"
+                >{formatPct(progress.sections.marketCoins.coveragePct)}</span
+              ><span class="m-s"
+                >{progress.sections.marketCoins.populated}/{progress.sections
+                  .marketCoins.expected}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">breakdown</span><span
+                class="m-v"
+                style="color:{coverageColor(
+                  progress.sections.coinBreakdown.coveragePct,
+                )};"
+                >{formatPct(progress.sections.coinBreakdown.coveragePct)}</span
+              ><span class="m-s"
+                >{progress.sections.coinBreakdown.populated}/{progress.sections
+                  .coinBreakdown.expected}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">charts</span><span
+                class="m-v"
+                style="color:{coverageColor(
+                  progress.sections.charts.coveragePct,
+                )};">{formatPct(progress.sections.charts.coveragePct)}</span
+              ><span class="m-s"
+                >{progress.sections.charts.populated}/{progress.sections.charts
+                  .expected}</span
+              >
+            </div>
+          {/if}
+        </div>
+      </div>
+
+      <!-- Freshness -->
+      <div class="t-panel">
+        <div class="t-panel-label">
+          FRESHNESS // {progress
+            ? `AS OF ${formatRelative(progress.snapshotTs ?? progress.asOf)}`
+            : "—"}
+        </div>
+        <div class="t-panel-body">
+          {#if !progress}
+            <p class="t-empty">—</p>
+          {:else}
+            <div class="m-row">
+              <span class="m-k">fresh</span><span
+                class="m-v"
+                style="color:var(--status-ok);">{progress.freshness.fresh}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">warning</span><span
+                class="m-v"
+                style="color:var(--status-warn);"
+                >{progress.freshness.warning}</span
+              >
+            </div>
+            <div class="m-row">
+              <span class="m-k">stale</span><span
+                class="m-v"
+                style="color:var(--status-error);"
+                >{progress.freshness.stale}</span
+              >
+            </div>
+            {#if progress.freshness.unknown > 0}
+              <div class="m-row">
+                <span class="m-k">unknown</span><span class="m-v"
+                  >{progress.freshness.unknown}</span
+                >
+              </div>
+            {/if}
+          {/if}
+        </div>
+      </div>
+
+      <!-- Coverage Detail (compact) -->
+      <div class="t-panel t-panel-grow">
+        <div class="t-panel-label">
+          COVERAGE DETAIL // {progress?.missingClarity
+            ? progress.missingClarity.expectedCoins.toLocaleString() + " COINS"
+            : "—"}
+        </div>
+        <div class="t-panel-body">
+          {#if progressLoading}
+            <LoadingDots label="Loading" />
+          {:else if !progress}
+            <p class="t-empty">no coverage data</p>
+          {:else if !progress.missingClarity}
+            <p class="t-empty">no field-level breakdown</p>
+          {:else}
+            <CoverageDetail
+              missingClarity={progress.missingClarity}
+              metadataStage={progress.metadataStage}
+              chartTimeframes={progress.chartTimeframes}
+              totalCoins={progress.missingClarity.expectedCoins}
+              priceTier={progress.priceTier}
+            />
+          {/if}
+        </div>
+      </div>
+    </div>
+  </div>
 </main>
 
 <style>
