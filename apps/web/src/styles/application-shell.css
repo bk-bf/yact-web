@@ -1066,7 +1066,7 @@ a {
 
 .market-table thead th {
     position: sticky;
-    top: calc(2.55rem + env(safe-area-inset-top, 0px));
+    top: env(safe-area-inset-top, 0px);
     z-index: 30;
     font-size: 0.82rem;
     text-transform: uppercase;
