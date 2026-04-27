@@ -263,7 +263,11 @@
     <p class="error-text">Unable to load market data: {viewData.error}</p>
   {:else if isRecovering}
     <div class="market-loading">
-      <LoadingDots label="Loading market data…" graceMs={8000} onExpired={() => {}} />
+      <LoadingDots
+        label="Loading market data…"
+        graceMs={8000}
+        onExpired={() => {}}
+      />
     </div>
   {:else}
     <MarketFilterBar {activeFilter} onfilter={handleFilterSelect} />
