@@ -1,5 +1,19 @@
 <script lang="ts">
-  const { label = "Loading…" }: { label?: string } = $props();
+  interface Props {
+    label?: string;
+    /** If set, call onExpired after this many ms — used to delay revealing an
+     *  empty/error state until the grace period has passed. */
+    graceMs?: number;
+    onExpired?: () => void;
+  }
+
+  const { label = "Loading…", graceMs, onExpired }: Props = $props();
+
+  $effect(() => {
+    if (!graceMs) return;
+    const id = setTimeout(() => onExpired?.(), graceMs);
+    return () => clearTimeout(id);
+  });
 </script>
 
 <div class="loading-dots" aria-label={label} role="status">

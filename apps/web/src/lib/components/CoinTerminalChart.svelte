@@ -6,6 +6,7 @@
     type ViewSettings,
   } from "../composables/useViewSettings.svelte";
   import LightweightChart from "./LightweightChart.svelte";
+  import LoadingDots from "./LoadingDots.svelte";
 
   const settings = getContext<ViewSettings>(VIEW_SETTINGS_KEY);
 
@@ -830,6 +831,11 @@
       </div>
     {:else}
       <div class="coin-widget-wrap" aria-label={`${coin.name} custom chart`}>
+        {#if chartFetchInFlight && !lastMeaningfulSeries}
+          <div class="coin-chart-loading-overlay">
+            <LoadingDots label="Loading chart…" />
+          </div>
+        {/if}
         <svg
           bind:this={chartSvg}
           viewBox={`0 0 ${chartWidth} ${chartHeight}`}

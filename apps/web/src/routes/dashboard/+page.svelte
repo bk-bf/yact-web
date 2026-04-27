@@ -29,7 +29,7 @@
   // ── Log viewer state ────────────────────────────────────────────────────────
   let logLines = $state<string[]>([]);
   let logSource = $state<"miner" | "api">("miner");
-  let logLoading = $state(false);
+  let logGraceExpired = $state(false);
   let streamEl = $state<HTMLElement | null>(null);
   // Incrementing this forces the effect to re-run (reconnect) even when source hasn't changed
   let reconnectKey = $state(0);
@@ -52,6 +52,16 @@
     return next;
   }
 
+  // ── Log stream phase ─────────────────────────────────────────────────────────
+  // 'loading' : no lines yet, grace period still open → show animation
+  // 'empty'   : grace expired, still no lines → show empty message
+  // 'content' : at least one raw line received → show rows (filter handled below)
+  const logPhase = $derived(
+    logLines.length > 0 ? ('content' as const)
+    : logGraceExpired   ? ('empty'   as const)
+    :                     ('loading' as const)
+  );
+
   // ── Live SSE stream ──────────────────────────────────────────────────────────
   // Opens an EventSource for the active source; restarts when logSource or reconnectKey changes.
   $effect(() => {
@@ -59,14 +69,12 @@
     const src = logSource;
     void reconnectKey; // declare dependency so ↻ can force a reconnect
     logLines = [];
-    logLoading = true;
+    logGraceExpired = false;
 
     const es = new EventSource(`/api/logs/stream?source=${src}`);
 
     es.onmessage = (e: MessageEvent<string>) => {
-      logLoading = false;
       if (e.data.trim()) {
-        // Keep latest 500 lines; order controlled by logNewestTop
         logLines =
           logLines.length >= 500
             ? [...logLines.slice(-499), e.data]
@@ -75,10 +83,7 @@
     };
 
     // Do NOT close on error — let EventSource auto-reconnect every 3 s.
-    // Only update loading state so the UI reflects the reconnecting state.
-    es.onerror = () => {
-      logLoading = false;
-    };
+    es.onerror = () => {};
 
     return () => {
       es.close();
@@ -775,10 +780,16 @@
           class:t-stream-wrap={logWrap}
           bind:this={streamEl}
         >
-          {#if logLoading && logLines.length === 0}
-            <LoadingDots label="Loading logs" />
-          {:else if parsedLogLines.length === 0}
+          {#if logPhase === 'loading'}
+            <LoadingDots
+              label="Loading logs"
+              graceMs={5000}
+              onExpired={() => { logGraceExpired = true; }}
+            />
+          {:else if logPhase === 'empty'}
             <p class="t-empty">no log lines found</p>
+          {:else if parsedLogLines.length === 0}
+            <p class="t-empty">no lines match current filter</p>
           {:else}
             <div class="stream-hdr">
               <span>TIME</span><span>LEVEL</span><span>DETAIL</span><span
