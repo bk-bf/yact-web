@@ -11,8 +11,12 @@
     children: Snippet;
   }
 
-  let { loading, noBorder = false, noScroll = false, children }: Props =
-    $props();
+  let {
+    loading,
+    noBorder = false,
+    noScroll = false,
+    children,
+  }: Props = $props();
 </script>
 
 <div class="t-col" class:no-border={noBorder} class:no-scroll={noScroll}>
