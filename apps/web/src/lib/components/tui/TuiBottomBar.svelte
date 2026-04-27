@@ -2,9 +2,10 @@
   interface Props {
     branch: string;
     meta: string;
+    onSettings?: () => void;
   }
 
-  let { branch, meta }: Props = $props();
+  let { branch, meta, onSettings }: Props = $props();
 </script>
 
 <div class="t-botbar">
@@ -12,6 +13,9 @@
   <span class="t-key">[Tab]</span><span class="t-keylabel">panel</span>
   <span class="t-key">[r]</span><span class="t-keylabel">refresh</span>
   <span class="t-key">[f]</span><span class="t-keylabel">filter</span>
+  <button class="t-settings-btn" onclick={onSettings}>
+    <span class="t-key">[s]</span><span class="t-keylabel">settings</span>
+  </button>
   <span class="t-key">[?]</span><span class="t-keylabel">help</span>
   <span class="t-key">[q]</span><span class="t-keylabel">quit</span>
   <span class="t-sep-r">│</span>
@@ -33,6 +37,22 @@
     flex-shrink: 0;
     white-space: nowrap;
     overflow: hidden;
+  }
+  .t-settings-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 0;
+    padding: 0;
+    font-family: inherit;
+  }
+  .t-settings-btn:hover .t-key {
+    color: #d580ff;
+  }
+  .t-settings-btn:hover .t-keylabel {
+    color: rgba(200, 212, 207, 0.65);
   }
   .t-key {
     color: #b026ff;

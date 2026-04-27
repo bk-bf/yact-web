@@ -129,7 +129,9 @@
     </div>
 
     {#if !hlAddress}
-      <div class="ws-nocfg">no wallet — configure in <span class="ws-key">[s]</span> settings</div>
+      <div class="ws-nocfg">
+        no wallet — configure in <span class="ws-key">[s]</span> settings
+      </div>
     {:else if hlLoading}
       <div class="ws-loading"><LoadingDots label="Fetching HL data" /></div>
     {:else if hlError}
@@ -199,7 +201,9 @@
     </div>
 
     {#if !solAddress}
-      <div class="ws-nocfg">no wallet — configure in <span class="ws-key">[s]</span> settings</div>
+      <div class="ws-nocfg">
+        no wallet — configure in <span class="ws-key">[s]</span> settings
+      </div>
     {:else if solLoading}
       <div class="ws-loading"><LoadingDots label="Fetching Solana data" /></div>
     {:else if solError}
@@ -271,59 +275,17 @@
     font-size: 0.6rem;
     font-family: monospace;
   }
-  .ws-disc {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: rgba(255, 77, 87, 0.55);
-    font-size: 0.65rem;
-    padding: 0 0.1rem;
-    line-height: 1;
+  .ws-nocfg {
+    color: rgba(200, 212, 207, 0.28);
+    font-size: 0.6rem;
+    padding: 0.25rem 0 0.3rem;
+    font-style: italic;
   }
-  .ws-disc:hover {
-    color: #ff4d57;
+  .ws-key {
+    color: rgba(176, 38, 255, 0.65);
+    font-style: normal;
   }
-  .ws-input-row {
-    display: flex;
-    gap: 0.3rem;
-    padding: 0.1rem 0 0.35rem;
-  }
-  .ws-input {
-    flex: 1;
-    min-width: 0;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(176, 38, 255, 0.18);
-    color: #c8d4cf;
-    font-family: "JetBrains Mono", monospace;
-    font-size: 0.62rem;
-    padding: 0.18rem 0.35rem;
-    outline: none;
-  }
-  .ws-input:focus {
-    border-color: rgba(176, 38, 255, 0.5);
-  }
-  .ws-input::placeholder {
-    color: rgba(200, 212, 207, 0.25);
-  }
-  .ws-btn {
-    background: rgba(176, 38, 255, 0.12);
-    border: 1px solid rgba(176, 38, 255, 0.3);
-    color: rgba(176, 38, 255, 0.85);
-    font-family: "JetBrains Mono", monospace;
-    font-size: 0.58rem;
-    letter-spacing: 0.07em;
-    padding: 0.18rem 0.45rem;
-    cursor: pointer;
-    white-space: nowrap;
-  }
-  .ws-btn:hover:not(:disabled) {
-    background: rgba(176, 38, 255, 0.22);
-    color: rgba(176, 38, 255, 1);
-  }
-  .ws-btn:disabled {
-    opacity: 0.35;
-    cursor: not-allowed;
-  }
+  .ws-loading {
     padding: 0.4rem 0;
   }
   :global(.ws-loading .loading-dots) {

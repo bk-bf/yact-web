@@ -13,6 +13,7 @@
   import TuiNewsFeed from "$lib/components/tui/TuiNewsFeed.svelte";
   import TuiBottomBar from "$lib/components/tui/TuiBottomBar.svelte";
   import TuiDashColumn from "$lib/components/tui/TuiDashColumn.svelte";
+  import TuiSettingsPanel from "$lib/components/tui/TuiSettingsPanel.svelte";
 
   import placeholder from "./terminal.placeholder.json";
   import type {
@@ -34,7 +35,15 @@
   let headlines: TuiHeadline[] = $state([]);
   let newsRows: (TuiHeadline & { key: number })[] = $state([]);
   let globalData: TuiGlobalData | null = $state(null);
-  let liveDataLoading: boolean = $state(true);  let totalCoinCount: number = $state(0);
+  let liveDataLoading: boolean = $state(true);
+
+  // Settings overlay
+  let settingsOpen: boolean = $state(false);
+
+  // Wallet addresses (managed here, passed to panel + settings)
+  let hlAddress: string | null = $state(null);
+  let solAddress: string | null = $state(null);
+  let totalCoinCount: number = $state(0);
   // T-305 — live signal bars (F&G, Funding, OI)
   let signalBars: BarItem[] = $state(placeholder.signalBars as BarItem[]);
   let signalBarsLoading: boolean = $state(false);
@@ -59,6 +68,14 @@
     tick();
     const clockId = setInterval(tick, 1000);
     const blinkId = setInterval(() => (blinkOn = !blinkOn), 600);
+
+    // Global [s] key to toggle settings
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "s" && !settingsOpen && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+        settingsOpen = true;
+      }
+    }
+    document.addEventListener("keydown", handleKey);
 
     // Placeholder signal log stream — loops through placeholder log[]
     let logIdx = 0,
@@ -95,7 +112,8 @@
           .slice(0, 12);
         if (d.global?.totalMarketCapUsd) globalData = d.global;
         const active = d.global?.activeCryptocurrencies;
-        totalCoinCount = (typeof active === "number" && active > 0) ? active : coins.length;
+        totalCoinCount =
+          typeof active === "number" && active > 0 ? active : coins.length;
       })
       .catch(() => {})
       .finally(() => {
@@ -165,6 +183,7 @@
       clearInterval(blinkId);
       clearInterval(streamId);
       clearInterval(newsId);
+      document.removeEventListener("keydown", handleKey);
     };
   });
 </script>
@@ -183,7 +202,7 @@
   <div class="t-main">
     <!-- ── LEFT COLUMN — Wallet tracker + signal bars ───────────────────── -->
     <TuiDashColumn loading={false}>
-      <TuiPortfolioPanel />
+      <TuiPortfolioPanel {hlAddress} {solAddress} />
       <TuiSignalBars bars={signalBars} loading={signalBarsLoading} />
     </TuiDashColumn>
 
@@ -210,6 +229,16 @@
   <TuiBottomBar
     branch={placeholder.bottomBar.branch}
     meta={placeholder.bottomBar.meta}
+    onSettings={() => { settingsOpen = true; }}
+  />
+
+  <TuiSettingsPanel
+    open={settingsOpen}
+    {hlAddress}
+    {solAddress}
+    onclose={() => { settingsOpen = false; }}
+    onSetHl={(addr) => { hlAddress = addr; }}
+    onSetSol={(addr) => { solAddress = addr; }}
   />
 
   <!-- CRT scanline overlay -->

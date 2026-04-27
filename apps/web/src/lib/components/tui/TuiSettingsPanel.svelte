@@ -11,8 +11,8 @@
   let { open, hlAddress, solAddress, onclose, onSetHl, onSetSol }: Props =
     $props();
 
-  let hlInput = $state(hlAddress ?? "");
-  let solInput = $state(solAddress ?? "");
+  let hlInput = $state("");
+  let solInput = $state("");
 
   // Sync inputs when addresses change from outside
   $effect(() => {
@@ -66,14 +66,17 @@
     role="dialog"
     aria-modal="true"
     aria-label="Settings"
+    tabindex="-1"
     onkeydown={handleOverlayKey}
     onclick={handleBackdropClick}
   >
-    <!-- svelte-ignore a11y_no_static_element_interactions -->
-    <div class="panel" onclick={stopPropagation}>
+    <!-- svelte-ignore a11y_no_static_element_interactions a11y_click_events_have_key_events -->
+    <div class="panel" onclick={stopPropagation} onkeydown={(e) => e.stopPropagation()}>
       <div class="panel-header">
         <span class="panel-title">⚙ SETTINGS</span>
-        <button class="close-btn" onclick={onclose} title="Close [Esc]">✕</button>
+        <button class="close-btn" onclick={onclose} title="Close [Esc]"
+          >✕</button
+        >
       </div>
 
       <div class="panel-section">
@@ -98,10 +101,12 @@
             <button
               class="connect-btn"
               onclick={applyHl}
-              disabled={!hlInput.trim()}
-            >SAVE</button>
+              disabled={!hlInput.trim()}>SAVE</button
+            >
           </div>
-          <div class="hint">Public wallet address — no private key required</div>
+          <div class="hint">
+            Public wallet address — no private key required
+          </div>
         {/if}
       </div>
 
@@ -132,10 +137,12 @@
             <button
               class="connect-btn"
               onclick={applySol}
-              disabled={!solInput.trim()}
-            >SAVE</button>
+              disabled={!solInput.trim()}>SAVE</button
+            >
           </div>
-          <div class="hint">Public wallet address — no private key required</div>
+          <div class="hint">
+            Public wallet address — no private key required
+          </div>
         {/if}
       </div>
 
