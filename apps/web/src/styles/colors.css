@@ -75,4 +75,40 @@
     --status-ok: #1ddf72;
     --status-warn: #f5a623;
     --status-error: #ff4d57;
+
+    /* ── TUI terminal design tokens ─────────────────────────────────────── */
+    /* Font */
+    --tui-font: "JetBrains Mono", "Menlo", "Consolas", monospace;
+    --tui-font-size: 0.7rem;
+    --tui-line-height: 1.55;
+
+    /* Root background */
+    --tui-root-bg: #030303;
+
+    /* Nav topbar */
+    --tui-topbar-bg: #1e0938;
+    --tui-topbar-border: rgba(160, 60, 240, 0.4);
+    --tui-topbar-shadow: 0 2px 20px rgba(120, 20, 200, 0.22);
+    --tui-topbar-height: 2.4rem;
+
+    /* Secondary info bar (ticker-bar style) */
+    --tui-infobar-bg: #050008;
+    --tui-infobar-border: rgba(176, 38, 255, 0.18);
+    --tui-infobar-height: 1.65rem;
+    --tui-infobar-label-color: rgba(176, 38, 255, 0.75);
+
+    /* Column grid */
+    --tui-col-border: rgba(176, 38, 255, 0.12);
+
+    /* Panel label bar */
+    --tui-plabel-bg: #0a020d;
+    --tui-plabel-border: rgba(176, 38, 255, 0.1);
+    --tui-plabel-color: rgba(176, 38, 255, 0.72);
+    --tui-panel-sep: rgba(176, 38, 255, 0.08);
+    --tui-panel-grow-scrollbar: rgba(176, 38, 255, 0.15);
+
+    /* Accent / separator */
+    --tui-sep-color: rgba(176, 38, 255, 0.3);
+    --tui-muted: rgba(200, 212, 207, 0.4);
+    --tui-muted-strong: rgba(200, 212, 207, 0.65);
 }

@@ -4,6 +4,9 @@
   import M3Surface from "$lib/components/M3Surface.svelte";
   import LoadingDots from "$lib/components/LoadingDots.svelte";
   import CoverageDetail from "$lib/components/CoverageDetail.svelte";
+  import CoverageBreakdown from "$lib/components/CoverageBreakdown.svelte";
+  import TuiPanel from "$lib/components/tui/TuiPanel.svelte";
+  import TuiStreamToolbar from "$lib/components/tui/TuiStreamToolbar.svelte";
   import type {
     RefreshStateData,
     ProgressOverview,
@@ -37,6 +40,24 @@
   // Incrementing this forces the effect to re-run (reconnect) even when source hasn't changed
   let reconnectKey = $state(0);
 
+  // ── Log filter state ────────────────────────────────────────────────────────
+  // Each set holds the active selections for its category.
+  // An empty set means "show all" (same as ALL).
+  let filterLevels = $state(new Set<string>());
+  let filterTags = $state(new Set<string>());
+  let filterMinutes = $state(new Set<number>());
+  // true = newest at top (default), false = newest at bottom
+  let logNewestTop = $state(true);
+  // true = wrap long lines, false = single-line + horizontal scroll
+  let logWrap = $state(false);
+
+  function toggleSet<T>(set: Set<T>, value: T): Set<T> {
+    const next = new Set(set);
+    if (next.has(value)) next.delete(value);
+    else next.add(value);
+    return next;
+  }
+
   // ── Live SSE stream ──────────────────────────────────────────────────────────
   // Opens an EventSource for the active source; restarts when logSource or reconnectKey changes.
   $effect(() => {
@@ -51,7 +72,7 @@
     es.onmessage = (e: MessageEvent<string>) => {
       logLoading = false;
       if (e.data.trim()) {
-        // Keep latest 500 lines; newest rendered at top via parsedLogLines.toReversed()
+        // Keep latest 500 lines; order controlled by logNewestTop
         logLines =
           logLines.length >= 500
             ? [...logLines.slice(-499), e.data]
@@ -80,18 +101,24 @@
     ts: string;
     level: string;
     detail: string;
+    tsMs: number;
   } {
     const loc = localizeLogLine(raw);
     const m = _LOG_LEVEL_RE.exec(loc);
-    if (m) return { ts: m[1], level: m[2].toUpperCase(), detail: m[3] };
+    // Parse tsMs from the raw (UTC) line so time filtering is accurate
+    const rawDt = /^(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})/.exec(raw);
+    const tsMs = rawDt
+      ? new Date(rawDt[1].replace(" ", "T") + "Z").getTime()
+      : 0;
+    if (m) return { ts: m[1], level: m[2].toUpperCase(), detail: m[3], tsMs };
     const ts = /^\d{4}-\d{2}-\d{2} (\d{2}:\d{2}:\d{2})/.exec(loc);
-    return { ts: ts ? ts[1] : "", level: "", detail: loc };
+    return { ts: ts ? ts[1] : "", level: "", detail: loc, tsMs };
   }
 
   function levelColor(level: string): string {
     if (level === "ERROR" || level === "CRITICAL") return "#ff4d57";
     if (level === "WARNING" || level === "WARN") return "#f5a623";
-    if (level === "INFO") return "rgba(200,212,207,0.65)";
+    if (level === "INFO") return "#4F9CF9";
     return "rgba(200,212,207,0.28)";
   }
 
@@ -111,18 +138,39 @@
     if (d.includes("complete") || d.includes("success") || d.includes("finish"))
       return { label: "OK", color: "#1ddf72" };
     if (d.includes("skip")) return { label: "SKIP", color: "#9aa7a0" };
-    if (level === "INFO") return { label: "INFO", color: "#9aa7a0" };
+    if (level === "INFO") return { label: "INFO", color: "#4F9CF9" };
     if (level === "DEBUG")
       return { label: "DBG", color: "rgba(200,212,207,0.25)" };
     return { label: "—", color: "rgba(200,212,207,0.2)" };
   }
 
-  const parsedLogLines = $derived(
-    logLines
+  const activeFilterCount = $derived(
+    filterLevels.size + filterTags.size + filterMinutes.size,
+  );
+
+  const parsedLogLines = $derived.by(() => {
+    const now = Date.now();
+    // For time: keep a row if it falls within ANY of the selected windows.
+    const timeActive = filterMinutes.size > 0;
+    const maxWindowMs = timeActive
+      ? Math.max(...Array.from(filterMinutes)) * 60_000
+      : 0;
+    const base = logLines
       .filter((l) => l.trim().length > 0)
       .map((raw) => parseLogLine(raw))
-      .toReversed(),
-  );
+      .filter((row) => {
+        if (timeActive && row.tsMs > 0 && now - row.tsMs > maxWindowMs)
+          return false;
+        if (filterLevels.size > 0 && !filterLevels.has(row.level)) return false;
+        if (
+          filterTags.size > 0 &&
+          !filterTags.has(levelTag(row.level, row.detail).label)
+        )
+          return false;
+        return true;
+      });
+    return logNewestTop ? base.toReversed() : base;
+  });
 
   function parseServerDate(iso: string): Date {
     const normalized = iso
@@ -317,16 +365,13 @@
 
 <main class="t-root">
   <!-- ══ HEADER ══════════════════════════════════════════════════════════════ -->
-  <div class="t-topbar">
-    <span class="t-bullet">●</span>
-    <h1 class="t-title">SYSTEM·DASHBOARD</h1>
-    <span class="t-sep">│</span>
-    {#if !coreLoading}
-      <div class="t-status">
-        <span class="t-kv"
-          ><span class="t-k">CYCLE</span><span
-            class="t-v"
-            style="color:{cycleStatusColor()};"
+  <div class="t-infobar">
+    <span class="t-infolabel">SYSTEM·DASHBOARD</span>
+    <div class="t-infoflow">
+      {#if !coreLoading}
+        <span class="t-infoitem">
+          <span class="t-infok">CYCLE</span>
+          <span class="t-infov" style="color:{cycleStatusColor()};"
             >{cycleStatus() === "ok"
               ? "HEALTHY"
               : cycleStatus() === "warn"
@@ -334,8 +379,8 @@
                 : cycleStatus() === "error"
                   ? "STALLED"
                   : "—"}</span
-          ></span
-        >
+          >
+        </span>
         {#if providers.length > 0}
           {@const hc = providers.filter((p) => p.status === "healthy").length}
           {@const pc =
@@ -344,37 +389,44 @@
               : hc === 0
                 ? "var(--status-error)"
                 : "var(--status-warn)"}
-          <span class="t-kv"
-            ><span class="t-k">PROVIDERS</span><span
-              class="t-v"
-              style="color:{pc};">{hc}/{providers.length}</span
-            ></span
-          >
+          <span class="t-infodot" aria-hidden="true">◆</span>
+          <span class="t-infoitem">
+            <span class="t-infok">PROVIDERS</span>
+            <span class="t-infov" style="color:{pc};"
+              >{hc}/{providers.length}</span
+            >
+          </span>
         {/if}
         {#if progress && !progressLoading}
-          <span class="t-kv"
-            ><span class="t-k">COVERAGE</span><span
-              class="t-v"
+          <span class="t-infodot" aria-hidden="true">◆</span>
+          <span class="t-infoitem">
+            <span class="t-infok">COVERAGE</span>
+            <span
+              class="t-infov"
               style="color:{coverageColor(progress.totals.coveragePct)};"
               >{formatPct(progress.totals.coveragePct)}</span
-            ></span
-          >
-          <span class="t-kv"
-            ><span class="t-k">SNAPSHOT</span><span class="t-v"
+            >
+          </span>
+          <span class="t-infodot" aria-hidden="true">◆</span>
+          <span class="t-infoitem">
+            <span class="t-infok">SNAPSHOT</span>
+            <span class="t-infov"
               >{formatRelative(progress.snapshotTs ?? progress.asOf)}</span
-            ></span
-          >
+            >
+          </span>
         {/if}
         {#if progress?.dbCohorts}
-          <span class="t-kv"
-            ><span class="t-k">DB</span><span class="t-v"
+          <span class="t-infodot" aria-hidden="true">◆</span>
+          <span class="t-infoitem">
+            <span class="t-infok">DB</span>
+            <span class="t-infov"
               >{progress.dbCohorts.totalInDb.toLocaleString()}</span
-            ></span
-          >
+            >
+          </span>
         {/if}
-      </div>
-    {/if}
-    <span class="t-clock"
+      {/if}
+    </div>
+    <span class="t-infoclock"
       >{lastUpdated
         ? lastUpdated.toLocaleTimeString(undefined, {
             hour: "2-digit",
@@ -384,20 +436,16 @@
           })
         : "--:--:--"} UTC</span
     >
-    <button class="t-btn t-btn-icon" onclick={fetchAll} title="Refresh"
-      >↻</button
-    >
+    <button class="t-infobtn" onclick={fetchAll} title="Refresh">↻</button>
   </div>
-
   <!-- ══ MAIN 3-PANE GRID ═══════════════════════════════════════════════════ -->
   <div class="t-main">
-    <!-- ── LEFT COLUMN: Operations ────────────────────────────────────── -->
+    <!-- ── LEFT COLUMN: Operations ─────────────────────────────────────── -->
     <div class="t-col t-col-l">
       <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
       {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
-        <div class="t-panel alert-panel">
-          <div class="t-panel-label alert-label">⚠ ALERT</div>
-          <div class="t-panel-body">
+        <div class="alert-panel-wrap">
+          <TuiPanel label="⚠ ALERT">
             <div class="alert-title">
               CYCLE FAILING{(refreshState.current_state.consecutive_failures ??
                 0) > 1
@@ -405,239 +453,346 @@
                 : ""}
             </div>
             <div class="alert-msg">{refreshState.current_state.error}</div>
-          </div>
+          </TuiPanel>
         </div>
       {/if}
       <!-- Miner Cycle -->
-      <div class="t-panel">
-        <div class="t-panel-label">
-          MINER CYCLE // {refreshState
-            ? cycleStatus() === "ok"
-              ? "HEALTHY"
-              : cycleStatus() === "warn"
-                ? "WARNING"
-                : cycleStatus() === "error"
-                  ? "STALLED"
-                  : "UNKNOWN"
-            : "—"}
-        </div>
-        <div class="t-panel-body">
-          {#if !refreshState}
-            <p class="t-empty">no cycle data</p>
-          {:else}
-            <div class="m-row">
-              <span class="m-k">cycles</span><span class="m-v"
-                >{refreshState.cycle_count ?? "—"}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">last cycle</span><span class="m-v"
-                >{formatDateTime(refreshState.last_cycle_at)}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">age</span><span
-                class="m-v"
-                style="color:{cycleStatusColor()};"
-                >{formatRelative(refreshState.last_cycle_at)}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">last success</span><span
-                class="m-v"
-                style="color:{refreshState.last_cycle_success
-                  ? 'var(--status-ok)'
-                  : 'var(--status-error)'};"
-                >{refreshState.last_cycle_success ? "YES" : "NO"}</span
-              >
-            </div>
-            {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
-              <div class="m-row">
-                <span class="m-k">failures</span><span
-                  class="m-v"
-                  style="color:var(--status-error);"
-                  >{refreshState.current_state?.consecutive_failures}</span
-                >
-              </div>
-            {/if}
-            <div class="m-row">
-              <span class="m-k">interval</span><span class="m-v"
-                >{progress?.intervalSec
-                  ? `${progress.intervalSec}s`
-                  : "—"}</span
-              >
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      <!-- Provider Health -->
-      <div class="t-panel">
-        <div class="t-panel-label">
-          PROVIDER HEALTH // {providers.filter((p) => p.status === "healthy")
-            .length}/{providers.length} OK
-        </div>
-        <div class="t-panel-body">
-          {#if providers.length === 0}
-            <p class="t-empty">no provider data</p>
-          {:else}
-            {#each providers as p (p.provider)}
-              <div class="prov-row">
-                <span class="prov-name">{p.provider}</span>
-                <span
-                  class="prov-status"
-                  style="color:{providerStatusColor(p.status)};"
-                >
-                  {#if p.status === "error" && p.error_streak > 0}{p.error_streak}
-                    ERR{:else if p.status === "rate_limited" && p.error_streak > 0}LIMIT
-                    · {p.error_streak}{:else}{providerStatusLabel(
-                      p.status,
-                    ).toUpperCase()}{/if}
-                </span>
-                <span class="prov-last"
-                  >{formatRelative(p.last_success_at)}</span
-                >
-              </div>
-            {/each}
-          {/if}
-        </div>
-      </div>
-
-      <!-- DB Cohorts -->
-      <div class="t-panel">
-        <div class="t-panel-label">
-          DB COIN COHORTS // {progress?.dbCohorts
-            ? progress.dbCohorts.totalInDb.toLocaleString() + " TOTAL"
-            : "—"}
-        </div>
-        <div class="t-panel-body">
-          {#if !progress?.dbCohorts}
-            <p class="t-empty">no cohort data</p>
-          {:else}
-            {@const c = progress.dbCohorts as DbCohorts}
-            <div class="m-row">
-              <span class="m-k">total in db</span><span class="m-v"
-                >{c.totalInDb.toLocaleString()}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">paprika-ranked</span><span class="m-v"
-                >{c.paprikaTracked.toLocaleString()}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">ticker-only</span><span class="m-v"
-                >{c.tickerOnly.toLocaleString()}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">current snapshot</span><span
-                class="m-v cohort-hl">{c.currentSnapshot.toLocaleString()}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">coingecko-enriched</span><span class="m-v"
-                >{c.coingeckoEnriched.toLocaleString()}</span
-              >
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      <!-- Fill Tracker -->
-      <div class="t-panel t-panel-grow">
-        <div class="t-panel-label">
-          FILL TRACKER // {fieldVelocity
-            ? `${fieldVelocity.totalCoins} COINS`
-            : "—"}
-        </div>
-        <div class="t-panel-body">
-          {#if velocityLoading}
-            <LoadingDots label="Loading" />
-          {:else if !fieldVelocity}
-            <p class="t-empty">no velocity data</p>
-          {:else}
-            <div class="vt-hdr">
-              <span class="vt-name">FIELD</span>
-              <span class="vt-num">FILLED</span>
-              <span class="vt-num">+1H</span>
-              <span class="vt-num">+7H</span>
-              <span class="vt-num">+24H</span>
-              <span class="vt-dlt">Δ</span>
-            </div>
-            {#each fieldVelocity.fields as entry}
-              {@const pct =
-                fieldVelocity.totalCoins > 0
-                  ? Math.round((entry.total / fieldVelocity.totalCoins) * 100)
-                  : 0}
-              <div class="vt-row">
-                <span class="vt-name">{entry.field}</span>
-                <span class="vt-num"
-                  >{entry.total}<span class="vt-pct"> {pct}%</span></span
-                >
-                <span class="vt-num"
-                  >{entry.window_1h > 0 ? entry.window_1h : "—"}</span
-                >
-                <span class="vt-num"
-                  >{entry.window_7h > 0 ? entry.window_7h : "—"}</span
-                >
-                <span class="vt-num"
-                  >{entry.window_24h > 0 ? entry.window_24h : "—"}</span
-                >
-                <span
-                  class="vt-dlt"
-                  style="color:{entry.delta > 0
-                    ? 'var(--status-ok)'
-                    : entry.delta < 0
-                      ? 'var(--status-error)'
-                      : 'rgba(200,212,207,0.22)'};"
-                  >{entry.delta > 0
-                    ? "+" + entry.delta
-                    : entry.delta === 0
-                      ? "—"
-                      : entry.delta}</span
-                >
-              </div>
-            {/each}
-          {/if}
-        </div>
-      </div>
-    </div>
-
-    <!-- ── CENTER COLUMN: LOG STREAM ───────────────────────────────────── -->
-    <div class="t-col t-col-c">
-      <div class="t-panel t-panel-fill">
-        <div class="t-panel-label">
-          LOG STREAM // {logSource.toUpperCase()} // LIVE{logLines.length > 0
-            ? ` // ${logLines.length}`
-            : ""}
-        </div>
-        <div class="t-panel-tools">
-          <div class="log-toggle">
-            <button
-              class="t-tab"
-              class:active={logSource === "miner"}
-              onclick={() => {
-                logSource = "miner";
-              }}>MINER</button
-            >
-            <button
-              class="t-tab"
-              class:active={logSource === "api"}
-              onclick={() => {
-                logSource = "api";
-              }}>API</button
+      <TuiPanel
+        label="MINER CYCLE // {refreshState
+          ? cycleStatus() === 'ok'
+            ? 'HEALTHY'
+            : cycleStatus() === 'warn'
+              ? 'WARNING'
+              : cycleStatus() === 'error'
+                ? 'STALLED'
+                : 'UNKNOWN'
+          : '—'}"
+      >
+        {#if !refreshState}
+          <p class="t-empty">no cycle data</p>
+        {:else}
+          <div class="m-row">
+            <span class="m-k">cycles</span><span class="m-v"
+              >{refreshState.cycle_count ?? "—"}</span
             >
           </div>
-          <button
-            class="t-btn t-btn-tiny t-btn-icon"
-            onclick={() => {
+          <div class="m-row">
+            <span class="m-k">last cycle</span><span class="m-v"
+              >{formatDateTime(refreshState.last_cycle_at)}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">age</span><span
+              class="m-v"
+              style="color:{cycleStatusColor()};"
+              >{formatRelative(refreshState.last_cycle_at)}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">last success</span><span
+              class="m-v"
+              style="color:{refreshState.last_cycle_success
+                ? 'var(--status-ok)'
+                : 'var(--status-error)'};"
+              >{refreshState.last_cycle_success ? "YES" : "NO"}</span
+            >
+          </div>
+          {#if (refreshState.current_state?.consecutive_failures ?? 0) > 0}
+            <div class="m-row">
+              <span class="m-k">failures</span><span
+                class="m-v"
+                style="color:var(--status-error);"
+                >{refreshState.current_state?.consecutive_failures}</span
+              >
+            </div>
+          {/if}
+          <div class="m-row">
+            <span class="m-k">interval</span><span class="m-v"
+              >{progress?.intervalSec ? `${progress.intervalSec}s` : "—"}</span
+            >
+          </div>
+        {/if}
+      </TuiPanel>
+
+      <!-- Provider Health -->
+      <TuiPanel
+        label="PROVIDER HEALTH // {providers.filter(
+          (p) => p.status === 'healthy',
+        ).length}/{providers.length} OK"
+      >
+        {#if providers.length === 0}
+          <p class="t-empty">no provider data</p>
+        {:else}
+          {#each providers as p (p.provider)}
+            <div class="prov-row">
+              <span class="prov-name">{p.provider}</span>
+              <span
+                class="prov-status"
+                style="color:{providerStatusColor(p.status)};"
+              >
+                {#if p.status === "error" && p.error_streak > 0}{p.error_streak}
+                  ERR{:else if p.status === "rate_limited" && p.error_streak > 0}LIMIT
+                  · {p.error_streak}{:else}{providerStatusLabel(
+                    p.status,
+                  ).toUpperCase()}{/if}
+              </span>
+              <span class="prov-last">{formatRelative(p.last_success_at)}</span>
+            </div>
+          {/each}
+        {/if}
+      </TuiPanel>
+
+      <!-- DB Cohorts -->
+      <TuiPanel
+        label="DB COIN COHORTS // {progress?.dbCohorts
+          ? progress.dbCohorts.totalInDb.toLocaleString() + ' TOTAL'
+          : '—'}"
+      >
+        {#if !progress?.dbCohorts}
+          <p class="t-empty">no cohort data</p>
+        {:else}
+          {@const c = progress.dbCohorts as DbCohorts}
+          <div class="m-row">
+            <span class="m-k">total in db</span><span class="m-v"
+              >{c.totalInDb.toLocaleString()}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">paprika-ranked</span><span class="m-v"
+              >{c.paprikaTracked.toLocaleString()}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">ticker-only</span><span class="m-v"
+              >{c.tickerOnly.toLocaleString()}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">current snapshot</span><span class="m-v cohort-hl"
+              >{c.currentSnapshot.toLocaleString()}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">coingecko-enriched</span><span class="m-v"
+              >{c.coingeckoEnriched.toLocaleString()}</span
+            >
+          </div>
+        {/if}
+      </TuiPanel>
+
+      <!-- Data Coverage -->
+      <TuiPanel
+        label="DATA COVERAGE // {progress
+          ? formatPct(progress.totals.coveragePct)
+          : '\u2014'}"
+      >
+        {#if progressLoading}
+          <LoadingDots label="Loading" />
+        {:else if !progress}
+          <p class="t-empty">no coverage data</p>
+        {:else}
+          <div class="m-row">
+            <span class="m-k">overall</span><span
+              class="m-v"
+              style="color:{coverageColor(progress.totals.coveragePct)};"
+              >{formatPct(progress.totals.coveragePct)}</span
+            ><span class="m-s"
+              >{progress.totals.populated}/{progress.totals.expected}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">market</span><span
+              class="m-v"
+              style="color:{coverageColor(
+                progress.sections.marketCoins.coveragePct,
+              )};">{formatPct(progress.sections.marketCoins.coveragePct)}</span
+            ><span class="m-s"
+              >{progress.sections.marketCoins.populated}/{progress.sections
+                .marketCoins.expected}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">breakdown</span><span
+              class="m-v"
+              style="color:{coverageColor(
+                progress.sections.coinBreakdown.coveragePct,
+              )};"
+              >{formatPct(progress.sections.coinBreakdown.coveragePct)}</span
+            ><span class="m-s"
+              >{progress.sections.coinBreakdown.populated}/{progress.sections
+                .coinBreakdown.expected}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">charts</span><span
+              class="m-v"
+              style="color:{coverageColor(
+                progress.sections.charts.coveragePct,
+              )};">{formatPct(progress.sections.charts.coveragePct)}</span
+            ><span class="m-s"
+              >{progress.sections.charts.populated}/{progress.sections.charts
+                .expected}</span
+            >
+          </div>
+        {/if}
+      </TuiPanel>
+
+      <!-- Freshness -->
+      <TuiPanel
+        label="FRESHNESS // {progress
+          ? `AS OF ${formatRelative(progress.snapshotTs ?? progress.asOf)}`
+          : '\u2014'}"
+      >
+        {#if !progress}
+          <p class="t-empty">\u2014</p>
+        {:else}
+          <div class="m-row">
+            <span class="m-k">fresh</span><span
+              class="m-v"
+              style="color:var(--status-ok);">{progress.freshness.fresh}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">warning</span><span
+              class="m-v"
+              style="color:var(--status-warn);"
+              >{progress.freshness.warning}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">stale</span><span
+              class="m-v"
+              style="color:var(--status-error);"
+              >{progress.freshness.stale}</span
+            >
+          </div>
+          {#if progress.freshness.unknown > 0}
+            <div class="m-row">
+              <span class="m-k">unknown</span><span class="m-v"
+                >{progress.freshness.unknown}</span
+              >
+            </div>
+          {/if}
+        {/if}
+      </TuiPanel>
+
+      <!-- Coverage Detail -->
+      <TuiPanel
+        label="COVERAGE DETAIL // {progress?.missingClarity
+          ? progress.missingClarity.expectedCoins.toLocaleString() + ' COINS'
+          : '\u2014'}"
+      >
+        {#if progressLoading}
+          <LoadingDots label="Loading" />
+        {:else if !progress}
+          <p class="t-empty">no coverage data</p>
+        {:else if !progress.missingClarity}
+          <p class="t-empty">no field-level breakdown</p>
+        {:else}
+          <CoverageDetail
+            missingClarity={progress.missingClarity}
+            chartTimeframes={progress.chartTimeframes}
+          />
+        {/if}
+      </TuiPanel>
+    </div>
+    <!-- ── CENTER COLUMN: LOG STREAM ───────────────────────────────────── -->
+    <div class="t-col t-col-c">
+      <div class="log-panel">
+        {#snippet filterDropdown()}
+          <div
+            class="log-filter-dropdown"
+            role="dialog"
+            aria-label="Log filters"
+          >
+            <div class="lfd-section">
+              <div class="lfd-label">
+                TIME{#if filterMinutes.size > 1}
+                  <span class="lfd-multi-hint">(union)</span>{/if}
+              </div>
+              <div class="lfd-chips">
+                {#each [[5, "5m"], [15, "15m"], [60, "1h"], [240, "4h"]] as [mins, label] (label)}
+                  <button
+                    class="lfd-chip"
+                    class:lfd-chip-on={filterMinutes.has(mins as number)}
+                    onclick={() => {
+                      filterMinutes = toggleSet(filterMinutes, mins as number);
+                    }}>{label}</button
+                  >
+                {/each}
+              </div>
+            </div>
+            <div class="lfd-section">
+              <div class="lfd-label">LEVEL</div>
+              <div class="lfd-chips">
+                {#each ["DEBUG", "INFO", "WARNING", "ERROR"] as lv (lv)}
+                  <button
+                    class="lfd-chip"
+                    class:lfd-chip-on={filterLevels.has(lv)}
+                    onclick={() => {
+                      filterLevels = toggleSet(filterLevels, lv);
+                    }}>{lv}</button
+                  >
+                {/each}
+              </div>
+            </div>
+            <div class="lfd-section">
+              <div class="lfd-label">TAG</div>
+              <div class="lfd-chips">
+                {#each ["ERR", "WARN", "LIMIT", "START", "OK", "SKIP", "INFO", "DBG"] as tg (tg)}
+                  <button
+                    class="lfd-chip"
+                    class:lfd-chip-on={filterTags.has(tg)}
+                    onclick={() => {
+                      filterTags = toggleSet(filterTags, tg);
+                    }}>{tg}</button
+                  >
+                {/each}
+              </div>
+            </div>
+            {#if activeFilterCount > 0}
+              <button
+                class="lfd-reset"
+                onclick={() => {
+                  filterLevels = new Set();
+                  filterTags = new Set();
+                  filterMinutes = new Set();
+                }}>CLEAR FILTERS</button
+              >
+            {/if}
+          </div>
+        {/snippet}
+        <div class="log-plabel">
+          <span class="log-plabel-text"
+            >LOG STREAM // {logSource.toUpperCase()} // LIVE{logLines.length > 0
+              ? ` // ${logLines.length}`
+              : ""}</span
+          >
+          <TuiStreamToolbar
+            source={logSource}
+            onSourceChange={(s) => {
+              logSource = s;
+            }}
+            onReconnect={() => {
               reconnectKey += 1;
             }}
-            title="Reconnect stream">↻</button
-          >
+            reversed={!logNewestTop}
+            onFlip={() => {
+              logNewestTop = !logNewestTop;
+            }}
+            wrapped={logWrap}
+            onWrap={() => {
+              logWrap = !logWrap;
+            }}
+            {activeFilterCount}
+            {filterDropdown}
+          />
         </div>
-        <div class="t-stream" bind:this={streamEl}>
+        <div
+          class="t-stream"
+          class:t-stream-wrap={logWrap}
+          bind:this={streamEl}
+        >
           {#if logLoading && logLines.length === 0}
             <LoadingDots label="Loading logs" />
           {:else if parsedLogLines.length === 0}
@@ -666,137 +821,28 @@
         </div>
       </div>
     </div>
-
-    <!-- ── RIGHT COLUMN: Data Health ───────────────────────────────────── -->
+    <!-- ── RIGHT COLUMN: Breakdown + Fill Tracker ──────────────────────── -->
     <div class="t-col t-col-r">
-      <!-- Data Coverage -->
-      <div class="t-panel">
-        <div class="t-panel-label">
-          DATA COVERAGE // {progress
-            ? formatPct(progress.totals.coveragePct)
-            : "—"}
-        </div>
-        <div class="t-panel-body">
-          {#if progressLoading}
-            <LoadingDots label="Loading" />
-          {:else if !progress}
-            <p class="t-empty">no coverage data</p>
-          {:else}
-            <div class="m-row">
-              <span class="m-k">overall</span><span
-                class="m-v"
-                style="color:{coverageColor(progress.totals.coveragePct)};"
-                >{formatPct(progress.totals.coveragePct)}</span
-              ><span class="m-s"
-                >{progress.totals.populated}/{progress.totals.expected}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">market</span><span
-                class="m-v"
-                style="color:{coverageColor(
-                  progress.sections.marketCoins.coveragePct,
-                )};"
-                >{formatPct(progress.sections.marketCoins.coveragePct)}</span
-              ><span class="m-s"
-                >{progress.sections.marketCoins.populated}/{progress.sections
-                  .marketCoins.expected}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">breakdown</span><span
-                class="m-v"
-                style="color:{coverageColor(
-                  progress.sections.coinBreakdown.coveragePct,
-                )};"
-                >{formatPct(progress.sections.coinBreakdown.coveragePct)}</span
-              ><span class="m-s"
-                >{progress.sections.coinBreakdown.populated}/{progress.sections
-                  .coinBreakdown.expected}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">charts</span><span
-                class="m-v"
-                style="color:{coverageColor(
-                  progress.sections.charts.coveragePct,
-                )};">{formatPct(progress.sections.charts.coveragePct)}</span
-              ><span class="m-s"
-                >{progress.sections.charts.populated}/{progress.sections.charts
-                  .expected}</span
-              >
-            </div>
-          {/if}
-        </div>
-      </div>
-
-      <!-- Freshness -->
-      <div class="t-panel">
-        <div class="t-panel-label">
-          FRESHNESS // {progress
-            ? `AS OF ${formatRelative(progress.snapshotTs ?? progress.asOf)}`
-            : "—"}
-        </div>
-        <div class="t-panel-body">
-          {#if !progress}
-            <p class="t-empty">—</p>
-          {:else}
-            <div class="m-row">
-              <span class="m-k">fresh</span><span
-                class="m-v"
-                style="color:var(--status-ok);">{progress.freshness.fresh}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">warning</span><span
-                class="m-v"
-                style="color:var(--status-warn);"
-                >{progress.freshness.warning}</span
-              >
-            </div>
-            <div class="m-row">
-              <span class="m-k">stale</span><span
-                class="m-v"
-                style="color:var(--status-error);"
-                >{progress.freshness.stale}</span
-              >
-            </div>
-            {#if progress.freshness.unknown > 0}
-              <div class="m-row">
-                <span class="m-k">unknown</span><span class="m-v"
-                  >{progress.freshness.unknown}</span
-                >
-              </div>
-            {/if}
-          {/if}
-        </div>
-      </div>
-
-      <!-- Coverage Detail (compact) -->
-      <div class="t-panel t-panel-grow">
-        <div class="t-panel-label">
-          COVERAGE DETAIL // {progress?.missingClarity
-            ? progress.missingClarity.expectedCoins.toLocaleString() + " COINS"
-            : "—"}
-        </div>
-        <div class="t-panel-body">
-          {#if progressLoading}
-            <LoadingDots label="Loading" />
-          {:else if !progress}
-            <p class="t-empty">no coverage data</p>
-          {:else if !progress.missingClarity}
-            <p class="t-empty">no field-level breakdown</p>
-          {:else}
-            <CoverageDetail
-              missingClarity={progress.missingClarity}
-              metadataStage={progress.metadataStage}
-              chartTimeframes={progress.chartTimeframes}
-              totalCoins={progress.missingClarity.expectedCoins}
-              priceTier={progress.priceTier}
-            />
-          {/if}
-        </div>
-      </div>
+      <!-- Coverage Breakdown -->
+      <TuiPanel
+        label="BREAKDOWN // {progress?.missingClarity
+          ? progress.missingClarity.expectedCoins.toLocaleString() + ' COINS'
+          : '\u2014'}"
+      >
+        {#if progressLoading}
+          <LoadingDots label="Loading" />
+        {:else if !progress}
+          <p class="t-empty">no data</p>
+        {:else}
+          <CoverageBreakdown
+            missingClarity={progress.missingClarity}
+            metadataStage={progress.metadataStage}
+            totalCoins={progress.missingClarity?.expectedCoins ?? 0}
+            priceTier={progress.priceTier}
+            fieldVelocity={fieldVelocity ?? undefined}
+          />
+        {/if}
+      </TuiPanel>
     </div>
   </div>
 </main>
@@ -806,123 +852,114 @@
   .t-root {
     display: flex;
     flex-direction: column;
-    height: calc(100dvh - 3.6rem); /* allow for app shell topbar */
+    height: 100%;
+    overflow: hidden;
     background: var(--tv-bg, #030303);
     color: var(--tv-text-primary);
-    font-family: "JetBrains Mono", "IBM Plex Mono", Menlo, Consolas,
-      ui-monospace, monospace;
-    font-size: 0.7rem;
-    line-height: 1.45;
-    overflow: hidden;
+    font-family: var(
+      --tui-font,
+      "JetBrains Mono",
+      "Menlo",
+      "Consolas",
+      monospace
+    );
+    font-size: var(--tui-font-size, 0.7rem);
+    line-height: var(--tui-line-height, 1.55);
   }
 
-  /* ── Topbar ─────────────────────────────────────────────────────────────── */
-  .t-topbar {
+  /* ── Infobar (SYSTEM·DASHBOARD — ticker-bar style strip) ───────────────── */
+  .t-infobar {
     display: flex;
     align-items: center;
-    gap: 0.625rem;
-    padding: 0 0.875rem;
-    height: 2.2rem;
-    border-bottom: 1px solid rgba(176, 38, 255, 0.25);
+    height: var(--tui-infobar-height, 1.65rem);
+    background: var(--tui-infobar-bg, #050008);
+    border-bottom: 1px solid var(--tui-infobar-border, rgba(176, 38, 255, 0.18));
     flex-shrink: 0;
     white-space: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
   }
-
-  .t-bullet {
-    color: var(--tv-highlight);
-    font-size: 0.55rem;
-    line-height: 1;
-  }
-  .t-title {
-    font-size: 0.75rem;
+  .t-infolabel {
+    flex-shrink: 0;
+    padding: 0 0.65rem;
+    font-size: 0.6rem;
     font-weight: 700;
-    letter-spacing: 0.06em;
-    color: var(--tv-text-primary);
-    margin: 0;
-    flex-shrink: 0;
-  }
-  .t-sep {
-    color: rgba(176, 38, 255, 0.3);
-    flex-shrink: 0;
-  }
-
-  .t-status {
+    letter-spacing: 0.1em;
+    color: var(--tui-infobar-label-color, rgba(176, 38, 255, 0.75));
+    border-right: 1px solid var(--tui-infobar-border, rgba(176, 38, 255, 0.18));
+    height: 100%;
     display: flex;
     align-items: center;
-    flex: 1;
-    gap: 0.875rem;
-    min-width: 0;
   }
-
-  .t-kv {
+  .t-infoflow {
+    display: flex;
+    align-items: center;
+    gap: 0.45rem;
+    padding: 0 0.6rem;
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+  }
+  .t-infoitem {
     display: inline-flex;
     align-items: baseline;
-    gap: 0.35rem;
+    gap: 0.3rem;
     flex-shrink: 0;
   }
-  .t-k {
-    font-size: 0.625rem;
-    font-weight: 600;
+  .t-infok {
+    font-size: 0.58rem;
     letter-spacing: 0.06em;
-    color: var(--tv-text-muted);
+    color: var(--tui-muted, rgba(200, 212, 207, 0.4));
   }
-  .t-v {
-    font-size: 0.7rem;
+  .t-infov {
+    font-size: 0.65rem;
     font-weight: 600;
     color: var(--tv-text-primary);
     font-variant-numeric: tabular-nums;
   }
-
-  .t-clock {
-    color: rgba(200, 212, 207, 0.5);
-    font-size: 0.65rem;
-    font-variant-numeric: tabular-nums;
-    letter-spacing: 0.04em;
-    margin-left: auto;
+  .t-infodot {
+    color: var(--tui-sep-color, rgba(176, 38, 255, 0.3));
+    font-size: 0.45rem;
     flex-shrink: 0;
   }
-
-  .t-btn {
-    padding: 0.15rem 0.6rem;
+  .t-infoclock {
+    color: var(--tui-muted, rgba(200, 212, 207, 0.4));
+    font-size: 0.62rem;
+    font-variant-numeric: tabular-nums;
+    padding: 0 0.4rem;
+    flex-shrink: 0;
+    margin-left: auto;
+  }
+  .t-infobtn {
+    padding: 0;
+    width: 1.8rem;
+    height: 100%;
     font-family: inherit;
-    font-size: 0.65rem;
-    font-weight: 600;
-    letter-spacing: 0.08em;
-    border: 1px solid var(--tv-border);
-    border-radius: 0;
+    font-size: 0.85rem;
+    border: 0;
+    border-left: 1px solid var(--tui-infobar-border, rgba(176, 38, 255, 0.18));
     background: transparent;
-    color: var(--tv-text-primary);
+    color: var(--tui-infobar-label-color, rgba(176, 38, 255, 0.75));
     cursor: pointer;
     flex-shrink: 0;
-    transition:
-      border-color 0.15s,
-      color 0.15s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: color 0.15s;
   }
-  .t-btn:hover {
-    border-color: var(--tv-highlight);
-    color: var(--tv-highlight-soft);
-  }
-
-  .t-btn-tiny {
-    padding: 0.05rem 0.45rem;
-    font-size: 0.6rem;
-  }
-  .t-btn-icon {
-    font-size: 0.85rem;
-    line-height: 1;
-    padding: 0.05rem 0.45rem;
-    letter-spacing: 0;
+  .t-infobtn:hover {
+    color: var(--tv-highlight-soft, #d56bff);
   }
 
   /* ── Alert panel (in left column — no layout shift) ─────────────────────── */
-  .alert-panel {
-    border-top-color: rgba(255, 77, 87, 0.45) !important;
+  .alert-panel-wrap :global(.t-panel) {
+    border-bottom-color: rgba(255, 77, 87, 0.45);
     background: rgba(255, 77, 87, 0.04);
   }
-  .alert-label {
+  .alert-panel-wrap :global(.t-plabel) {
     color: var(--status-error) !important;
+    background: rgba(255, 77, 87, 0.06);
+    border-bottom-color: rgba(255, 77, 87, 0.2);
   }
   .alert-title {
     font-size: 0.65rem;
@@ -950,99 +987,132 @@
     display: flex;
     flex-direction: column;
     min-height: 0;
-    min-width: 0; /* prevent grid track blowout from wide content */
-    padding-top: 0.6rem; /* breathing room so first floating label isn't clipped */
-    border-right: 1px solid rgba(176, 38, 255, 0.15);
+    min-width: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border-right: 1px solid var(--tui-col-border, rgba(176, 38, 255, 0.12));
+    scrollbar-width: thin;
+    scrollbar-color: var(--tui-panel-grow-scrollbar, rgba(176, 38, 255, 0.15))
+      transparent;
   }
   .t-col-r {
     border-right: none;
   }
+  .t-col-c {
+    overflow: hidden;
+  }
 
-  /* ── Panels with floating label ─────────────────────────────────────────── */
-  .t-panel {
-    position: relative;
-    margin-top: 0.7rem; /* clearance for the floating label that sits at top: -0.55em */
-    border-top: 1px solid rgba(176, 38, 255, 0.12);
-    flex-shrink: 0;
+  /* ── Log panel (center column fill) ──────────────────────────────────── */
+  .log-panel {
+    flex: none;
+    height: calc(100% - 9rem);
+    min-height: 0;
     display: flex;
     flex-direction: column;
-    min-height: 0;
+    overflow: hidden;
+    border-bottom: 1px solid rgba(176, 38, 255, 0.18);
   }
-  .t-panel:first-child {
-    margin-top: 0;
+  /* Label bar: same visual as TuiPanel .t-plabel but flexed for inline tools */
+  .log-plabel {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.28rem 0.3rem 0.22rem 0.5rem;
+    background: var(--tui-plabel-bg, rgba(176, 38, 255, 0.055));
+    border-bottom: 1px solid var(--tui-plabel-border, rgba(176, 38, 255, 0.1));
+    flex-shrink: 0;
+    gap: 0.4rem;
+    overflow: hidden;
   }
-
-  .t-panel-grow {
-    flex: 1;
-    min-height: 0;
-  }
-  .t-panel-fill {
-    flex: 1;
-    min-height: 0;
-  }
-
-  .t-panel-label {
-    position: absolute;
-    top: -0.6em;
-    left: 0.8rem;
-    padding: 0 0.4rem;
-    background: var(--tv-bg, #030303);
-    color: rgba(176, 38, 255, 0.75);
-    font-size: 0.6rem;
-    line-height: 1.2;
-    font-weight: 600;
+  .log-plabel-text {
+    color: var(--tui-plabel-color, rgba(176, 38, 255, 0.72));
+    font-size: 0.59rem;
     letter-spacing: 0.1em;
     white-space: nowrap;
-    z-index: 2;
-    pointer-events: none;
-    max-width: calc(100% - 1.6rem);
     overflow: hidden;
     text-overflow: ellipsis;
-  }
-
-  .t-panel-body {
-    padding: 0.85rem 0.6rem 0.45rem;
-    overflow-y: auto;
-    overflow-x: hidden;
-    min-height: 0;
     flex: 1;
+    min-width: 0;
   }
 
-  .t-panel-tools {
-    position: absolute;
-    top: -0.7em;
-    right: 0.6rem;
-    display: flex;
-    gap: 0.3rem;
-    background: var(--tv-bg, #030303);
-    padding: 0 0.25rem;
-    z-index: 2;
-  }
-
-  .log-toggle {
-    display: flex;
+  /* ── Log filter dropdown ───────────────────────────────────────────────── */
+  .log-filter-dropdown {
+    z-index: 200;
+    min-width: 13rem;
+    background: #0e1012;
     border: 1px solid var(--tv-border);
+    padding: 0.5rem 0.6rem;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
   }
-  .t-tab {
-    padding: 0.05rem 0.45rem;
+  .lfd-section {
+    display: flex;
+    flex-direction: column;
+    gap: 0.18rem;
+  }
+  .lfd-label {
+    font-size: 0.55rem;
+    letter-spacing: 0.1em;
+    color: rgba(176, 38, 255, 0.55);
+    margin-bottom: 0.1rem;
+  }
+  .lfd-multi-hint {
+    font-size: 0.5rem;
+    letter-spacing: 0.04em;
+    color: rgba(176, 38, 255, 0.35);
+    font-weight: 400;
+  }
+  .lfd-chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.2rem;
+  }
+  .lfd-chip {
+    padding: 0.06rem 0.35rem;
     font-family: inherit;
     font-size: 0.6rem;
     font-weight: 600;
-    letter-spacing: 0.08em;
+    letter-spacing: 0.06em;
     background: transparent;
-    border: none;
-    border-right: 1px solid var(--tv-border);
-    cursor: pointer;
+    border: 1px solid var(--tv-border);
     color: var(--tv-text-muted);
+    cursor: pointer;
+    transition:
+      color 0.1s,
+      border-color 0.1s,
+      background 0.1s;
   }
-  .t-tab:last-child {
-    border-right: none;
+  .lfd-chip:hover {
+    border-color: rgba(176, 38, 255, 0.4);
+    color: var(--tv-text-primary);
   }
-  .t-tab.active {
+  .lfd-chip-on {
     background: rgba(176, 38, 255, 0.15);
+    border-color: rgba(176, 38, 255, 0.5);
     color: var(--tv-highlight-soft);
   }
-
+  .lfd-reset {
+    margin-top: 0.1rem;
+    padding: 0.1rem 0.4rem;
+    font-family: inherit;
+    font-size: 0.58rem;
+    font-weight: 600;
+    letter-spacing: 0.07em;
+    background: transparent;
+    border: 1px solid rgba(255, 77, 87, 0.35);
+    color: rgba(255, 77, 87, 0.7);
+    cursor: pointer;
+    width: 100%;
+    transition:
+      color 0.1s,
+      border-color 0.1s;
+  }
+  .lfd-reset:hover {
+    color: #ff4d57;
+    border-color: #ff4d57;
+  }
   /* ── Metric rows ────────────────────────────────────────────────────────── */
   .m-row {
     display: grid;
@@ -1074,44 +1144,6 @@
     font-variant-numeric: tabular-nums;
     text-align: right;
     min-width: 9ch;
-  }
-
-  /* ── Fill Tracker table ─────────────────────────────────────────────────── */
-  .vt-hdr,
-  .vt-row {
-    display: grid;
-    grid-template-columns: 1fr 6ch 4ch 4ch 5ch 4ch;
-    gap: 0.1rem 0.3rem;
-    font-size: 0.6rem;
-    padding: 0.05rem 0;
-    line-height: 1.4;
-  }
-  .vt-hdr {
-    color: rgba(200, 212, 207, 0.3);
-    font-size: 0.55rem;
-    border-bottom: 1px solid rgba(43, 47, 51, 0.8);
-    padding-bottom: 0.2rem;
-    margin-bottom: 0.1rem;
-  }
-  .vt-name {
-    color: rgba(200, 212, 207, 0.72);
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-    min-width: 0;
-  }
-  .vt-num {
-    color: var(--tv-text-primary);
-    text-align: right;
-    font-variant-numeric: tabular-nums;
-  }
-  .vt-pct {
-    color: rgba(200, 212, 207, 0.38);
-    font-size: 0.55rem;
-  }
-  .vt-dlt {
-    text-align: right;
-    font-variant-numeric: tabular-nums;
   }
 
   .cohort-hl {
@@ -1156,10 +1188,10 @@
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    padding: 0.85rem 0.6rem 0.4rem;
+    padding: 0.35rem 0.5rem 0.3rem;
     min-height: 0;
     scrollbar-width: thin;
-    scrollbar-color: rgba(176, 38, 255, 0.2) transparent;
+    scrollbar-color: rgba(176, 38, 255, 0.3) transparent;
   }
 
   .stream-hdr {
@@ -1182,9 +1214,8 @@
     display: grid;
     grid-template-columns: 7ch 9ch 1fr 5ch;
     gap: 0.45rem;
-    padding: 0.05rem 0;
-    line-height: 1.5;
-    font-size: 0.65rem;
+    padding: 0.06rem 0;
+    line-height: 1.55;
   }
 
   .sr-ts {
@@ -1193,21 +1224,29 @@
   }
   .sr-kind {
     font-weight: 600;
-    font-size: 0.62rem;
   }
+  /* Default (wrap off): detail scrolls horizontally inside its cell */
   .sr-detail {
     color: rgba(200, 212, 207, 0.72);
-    overflow: visible;
-    text-overflow: unset;
-    white-space: pre-wrap;
-    word-break: break-all;
+    overflow-x: auto;
+    overflow-y: hidden;
+    white-space: nowrap;
     min-width: 0;
+    scrollbar-width: none;
+  }
+  .sr-detail::-webkit-scrollbar {
+    display: none;
+  }
+  /* Wrap mode: detail wraps instead of scrolling */
+  .t-stream-wrap .sr-detail {
+    overflow-x: hidden;
+    white-space: pre-wrap;
+    word-break: break-word;
   }
   .sr-tag {
     text-align: right;
-    font-size: 0.6rem;
+    font-size: 0.61rem;
     letter-spacing: 0.05em;
-    font-weight: 600;
   }
 
   /* ── Empty state ────────────────────────────────────────────────────────── */
@@ -1223,7 +1262,7 @@
   @media (max-width: 1100px) {
     .t-root {
       height: auto;
-      min-height: calc(100dvh - 3.6rem);
+      min-height: 0;
     }
     .t-main {
       grid-template-columns: 1fr;
@@ -1234,10 +1273,6 @@
     }
     .t-col:last-child {
       border-bottom: none;
-    }
-    .t-panel-fill,
-    .t-panel-grow {
-      flex: none;
     }
     .t-stream {
       max-height: 60vh;
