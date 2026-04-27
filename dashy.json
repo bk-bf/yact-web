@@ -1,16 +1,16 @@
 {
   "project": "yact",
-  "worktree": "dev",
+  "worktree": "main",
   "services": [
     {
-      "id": "yact-web-dev",
-      "name": "Web · dev",
-      "port": 5180,
-      "pid_file": "/home/ubuntu/server/yact/.pids/web-dev.pid",
-      "start_cmd": "mkdir -p /home/ubuntu/server/yact/.pids && echo $$ > /home/ubuntu/server/yact/.pids/web-dev.pid && exec env YACT_WEB_PORT=5180 YACT_ANALYTICS_URL=http://localhost:8000 YACT_ENABLE_STATUS_PAGE=true pnpm run dev:web",
+      "id": "yact-web-main",
+      "name": "Web · main",
+      "port": 5175,
+      "pid_file": "/home/ubuntu/server/yact/.pids/web-main.pid",
+      "start_cmd": "mkdir -p /home/ubuntu/server/yact/.pids && echo $$ > /home/ubuntu/server/yact/.pids/web-main.pid && exec env YACT_WEB_PORT=5175 YACT_ANALYTICS_URL=http://localhost:8000 YACT_ENABLE_STATUS_PAGE=true pnpm run dev:web",
       "stop_cmd": null,
-      "log_file": "/home/ubuntu/server/yact/yact-web/features/dev/logs/web.log",
-      "cwd": "/home/ubuntu/server/yact/yact-web/features/dev"
+      "log_file": "/home/ubuntu/server/yact/yact-web/logs/web-main.log",
+      "cwd": "/home/ubuntu/server/yact/yact-web"
     }
   ]
 }
