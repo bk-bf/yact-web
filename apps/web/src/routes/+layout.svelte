@@ -29,9 +29,7 @@
   let coinCount = $state(0);
   let liveLoading = $state(true);
 
-  function getActivePage(
-    path: string,
-  ): "markets" | "dashboard" | "terminal" {
+  function getActivePage(path: string): "markets" | "dashboard" | "terminal" {
     if (path.startsWith("/dashboard")) return "dashboard";
     if (path.startsWith("/terminal")) return "terminal";
     return "markets";
