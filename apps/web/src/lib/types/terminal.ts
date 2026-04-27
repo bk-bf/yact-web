@@ -98,6 +98,7 @@ export interface TuiGlobalData {
   totalVolumeUsd: number;
   marketCapChangePercentage24hUsd?: number | null;
   btcDominance: number;
+  activeCryptocurrencies?: number | null;
 }
 
 // ── Regime event (T-304) ─────────────────────────────────────────────────────

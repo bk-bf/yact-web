@@ -9,16 +9,19 @@
     PnlStats,
   } from "$lib/types/terminal";
 
+  interface Props {
+    hlAddress?: string | null;
+    solAddress?: string | null;
+  }
+
+  let { hlAddress = null, solAddress = null }: Props = $props();
+
   // ── HL wallet state ─────────────────────────────────────────────────────────
-  let hlInput = $state("");
-  let hlAddress = $state<string | null>(null);
   let hlPortfolio = $state<HlPortfolio | null>(null);
   let hlLoading = $state(false);
   let hlError = $state<string | null>(null);
 
   // ── SOL wallet state ────────────────────────────────────────────────────────
-  let solInput = $state("");
-  let solAddress = $state<string | null>(null);
   let solPortfolio = $state<SolPortfolio | null>(null);
   let solLoading = $state(false);
   let solError = $state<string | null>(null);
@@ -45,66 +48,62 @@
       : 0,
   );
 
-  // ── Actions ─────────────────────────────────────────────────────────────────
-  async function connectHl() {
-    if (!browser || !hlInput.trim()) return;
-    hlAddress = hlInput.trim();
+  // ── Auto-fetch when addresses change ────────────────────────────────────────
+  $effect(() => {
+    if (!browser) return;
+    if (!hlAddress) {
+      hlPortfolio = null;
+      hlError = null;
+      return;
+    }
+    const addr = hlAddress;
     hlLoading = true;
     hlError = null;
     hlPortfolio = null;
-    try {
-      const r = await fetch(
-        `/api/terminal/hl-portfolio?address=${encodeURIComponent(hlAddress)}`,
-      );
-      const d = await r.json();
-      if ((d as { error?: string }).error) {
-        hlError = (d as { error: string }).error;
-      } else {
-        hlPortfolio = d as HlPortfolio;
-      }
-    } catch {
-      hlError = "Network error — check your connection";
-    } finally {
-      hlLoading = false;
-    }
-  }
+    fetch(`/api/terminal/hl-portfolio?address=${encodeURIComponent(addr)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if ((d as { error?: string }).error) {
+          hlError = (d as { error: string }).error;
+        } else {
+          hlPortfolio = d as HlPortfolio;
+        }
+      })
+      .catch(() => {
+        hlError = "Network error — check your connection";
+      })
+      .finally(() => {
+        hlLoading = false;
+      });
+  });
 
-  async function connectSol() {
-    if (!browser || !solInput.trim()) return;
-    solAddress = solInput.trim();
+  $effect(() => {
+    if (!browser) return;
+    if (!solAddress) {
+      solPortfolio = null;
+      solError = null;
+      return;
+    }
+    const addr = solAddress;
     solLoading = true;
     solError = null;
     solPortfolio = null;
-    try {
-      const r = await fetch(
-        `/api/terminal/sol-portfolio?address=${encodeURIComponent(solAddress)}`,
-      );
-      const d = await r.json();
-      if ((d as { error?: string }).error) {
-        solError = (d as { error: string }).error;
-      } else {
-        solPortfolio = d as SolPortfolio;
-      }
-    } catch {
-      solError = "Network error — check your connection";
-    } finally {
-      solLoading = false;
-    }
-  }
-
-  function disconnectHl() {
-    hlAddress = null;
-    hlPortfolio = null;
-    hlInput = "";
-    hlError = null;
-  }
-
-  function disconnectSol() {
-    solAddress = null;
-    solPortfolio = null;
-    solInput = "";
-    solError = null;
-  }
+    fetch(`/api/terminal/sol-portfolio?address=${encodeURIComponent(addr)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        if ((d as { error?: string }).error) {
+          solError = (d as { error: string }).error;
+        } else {
+          solPortfolio = d as SolPortfolio;
+        }
+      })
+      .catch(() => {
+        solError = "Network error — check your connection";
+      })
+      .finally(() => {
+        solLoading = false;
+      });
+  });
 
   function fmtUsd(v: number, decimals = 2): string {
     return `$${v.toLocaleString("en-US", {
@@ -126,26 +125,11 @@
       <span class="ws-name">HYPERLIQUID</span>
       {#if hlAddress}
         <span class="ws-addr">{shortenAddr(hlAddress)}</span>
-        <button class="ws-disc" onclick={disconnectHl} title="Disconnect"
-          >✕</button
-        >
       {/if}
     </div>
 
     {#if !hlAddress}
-      <div class="ws-input-row">
-        <input
-          class="ws-input"
-          bind:value={hlInput}
-          placeholder="0x… HL address (public)"
-          onkeydown={(e) => e.key === "Enter" && connectHl()}
-          spellcheck={false}
-          autocomplete="off"
-        />
-        <button class="ws-btn" onclick={connectHl} disabled={!hlInput.trim()}
-          >CONNECT</button
-        >
-      </div>
+      <div class="ws-nocfg">no wallet — configure in <span class="ws-key">[s]</span> settings</div>
     {:else if hlLoading}
       <div class="ws-loading"><LoadingDots label="Fetching HL data" /></div>
     {:else if hlError}
@@ -211,26 +195,11 @@
       <span class="ws-name">SOLANA / JUPITER</span>
       {#if solAddress}
         <span class="ws-addr">{shortenAddr(solAddress)}</span>
-        <button class="ws-disc" onclick={disconnectSol} title="Disconnect"
-          >✕</button
-        >
       {/if}
     </div>
 
     {#if !solAddress}
-      <div class="ws-input-row">
-        <input
-          class="ws-input"
-          bind:value={solInput}
-          placeholder="Solana public key"
-          onkeydown={(e) => e.key === "Enter" && connectSol()}
-          spellcheck={false}
-          autocomplete="off"
-        />
-        <button class="ws-btn" onclick={connectSol} disabled={!solInput.trim()}
-          >CONNECT</button
-        >
-      </div>
+      <div class="ws-nocfg">no wallet — configure in <span class="ws-key">[s]</span> settings</div>
     {:else if solLoading}
       <div class="ws-loading"><LoadingDots label="Fetching Solana data" /></div>
     {:else if solError}
@@ -355,7 +324,6 @@
     opacity: 0.35;
     cursor: not-allowed;
   }
-  .ws-loading {
     padding: 0.4rem 0;
   }
   :global(.ws-loading .loading-dots) {

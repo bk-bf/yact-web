@@ -34,8 +34,7 @@
   let headlines: TuiHeadline[] = $state([]);
   let newsRows: (TuiHeadline & { key: number })[] = $state([]);
   let globalData: TuiGlobalData | null = $state(null);
-  let liveDataLoading: boolean = $state(true);
-
+  let liveDataLoading: boolean = $state(true);  let totalCoinCount: number = $state(0);
   // T-305 — live signal bars (F&G, Funding, OI)
   let signalBars: BarItem[] = $state(placeholder.signalBars as BarItem[]);
   let signalBarsLoading: boolean = $state(false);
@@ -95,6 +94,8 @@
           .sort((a, b) => b.marketCap - a.marketCap)
           .slice(0, 12);
         if (d.global?.totalMarketCapUsd) globalData = d.global;
+        const active = d.global?.activeCryptocurrencies;
+        totalCoinCount = (typeof active === "number" && active > 0) ? active : coins.length;
       })
       .catch(() => {})
       .finally(() => {
@@ -171,7 +172,7 @@
 <div class="t-root">
   <TuiTopbar
     {globalData}
-    coinCount={coins.length}
+    coinCount={totalCoinCount}
     {clockTime}
     {blinkOn}
     loading={liveDataLoading}
