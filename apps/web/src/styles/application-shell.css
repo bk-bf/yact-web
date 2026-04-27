@@ -574,6 +574,13 @@ a {
     padding-top: var(--space-5);
 }
 
+.market-loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 12rem;
+}
+
 .m3-button-row {
     display: flex;
     gap: var(--space-3);

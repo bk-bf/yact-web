@@ -15,6 +15,7 @@
   import MarketOverviewPanel from "./MarketOverviewPanel.svelte";
   import MarketFilterBar from "./MarketFilterBar.svelte";
   import CoinTableRow from "./CoinTableRow.svelte";
+  import LoadingDots from "../../components/LoadingDots.svelte";
   import {
     createEmptyMarketsPageData,
     hasMeaningfulMarketsPayload,
@@ -54,6 +55,10 @@
       recoveredData = next;
     },
   );
+
+  // True while the route payload is empty and recovery retries are in progress.
+  // Guards the coin table so 0-data is never exposed to the user.
+  const isRecovering = $derived(!hasMeaningfulMarketsPayload(viewData));
 
   // Table sort state.
   type SortKey =
@@ -256,6 +261,10 @@
   </h2>
   {#if viewData.error}
     <p class="error-text">Unable to load market data: {viewData.error}</p>
+  {:else if isRecovering}
+    <div class="market-loading">
+      <LoadingDots label="Loading market data…" graceMs={8000} onExpired={() => {}} />
+    </div>
   {:else}
     <MarketFilterBar {activeFilter} onfilter={handleFilterSelect} />
 

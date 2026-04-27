@@ -15,6 +15,7 @@
   import TuiEntryWindow from "$lib/components/tui/TuiEntryWindow.svelte";
   import TuiNewsFeed from "$lib/components/tui/TuiNewsFeed.svelte";
   import TuiBottomBar from "$lib/components/tui/TuiBottomBar.svelte";
+  import TuiDashColumn from "$lib/components/tui/TuiDashColumn.svelte";
 
   import placeholder from "./terminal.placeholder.json";
   import type {
@@ -126,15 +127,15 @@
   <!-- ══ MAIN 3-COLUMN AREA ════════════════════════════════════════════════ -->
   <div class="t-main">
     <!-- ── LEFT COLUMN ──────────────────────────────────────────────────── -->
-    <div class="t-col-left">
+    <TuiDashColumn loading={false}>
       <TuiPortfolioPanel portfolio={placeholder.portfolio} />
       <TuiPositionsPanel positions={typedPositions} />
       <TuiSessionMetrics metrics={placeholder.sessionMetrics} />
       <TuiSignalBars bars={placeholder.signalBars} />
-    </div>
+    </TuiDashColumn>
 
-    <!-- ── CENTER COLUMN ─────────────────────────────────────────────────── -->
-    <div class="t-col-center">
+    <!-- ── CENTER COLUMN ────────────────────────────────────────────────── -->
+    <TuiDashColumn noScroll loading={false}>
       <TuiSignalStream
         rows={streamRows}
         {newestKey}
@@ -143,10 +144,10 @@
         streamLabel={placeholder.signalStreamLabel}
       />
       <TuiRecentTrades trades={placeholder.trades} />
-    </div>
+    </TuiDashColumn>
 
     <!-- ── RIGHT COLUMN ──────────────────────────────────────────────────── -->
-    <div class="t-col-right">
+    <TuiDashColumn noBorder loading={false}>
       <TuiOrderBook
         asks={typedAsks}
         bids={typedBids}
@@ -158,7 +159,7 @@
       />
       <TuiEntryWindow items={placeholder.entryWindow} />
       <TuiNewsFeed {newsRows} />
-    </div>
+    </TuiDashColumn>
   </div>
 
   <TuiBottomBar
@@ -209,28 +210,6 @@
     grid-template-columns: 17rem 1fr 19rem;
     overflow: hidden;
     border-bottom: 1px solid rgba(176, 38, 255, 0.15);
-  }
-
-  /* ── Columns ───────────────────────────────────────────────────────────── */
-  .t-col-left,
-  .t-col-right {
-    display: flex;
-    flex-direction: column;
-    overflow-y: auto;
-    overflow-x: hidden;
-    border-right: 1px solid rgba(176, 38, 255, 0.12);
-    scrollbar-width: thin;
-    scrollbar-color: rgba(176, 38, 255, 0.2) transparent;
-  }
-  .t-col-center {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    min-height: 0;
-    border-right: 1px solid rgba(176, 38, 255, 0.12);
-  }
-  .t-col-right {
-    border-right: none;
   }
 
   /* ── Scrollbar styling ─────────────────────────────────────────────────── */
