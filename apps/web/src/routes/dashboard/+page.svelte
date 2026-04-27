@@ -8,6 +8,8 @@
   import TuiPanel from "$lib/components/tui/TuiPanel.svelte";
   import TuiDashColumn from "$lib/components/tui/TuiDashColumn.svelte";
   import TuiStreamToolbar from "$lib/components/tui/TuiStreamToolbar.svelte";
+  import TuiFilterPanel from "$lib/components/tui/TuiFilterPanel.svelte";
+  import type { FilterSection } from "$lib/components/tui/TuiFilterPanel.svelte";
   import type { RefreshStateData, ProgressOverview, DbCohorts } from "./+page";
 
   type ProviderStatus = "healthy" | "rate_limited" | "error";
@@ -689,68 +691,65 @@
     <!-- ── CENTER COLUMN: LOG STREAM ───────────────────────────────────── -->
     <TuiDashColumn noScroll loading={false}>
       <div class="log-panel">
-        {#snippet filterDropdown()}
-          <div
-            class="log-filter-dropdown"
-            role="dialog"
-            aria-label="Log filters"
-          >
-            <div class="lfd-section">
-              <div class="lfd-label">
-                TIME{#if filterMinutes.size > 1}
-                  <span class="lfd-multi-hint">(union)</span>{/if}
-              </div>
-              <div class="lfd-chips">
-                {#each [[5, "5m"], [15, "15m"], [60, "1h"], [240, "4h"]] as [mins, label] (label)}
-                  <button
-                    class="lfd-chip"
-                    class:lfd-chip-on={filterMinutes.has(mins as number)}
-                    onclick={() => {
-                      filterMinutes = toggleSet(filterMinutes, mins as number);
-                    }}>{label}</button
-                  >
-                {/each}
-              </div>
-            </div>
-            <div class="lfd-section">
-              <div class="lfd-label">LEVEL</div>
-              <div class="lfd-chips">
-                {#each ["DEBUG", "INFO", "WARNING", "ERROR"] as lv (lv)}
-                  <button
-                    class="lfd-chip"
-                    class:lfd-chip-on={filterLevels.has(lv)}
-                    onclick={() => {
-                      filterLevels = toggleSet(filterLevels, lv);
-                    }}>{lv}</button
-                  >
-                {/each}
-              </div>
-            </div>
-            <div class="lfd-section">
-              <div class="lfd-label">TAG</div>
-              <div class="lfd-chips">
-                {#each ["ERR", "WARN", "LIMIT", "START", "OK", "SKIP", "INFO", "DBG"] as tg (tg)}
-                  <button
-                    class="lfd-chip"
-                    class:lfd-chip-on={filterTags.has(tg)}
-                    onclick={() => {
-                      filterTags = toggleSet(filterTags, tg);
-                    }}>{tg}</button
-                  >
-                {/each}
-              </div>
-            </div>
-            {#if activeFilterCount > 0}
-              <button
-                class="lfd-reset"
-                onclick={() => {
-                  filterLevels = new Set();
-                  filterTags = new Set();
-                  filterMinutes = new Set();
-                }}>CLEAR FILTERS</button
-              >
-            {/if}
-          </div>
+        {#snippet filterDropdown(anchor: HTMLButtonElement | null)}
+          <TuiFilterPanel
+            {anchor}
+            hasActive={activeFilterCount > 0}
+            onReset={() => {
+              filterLevels = new Set();
+              filterTags = new Set();
+              filterMinutes = new Set();
+            }}
+            sections={[
+              {
+                id: "time",
+                label: "TIME",
+                sublabel: filterMinutes.size > 1 ? "(union)" : undefined,
+                options: [
+                  { value: 5, label: "5m" },
+                  { value: 15, label: "15m" },
+                  { value: 60, label: "1h" },
+                  { value: 240, label: "4h" },
+                ] satisfies FilterSection["options"],
+                active: filterMinutes as Set<string | number>,
+                onToggle: (v) => {
+                  filterMinutes = toggleSet(filterMinutes, v as number);
+                },
+              },
+              {
+                id: "level",
+                label: "LEVEL",
+                options: [
+                  { value: "DEBUG", label: "DEBUG" },
+                  { value: "INFO", label: "INFO" },
+                  { value: "WARNING", label: "WARNING" },
+                  { value: "ERROR", label: "ERROR" },
+                ],
+                active: filterLevels as Set<string | number>,
+                onToggle: (v) => {
+                  filterLevels = toggleSet(filterLevels, v as string);
+                },
+              },
+              {
+                id: "tag",
+                label: "TAG",
+                options: [
+                  { value: "ERR", label: "ERR" },
+                  { value: "WARN", label: "WARN" },
+                  { value: "LIMIT", label: "LIMIT" },
+                  { value: "START", label: "START" },
+                  { value: "OK", label: "OK" },
+                  { value: "SKIP", label: "SKIP" },
+                  { value: "INFO", label: "INFO" },
+                  { value: "DBG", label: "DBG" },
+                ],
+                active: filterTags as Set<string | number>,
+                onToggle: (v) => {
+                  filterTags = toggleSet(filterTags, v as string);
+                },
+              },
+            ] satisfies FilterSection[]}
+          />
         {/snippet}
         <div class="log-plabel">
           <span class="log-plabel-text"
@@ -1014,84 +1013,6 @@
     min-width: 0;
   }
 
-  /* ── Log filter dropdown ───────────────────────────────────────────────── */
-  .log-filter-dropdown {
-    z-index: 200;
-    min-width: 13rem;
-    background: #0e1012;
-    border: 1px solid var(--tv-border);
-    padding: 0.5rem 0.6rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.45rem;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
-  }
-  .lfd-section {
-    display: flex;
-    flex-direction: column;
-    gap: 0.18rem;
-  }
-  .lfd-label {
-    font-size: 0.55rem;
-    letter-spacing: 0.1em;
-    color: rgba(176, 38, 255, 0.55);
-    margin-bottom: 0.1rem;
-  }
-  .lfd-multi-hint {
-    font-size: 0.5rem;
-    letter-spacing: 0.04em;
-    color: rgba(176, 38, 255, 0.35);
-    font-weight: 400;
-  }
-  .lfd-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.2rem;
-  }
-  .lfd-chip {
-    padding: 0.06rem 0.35rem;
-    font-family: inherit;
-    font-size: 0.6rem;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    background: transparent;
-    border: 1px solid var(--tv-border);
-    color: var(--tv-text-muted);
-    cursor: pointer;
-    transition:
-      color 0.1s,
-      border-color 0.1s,
-      background 0.1s;
-  }
-  .lfd-chip:hover {
-    border-color: rgba(176, 38, 255, 0.4);
-    color: var(--tv-text-primary);
-  }
-  .lfd-chip-on {
-    background: rgba(176, 38, 255, 0.15);
-    border-color: rgba(176, 38, 255, 0.5);
-    color: var(--tv-highlight-soft);
-  }
-  .lfd-reset {
-    margin-top: 0.1rem;
-    padding: 0.1rem 0.4rem;
-    font-family: inherit;
-    font-size: 0.58rem;
-    font-weight: 600;
-    letter-spacing: 0.07em;
-    background: transparent;
-    border: 1px solid rgba(255, 77, 87, 0.35);
-    color: rgba(255, 77, 87, 0.7);
-    cursor: pointer;
-    width: 100%;
-    transition:
-      color 0.1s,
-      border-color 0.1s;
-  }
-  .lfd-reset:hover {
-    color: #ff4d57;
-    border-color: #ff4d57;
-  }
   /* ── Metric rows ────────────────────────────────────────────────────────── */
   .m-row {
     display: grid;

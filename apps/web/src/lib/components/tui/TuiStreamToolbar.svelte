@@ -16,8 +16,8 @@
     onWrap?: () => void;
     /** If >= 0, render ≡ filter button with badge */
     activeFilterCount?: number;
-    /** Filter dropdown content, rendered inside the filter-wrap when open */
-    filterDropdown?: Snippet;
+    /** Filter panel snippet; receives the trigger button element as its first arg. */
+    filterDropdown?: Snippet<[HTMLButtonElement | null]>;
   }
 
   let {
@@ -33,17 +33,15 @@
   }: Props = $props();
 
   let filterOpen = $state(false);
-  let filterWrapEl = $state<HTMLElement | null>(null);
+  let filterBtnEl = $state<HTMLButtonElement | null>(null);
 
   $effect(() => {
     if (!filterOpen || !browser) return;
-    function onOutside(e: MouseEvent) {
-      if (filterWrapEl && !filterWrapEl.contains(e.target as Node)) {
-        filterOpen = false;
-      }
+    function onOutside() {
+      filterOpen = false;
     }
-    document.addEventListener("click", onOutside, true);
-    return () => document.removeEventListener("click", onOutside, true);
+    document.addEventListener("click", onOutside);
+    return () => document.removeEventListener("click", onOutside);
   });
 </script>
 
@@ -84,10 +82,11 @@
     >
   {/if}
   {#if activeFilterCount !== undefined}
-    <div class="stt-filter-wrap" bind:this={filterWrapEl}>
+    <div class="stt-filter-wrap">
       <button
         class="stt-btn"
         class:stt-act={activeFilterCount > 0}
+        bind:this={filterBtnEl}
         onclick={(e) => {
           e.stopPropagation();
           filterOpen = !filterOpen;
@@ -98,7 +97,7 @@
           >{/if}</button
       >
       {#if filterOpen && filterDropdown}
-        {@render filterDropdown()}
+        {@render filterDropdown(filterBtnEl)}
       {/if}
     </div>
   {/if}
