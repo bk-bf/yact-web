@@ -34,6 +34,10 @@
     if (k === "KILL") return "#ff4d57";
     if (k === "LAG") return "#d56bff";
     if (k === "SCAN") return "#f5a623";
+    // Regime event kinds (T-304)
+    if (k === "F&G") return "#f5a623";
+    if (k === "FUNDING") return "#b026ff";
+    if (k === "OI") return "#00d4ff";
     return "#9aa7a0";
   }
 

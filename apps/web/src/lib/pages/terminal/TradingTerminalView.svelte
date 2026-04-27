@@ -5,13 +5,10 @@
   import TuiTopbar from "$lib/components/tui/TuiTopbar.svelte";
   import TuiTickerBar from "$lib/components/tui/TuiTickerBar.svelte";
   import TuiPortfolioPanel from "$lib/components/tui/TuiPortfolioPanel.svelte";
-  import TuiPositionsPanel from "$lib/components/tui/TuiPositionsPanel.svelte";
-  import TuiSessionMetrics from "$lib/components/tui/TuiSessionMetrics.svelte";
   import TuiSignalBars from "$lib/components/tui/TuiSignalBars.svelte";
   import TuiSignalStream from "$lib/components/tui/TuiSignalStream.svelte";
   import TuiRecentTrades from "$lib/components/tui/TuiRecentTrades.svelte";
-  import TuiOrderBook from "$lib/components/tui/TuiOrderBook.svelte";
-  import TuiPnlSparkline from "$lib/components/tui/TuiPnlSparkline.svelte";
+  import TuiPriceDivergence from "$lib/components/tui/TuiPriceDivergence.svelte";
   import TuiEntryWindow from "$lib/components/tui/TuiEntryWindow.svelte";
   import TuiNewsFeed from "$lib/components/tui/TuiNewsFeed.svelte";
   import TuiBottomBar from "$lib/components/tui/TuiBottomBar.svelte";
@@ -23,14 +20,10 @@
     TuiGlobalData,
     TuiHeadline,
     LogEntry,
-    Position,
-    OBLevel,
+    BarItem,
+    PriceDivRow,
+    RegimeEvent,
   } from "$lib/types/terminal";
-
-  // JSON imports lose literal union types — narrow at the boundary
-  const typedPositions = placeholder.positions as Position[];
-  const typedAsks = placeholder.orderBook.asks as OBLevel[];
-  const typedBids = placeholder.orderBook.bids as OBLevel[];
 
   // ── Reactive state ─────────────────────────────────────────────────────────
   let clockTime: string = $state("--:--:--");
@@ -42,6 +35,17 @@
   let newsRows: (TuiHeadline & { key: number })[] = $state([]);
   let globalData: TuiGlobalData | null = $state(null);
   let liveDataLoading: boolean = $state(true);
+
+  // T-305 — live signal bars (F&G, Funding, OI)
+  let signalBars: BarItem[] = $state(placeholder.signalBars as BarItem[]);
+  let signalBarsLoading: boolean = $state(false);
+
+  // T-304 — live regime events injected into signal stream
+  let regimeEvents: RegimeEvent[] = $state([]);
+
+  // T-306 — cross-exchange price divergence
+  let priceDivCoins: Record<string, PriceDivRow[]> = $state({});
+  let priceDivLoading: boolean = $state(true);
 
   // ── Derived ────────────────────────────────────────────────────────────────
   const coinDur = $derived(Math.max(24, coins.length * 4));
@@ -57,7 +61,7 @@
     const clockId = setInterval(tick, 1000);
     const blinkId = setInterval(() => (blinkOn = !blinkOn), 600);
 
-    // Streaming signal log — infinite loop through placeholder log[], no pause/reset
+    // Placeholder signal log stream — loops through placeholder log[]
     let logIdx = 0,
       rowKey = 0;
     const streamId = setInterval(() => {
@@ -71,7 +75,7 @@
       ] as (LogEntry & { key: number })[];
     }, 480);
 
-    // Vertical news feed — stream in one headline every 2.8 s
+    // Vertical news feed
     let newsIdx = 0,
       newsKey = 0;
     const newsId = setInterval(() => {
@@ -82,7 +86,7 @@
       newsRows = [...newsRows.slice(-7), { ...h, key: k }];
     }, 2800);
 
-    // Top coins by market cap + global data (live DB)
+    // Top coins + global data
     fetch("/api/topcoins")
       .then((r) => r.json())
       .then((d: { coins?: TuiCoinItem[]; global?: TuiGlobalData }) => {
@@ -97,13 +101,57 @@
         liveDataLoading = false;
       });
 
-    // News headlines (live DB)
+    // News headlines
     fetch("/api/headlines")
       .then((r) => r.json())
       .then((d: { headlines?: TuiHeadline[] }) => {
         headlines = (d.headlines ?? []).slice(0, 12);
       })
       .catch(() => {});
+
+    // T-304 — fetch live regime events and inject into stream
+    fetch("/api/terminal/signal-events")
+      .then((r) => r.json())
+      .then((d: { events?: RegimeEvent[] }) => {
+        regimeEvents = d.events ?? [];
+        let rKey = rowKey;
+        for (const ev of regimeEvents) {
+          const k = ++rKey;
+          newestKey = k;
+          streamRows = [
+            ...streamRows.slice(-54),
+            { ts: ev.ts, kind: ev.kind, detail: ev.detail, tag: ev.tag as LogEntry["tag"], key: k },
+          ];
+        }
+        rowKey = rKey;
+      })
+      .catch(() => {});
+
+    // T-305 — fetch live signal bars
+    signalBarsLoading = true;
+    fetch("/api/terminal/signal-bars")
+      .then((r) => r.json())
+      .then((d: { bars?: BarItem[] }) => {
+        if (d.bars && d.bars.length > 0) {
+          signalBars = d.bars;
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        signalBarsLoading = false;
+      });
+
+    // T-306 — fetch cross-exchange price divergence
+    priceDivLoading = true;
+    fetch("/api/terminal/price-divergence")
+      .then((r) => r.json())
+      .then((d: { coins?: Record<string, PriceDivRow[]> }) => {
+        priceDivCoins = d.coins ?? {};
+      })
+      .catch(() => {})
+      .finally(() => {
+        priceDivLoading = false;
+      });
 
     return () => {
       clearInterval(clockId);
@@ -126,15 +174,13 @@
 
   <!-- ══ MAIN 3-COLUMN AREA ════════════════════════════════════════════════ -->
   <div class="t-main">
-    <!-- ── LEFT COLUMN ──────────────────────────────────────────────────── -->
+    <!-- ── LEFT COLUMN — Wallet tracker + signal bars ───────────────────── -->
     <TuiDashColumn loading={false}>
-      <TuiPortfolioPanel portfolio={placeholder.portfolio} />
-      <TuiPositionsPanel positions={typedPositions} />
-      <TuiSessionMetrics metrics={placeholder.sessionMetrics} />
-      <TuiSignalBars bars={placeholder.signalBars} />
+      <TuiPortfolioPanel />
+      <TuiSignalBars bars={signalBars} loading={signalBarsLoading} />
     </TuiDashColumn>
 
-    <!-- ── CENTER COLUMN ────────────────────────────────────────────────── -->
+    <!-- ── CENTER COLUMN — Regime signal stream + recent trades ─────────── -->
     <TuiDashColumn noScroll loading={false}>
       <TuiSignalStream
         rows={streamRows}
@@ -146,17 +192,9 @@
       <TuiRecentTrades trades={placeholder.trades} />
     </TuiDashColumn>
 
-    <!-- ── RIGHT COLUMN ──────────────────────────────────────────────────── -->
+    <!-- ── RIGHT COLUMN — Price divergence + entry window + news ─────────── -->
     <TuiDashColumn noBorder loading={false}>
-      <TuiOrderBook
-        asks={typedAsks}
-        bids={typedBids}
-        spread={placeholder.orderBook.spread}
-      />
-      <TuiPnlSparkline
-        pnlSeries={placeholder.pnlSeries}
-        stats={placeholder.pnlStats}
-      />
+      <TuiPriceDivergence coins={priceDivCoins} loading={priceDivLoading} />
       <TuiEntryWindow items={placeholder.entryWindow} />
       <TuiNewsFeed {newsRows} />
     </TuiDashColumn>

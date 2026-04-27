@@ -3,10 +3,7 @@ import { json } from "@sveltejs/kit";
 const ANALYTICS_BASE_URL =
   process.env.YACT_ANALYTICS_URL || "http://localhost:8000";
 
-async function safeGet(
-  fetchFn: typeof fetch,
-  url: string,
-): Promise<unknown> {
+async function safeGet(fetchFn: typeof fetch, url: string): Promise<unknown> {
   try {
     const r = await fetchFn(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) return null;
@@ -122,9 +119,8 @@ export async function GET({ fetch }) {
     // Compute change if we have 2 records
     if (oiRecords.length >= 2) {
       const prev = oiRecords[1] as { oi_usd: number };
-      const chg = prev.oi_usd > 0
-        ? ((oi.oi_usd - prev.oi_usd) / prev.oi_usd) * 100
-        : 0;
+      const chg =
+        prev.oi_usd > 0 ? ((oi.oi_usd - prev.oi_usd) / prev.oi_usd) * 100 : 0;
       if (Math.abs(chg) >= 0.5) {
         events.push({
           ts: fmtTs(oi.ts),

@@ -1,29 +1,40 @@
 <script lang="ts">
   import TuiPanel from "./TuiPanel.svelte";
+  import LoadingDots from "$lib/components/LoadingDots.svelte";
   import type { BarItem } from "$lib/types/terminal";
 
   interface Props {
     bars: BarItem[];
+    loading?: boolean;
   }
 
-  let { bars }: Props = $props();
+  let { bars, loading = false }: Props = $props();
 </script>
 
 <TuiPanel label="SIGNAL STRENGTH" grow>
-  {#each bars as b}
-    <div class="bar-row">
-      <span class="bar-l">{b.l}</span>
-      <span class="bar-track"
-        ><span class="bar-fill" style="width:{b.pct}%"></span></span
-      >
-      <span
-        class="bar-pct"
-        class:pos={b.pct >= 70}
-        class:warn={b.pct >= 50 && b.pct < 70}
-        class:neg={b.pct < 50}>{b.pct}%</span
-      >
-    </div>
-  {/each}
+  {#if loading}
+    <LoadingDots label="Loading signal bars" />
+  {:else}
+    {#each bars as b}
+      <div class="bar-row" title={b.raw ?? ""}>
+        <span class="bar-l">
+          {b.l}
+          {#if b.source === "live"}
+            <span class="bar-live">●</span>
+          {/if}
+        </span>
+        <span class="bar-track"
+          ><span class="bar-fill" style="width:{b.pct}%"></span></span
+        >
+        <span
+          class="bar-pct"
+          class:pos={b.pct >= 70}
+          class:warn={b.pct >= 50 && b.pct < 70}
+          class:neg={b.pct < 50}>{b.pct}%</span
+        >
+      </div>
+    {/each}
+  {/if}
 </TuiPanel>
 
 <style>
@@ -37,6 +48,11 @@
   .bar-l {
     color: rgba(200, 212, 207, 0.48);
     font-size: 0.63rem;
+  }
+  .bar-live {
+    color: #1ddf72;
+    font-size: 0.5rem;
+    vertical-align: middle;
   }
   .bar-pct {
     text-align: right;

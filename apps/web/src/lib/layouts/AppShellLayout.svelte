@@ -198,6 +198,33 @@
     }
   });
 
+  // SSE subscription: the server pushes fresh /markets data every ~5 s.
+  // EventSource reconnects automatically on disconnect or server restart.
+  $effect(() => {
+    if (!browser) {
+      return;
+    }
+
+    const es = new EventSource("/api/markets/stream");
+
+    es.onmessage = (event) => {
+      try {
+        const payload = JSON.parse(event.data) as MarketsLayoutPayload;
+        if (payload.global && hasMeaningfulGlobal(payload.global)) {
+          sharedGlobal = payload.global;
+        }
+        window.dispatchEvent(
+          new CustomEvent("yact:markets-sync", { detail: payload }),
+        );
+      } catch {
+        // Ignore unparseable SSE frames.
+      }
+    };
+
+    return () => es.close();
+  });
+
+  // Headlines poll — headlines change infrequently; 30 s is sufficient.
   $effect(() => {
     if (!browser) {
       return;
@@ -205,43 +232,13 @@
 
     let cancelled = false;
 
-    const syncFloatingData = async () => {
+    const syncHeadlines = async () => {
       try {
-        const marketsResponse = await fetch(`/api/markets?_ts=${Date.now()}`, {
+        const res = await fetch(`/api/headlines?_ts=${Date.now()}`, {
           cache: "no-store",
         });
-        if (marketsResponse.ok) {
-          const payload =
-            (await marketsResponse.json()) as MarketsLayoutPayload;
-          if (
-            !cancelled &&
-            payload.global &&
-            hasMeaningfulGlobal(payload.global)
-          ) {
-            sharedGlobal = payload.global;
-          }
-
-          if (!cancelled) {
-            window.dispatchEvent(
-              new CustomEvent("yact:markets-sync", {
-                detail: payload,
-              }),
-            );
-          }
-        }
-      } catch {
-        // Ignore transient fetch errors; keep last known values.
-      }
-
-      try {
-        const headlinesResponse = await fetch(
-          `/api/headlines?_ts=${Date.now()}`,
-          {
-            cache: "no-store",
-          },
-        );
-        if (headlinesResponse.ok) {
-          const payload = (await headlinesResponse.json()) as HeadlinesPayload;
+        if (res.ok) {
+          const payload = (await res.json()) as HeadlinesPayload;
           if (!cancelled && Array.isArray(payload.headlines)) {
             sharedHeadlines = payload.headlines;
           }
@@ -251,10 +248,8 @@
       }
     };
 
-    void syncFloatingData();
-    const timer = window.setInterval(() => {
-      void syncFloatingData();
-    }, 30_000);
+    void syncHeadlines();
+    const timer = window.setInterval(() => void syncHeadlines(), 30_000);
 
     return () => {
       cancelled = true;
