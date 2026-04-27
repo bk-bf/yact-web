@@ -106,7 +106,10 @@
         <span class="cd-hint">Δ</span>
       </div>
       {#each fieldGroups.breakdown as [key, count] (key)}
-        {@const delta = previousMissing !== undefined ? (previousMissing[key] ?? count) - count : null}
+        {@const delta =
+          previousMissing !== undefined
+            ? (previousMissing[key] ?? count) - count
+            : null}
         {@const filled = totalCoins - count}
         <div class="cd-row cd-row-4">
           <span class="cd-k">{fieldLabel(key)}</span>
@@ -144,7 +147,10 @@
         <span class="cd-hint">Δ</span>
       </div>
       {#each fieldGroups.charts as [key, count] (key)}
-        {@const delta = previousMissing !== undefined ? (previousMissing[key] ?? count) - count : null}
+        {@const delta =
+          previousMissing !== undefined
+            ? (previousMissing[key] ?? count) - count
+            : null}
         {@const filled = totalCoins - count}
         <div class="cd-row cd-row-4">
           <span class="cd-k">{fieldLabel(key)}</span>

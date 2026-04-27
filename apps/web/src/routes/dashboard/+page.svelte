@@ -7,11 +7,7 @@
   import CoverageBreakdown from "$lib/components/CoverageBreakdown.svelte";
   import TuiPanel from "$lib/components/tui/TuiPanel.svelte";
   import TuiStreamToolbar from "$lib/components/tui/TuiStreamToolbar.svelte";
-  import type {
-    RefreshStateData,
-    ProgressOverview,
-    DbCohorts,
-  } from "./+page";
+  import type { RefreshStateData, ProgressOverview, DbCohorts } from "./+page";
 
   type ProviderStatus = "healthy" | "rate_limited" | "error";
 

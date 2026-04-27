@@ -52,13 +52,13 @@
     <button
       class="stt-tab"
       class:stt-act={source === "miner"}
-      onclick={() => onSourceChange!("miner")}
-    >MINER</button>
+      onclick={() => onSourceChange!("miner")}>MINER</button
+    >
     <button
       class="stt-tab"
       class:stt-act={source === "api"}
-      onclick={() => onSourceChange!("api")}
-    >API</button>
+      onclick={() => onSourceChange!("api")}>API</button
+    >
   {/if}
   {#if onReconnect}
     <button class="stt-btn" onclick={onReconnect} title="Reconnect">↻</button>
@@ -68,25 +68,35 @@
       class="stt-btn"
       class:stt-act={reversed}
       onclick={onFlip}
-      title={reversed ? "Newest at top — click to flip" : "Newest at bottom — click to flip"}
-    >⇅</button>
+      title={reversed
+        ? "Newest at top — click to flip"
+        : "Newest at bottom — click to flip"}>⇅</button
+    >
   {/if}
   {#if onWrap}
     <button
       class="stt-btn"
       class:stt-act={wrapped}
       onclick={onWrap}
-      title={wrapped ? "Word wrap on — click to disable" : "Word wrap off — click to enable"}
-    >↵</button>
+      title={wrapped
+        ? "Word wrap on — click to disable"
+        : "Word wrap off — click to enable"}>↵</button
+    >
   {/if}
   {#if activeFilterCount !== undefined}
     <div class="stt-filter-wrap" bind:this={filterWrapEl}>
       <button
         class="stt-btn"
         class:stt-act={activeFilterCount > 0}
-        onclick={(e) => { e.stopPropagation(); filterOpen = !filterOpen; }}
+        onclick={(e) => {
+          e.stopPropagation();
+          filterOpen = !filterOpen;
+        }}
         title="Filters"
-      >≡{#if activeFilterCount > 0}<span class="stt-badge">{activeFilterCount}</span>{/if}</button>
+        >≡{#if activeFilterCount > 0}<span class="stt-badge"
+            >{activeFilterCount}</span
+          >{/if}</button
+      >
       {#if filterOpen && filterDropdown}
         {@render filterDropdown()}
       {/if}
@@ -120,7 +130,9 @@
     color: rgba(200, 212, 207, 0.45);
     cursor: pointer;
     white-space: nowrap;
-    transition: color 0.12s, border-color 0.12s;
+    transition:
+      color 0.12s,
+      border-color 0.12s;
   }
 
   .stt-tab:hover,
