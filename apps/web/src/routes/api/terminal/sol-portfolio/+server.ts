@@ -76,21 +76,22 @@ export async function GET({ url, fetch }) {
       };
     };
 
-    const rawTokens: { mint: string; uiBalance: number; decimals: number }[] =
-      (((tokenResult as { value?: TokenAccount[] }) ?? {}).value ?? [])
-        .map((ta) => {
-          const info = ta.account?.data?.parsed?.info;
-          const mint = info?.mint;
-          const amt = info?.tokenAmount;
-          if (!mint || !amt || (amt.uiAmount ?? 0) === 0) return null;
-          return {
-            mint,
-            uiBalance: amt.uiAmount ?? 0,
-            decimals: amt.decimals ?? 0,
-          };
-        })
-        .filter((t): t is NonNullable<typeof t> => t !== null)
-        .slice(0, 20);
+    const rawTokens: { mint: string; uiBalance: number; decimals: number }[] = (
+      ((tokenResult as { value?: TokenAccount[] }) ?? {}).value ?? []
+    )
+      .map((ta) => {
+        const info = ta.account?.data?.parsed?.info;
+        const mint = info?.mint;
+        const amt = info?.tokenAmount;
+        if (!mint || !amt || (amt.uiAmount ?? 0) === 0) return null;
+        return {
+          mint,
+          uiBalance: amt.uiAmount ?? 0,
+          decimals: amt.decimals ?? 0,
+        };
+      })
+      .filter((t): t is NonNullable<typeof t> => t !== null)
+      .slice(0, 20);
 
     // Fetch prices for SOL + all token mints from Jupiter
     const mintIds = [SOL_MINT, ...rawTokens.map((t) => t.mint)].join(",");
@@ -101,7 +102,9 @@ export async function GET({ url, fetch }) {
         signal: controller.signal,
       });
       if (pr.ok) {
-        const pd = (await pr.json()) as { data?: Record<string, JupPriceEntry> };
+        const pd = (await pr.json()) as {
+          data?: Record<string, JupPriceEntry>;
+        };
         prices = pd.data ?? {};
       }
     } catch {
@@ -142,7 +145,8 @@ export async function GET({ url, fetch }) {
 
     const portfolio: SolPortfolio = {
       address,
-      solBalance: Number((balanceResult as { value?: number }).value ?? 0) / 1e9,
+      solBalance:
+        Number((balanceResult as { value?: number }).value ?? 0) / 1e9,
       solPriceUsd,
       tokens,
       recentTxCount,

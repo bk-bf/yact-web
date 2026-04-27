@@ -3,10 +3,7 @@ import { json } from "@sveltejs/kit";
 const ANALYTICS_BASE_URL =
   process.env.YACT_ANALYTICS_URL || "http://localhost:8000";
 
-async function safeGet(
-  fetchFn: typeof fetch,
-  url: string,
-): Promise<unknown> {
+async function safeGet(fetchFn: typeof fetch, url: string): Promise<unknown> {
   try {
     const r = await fetchFn(url, { signal: AbortSignal.timeout(6000) });
     if (!r.ok) return null;
@@ -34,13 +31,14 @@ export async function GET({ fetch }) {
     | { score: number; classification: string }
     | null
     | undefined;
-  const fgScore =
-    typeof fgItem?.score === "number" ? fgItem.score : undefined;
+  const fgScore = typeof fgItem?.score === "number" ? fgItem.score : undefined;
   const fgBar = {
     l: "F&G",
     pct: fgScore ?? 0,
-    source: fgScore !== undefined ? ("live" as const) : ("placeholder" as const),
-    raw: fgScore !== undefined ? `${fgScore} · ${fgItem!.classification}` : "N/A",
+    source:
+      fgScore !== undefined ? ("live" as const) : ("placeholder" as const),
+    raw:
+      fgScore !== undefined ? `${fgScore} · ${fgItem!.classification}` : "N/A",
   };
 
   // Funding rate bar: map rate to 0–100 with 50 = neutral.

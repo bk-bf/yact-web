@@ -126,7 +126,9 @@
       <span class="ws-name">HYPERLIQUID</span>
       {#if hlAddress}
         <span class="ws-addr">{shortenAddr(hlAddress)}</span>
-        <button class="ws-disc" onclick={disconnectHl} title="Disconnect">✕</button>
+        <button class="ws-disc" onclick={disconnectHl} title="Disconnect"
+          >✕</button
+        >
       {/if}
     </div>
 
@@ -140,10 +142,8 @@
           spellcheck={false}
           autocomplete="off"
         />
-        <button
-          class="ws-btn"
-          onclick={connectHl}
-          disabled={!hlInput.trim()}>CONNECT</button
+        <button class="ws-btn" onclick={connectHl} disabled={!hlInput.trim()}
+          >CONNECT</button
         >
       </div>
     {:else if hlLoading}
@@ -165,16 +165,24 @@
 
       {#if hlPortfolio.positions.length > 0}
         <div class="pos-hdr">
-          <span>COIN</span><span>DIR/SZI</span><span>ENTRY</span><span>PNL</span>
+          <span>COIN</span><span>DIR/SZI</span><span>ENTRY</span><span>PNL</span
+          >
         </div>
         {#each hlPortfolio.positions.slice(0, 8) as pos}
           <div class="pos-row">
             <span class="pos-coin">{pos.coin}</span>
-            <span class:pos={pos.side === "long"} class:neg={pos.side === "short"}>
+            <span
+              class:pos={pos.side === "long"}
+              class:neg={pos.side === "short"}
+            >
               {pos.side === "long" ? "▲" : "▼"}
               {Math.abs(pos.szi).toFixed(Math.abs(pos.szi) < 0.01 ? 6 : 4)}
             </span>
-            <span class="muted">${pos.entryPx.toLocaleString("en-US", { maximumFractionDigits: 0 })}</span>
+            <span class="muted"
+              >${pos.entryPx.toLocaleString("en-US", {
+                maximumFractionDigits: 0,
+              })}</span
+            >
             <span
               class:pos={pos.unrealizedPnl >= 0}
               class:neg={pos.unrealizedPnl < 0}
@@ -203,7 +211,9 @@
       <span class="ws-name">SOLANA / JUPITER</span>
       {#if solAddress}
         <span class="ws-addr">{shortenAddr(solAddress)}</span>
-        <button class="ws-disc" onclick={disconnectSol} title="Disconnect">✕</button>
+        <button class="ws-disc" onclick={disconnectSol} title="Disconnect"
+          >✕</button
+        >
       {/if}
     </div>
 
@@ -217,10 +227,8 @@
           spellcheck={false}
           autocomplete="off"
         />
-        <button
-          class="ws-btn"
-          onclick={connectSol}
-          disabled={!solInput.trim()}>CONNECT</button
+        <button class="ws-btn" onclick={connectSol} disabled={!solInput.trim()}
+          >CONNECT</button
         >
       </div>
     {:else if solLoading}

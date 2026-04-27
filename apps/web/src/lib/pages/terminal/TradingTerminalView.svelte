@@ -120,7 +120,13 @@
           newestKey = k;
           streamRows = [
             ...streamRows.slice(-54),
-            { ts: ev.ts, kind: ev.kind, detail: ev.detail, tag: ev.tag as LogEntry["tag"], key: k },
+            {
+              ts: ev.ts,
+              kind: ev.kind,
+              detail: ev.detail,
+              tag: ev.tag as LogEntry["tag"],
+              key: k,
+            },
           ];
         }
         rowKey = rKey;

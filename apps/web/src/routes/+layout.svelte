@@ -58,10 +58,12 @@
             coins?: unknown[];
           };
           if (data.global) globalData = data.global;
-          const activeCount = (data.global as Record<string, unknown>)?.activeCryptocurrencies;
-          coinCount = (typeof activeCount === "number" && activeCount > 0)
-            ? activeCount
-            : (data.coins?.length ?? 0);
+          const activeCount = (data.global as unknown as Record<string, unknown>)
+            ?.activeCryptocurrencies;
+          coinCount =
+            typeof activeCount === "number" && activeCount > 0
+              ? activeCount
+              : (data.coins?.length ?? 0);
         }
       } catch {
         /* keep last known state */
