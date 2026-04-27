@@ -129,10 +129,14 @@
     const d = detail.toLowerCase();
     if (level === "ERROR" || level === "CRITICAL")
       return { label: "ERR", color: "#ff4d57" };
+    if (d.includes("guard triggered"))
+      return { label: "GUARD", color: "#ff4d57" };
     if (d.includes("429") || d.includes("rate limit"))
       return { label: "LIMIT", color: "#f5a623" };
     if (level === "WARNING" || level === "WARN")
       return { label: "WARN", color: "#f5a623" };
+    if (d.includes("update price_source changed"))
+      return { label: "UPDATE", color: "#b48aff" };
     if (d.includes("start") || d.includes("launch") || d.includes("init"))
       return { label: "START", color: "#1ddf72" };
     if (d.includes("complete") || d.includes("success") || d.includes("finish"))
@@ -509,6 +513,16 @@
           <div class="m-row">
             <span class="m-k">interval</span><span class="m-v"
               >{progress?.intervalSec ? `${progress.intervalSec}s` : "—"}</span
+            >
+          </div>
+          <div class="m-row">
+            <span class="m-k">mcap guards</span><span
+              class="m-v"
+              style="color:{(refreshState.current_state?.ticker_guard_hits ??
+                0) > 0
+                ? 'var(--status-warn)'
+                : 'var(--status-ok)'};"
+              >{refreshState.current_state?.ticker_guard_hits ?? 0}</span
             >
           </div>
         {/if}

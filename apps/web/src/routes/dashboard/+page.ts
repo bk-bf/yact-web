@@ -11,6 +11,7 @@ export interface RefreshStateData {
     status_code?: number | null;
     consecutive_failures?: number;
     interval_sec?: number;
+    ticker_guard_hits?: number;
   } | null;
 }
 

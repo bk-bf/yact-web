@@ -8,6 +8,7 @@ applyTo: "**"
 
 ## Agent rules
 
+- **Never work on `main`** — all web changes go through `feat/dev` (or another feature branch). Only merge to `main` when explicitly instructed by the user.
 - Never commit or push unprompted.
 - Always use `YYYY-MM-DD` date format.
 - Work on one branch at a time.
