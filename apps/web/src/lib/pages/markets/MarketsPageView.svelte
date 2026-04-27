@@ -14,6 +14,7 @@
   } from "../../composables/useViewSettings.svelte";
   import MarketOverviewPanel from "./MarketOverviewPanel.svelte";
   import MarketFilterBar from "./MarketFilterBar.svelte";
+  import WatchlistView from "./WatchlistView.svelte";
   import CoinTableRow from "./CoinTableRow.svelte";
   import LoadingDots from "../../components/LoadingDots.svelte";
   import {
@@ -74,11 +75,11 @@
   let sortKey = $state<SortKey>("rank");
   let sortDir = $state<SortDir>("asc");
 
-  // Ephemeral filter selection — page-level state, not persisted anywhere.
-  let activeFilter = $state("Top 100");
+  // Filter selection — persisted in localStorage via useViewSettings.
+  const activeFilter = $derived(settings.activeFilter);
 
   function handleFilterSelect(label: string) {
-    activeFilter = label;
+    settings.activeFilter = label;
     renderedCount = 20; // reset progressive render on filter change
   }
 
@@ -272,51 +273,55 @@
   {:else}
     <MarketFilterBar {activeFilter} onfilter={handleFilterSelect} />
 
-    <div class="market-table-wrap">
-      <table class="market-table">
-        <thead>
-          <tr>
-            {#snippet sortTh(
-              key:
-                | "rank"
-                | "name"
-                | "price"
-                | "change24h"
-                | "change7d"
-                | "marketCap"
-                | "volume"
-                | "supply",
-              label: string,
-            )}
-              <th class={sortKey === key ? "th--sorted" : ""}>
-                <button class="sort-btn" onclick={() => toggleSort(key)}>
-                  {label}<span class="sort-icon" aria-hidden="true"
-                    >{sortKey === key
-                      ? sortDir === "asc"
-                        ? "▲"
-                        : "▼"
-                      : "⇅"}</span
-                  >
-                </button>
-              </th>
-            {/snippet}
-            <th class="th-watchlist" aria-label="Watchlist"></th>
-            {@render sortTh("rank", "Rank")}
-            {@render sortTh("name", "Coin")}
-            {@render sortTh("price", "Price")}
-            {@render sortTh("change24h", "24h")}
-            {@render sortTh("change7d", "7d")}
-            {@render sortTh("marketCap", "Market Cap")}
-            {@render sortTh("volume", "Volume (24h)")}
-            {@render sortTh("supply", "Circulating Supply")}
-          </tr>
-        </thead>
-        <tbody>
-          {#each filteredCoins.slice(0, renderedCount) as coin}
-            <CoinTableRow {coin} {jitter} />
-          {/each}
-        </tbody>
-      </table>
-    </div>
+    {#if activeFilter === "Watchlist"}
+      <WatchlistView />
+    {:else}
+      <div class="market-table-wrap">
+        <table class="market-table">
+          <thead>
+            <tr>
+              {#snippet sortTh(
+                key:
+                  | "rank"
+                  | "name"
+                  | "price"
+                  | "change24h"
+                  | "change7d"
+                  | "marketCap"
+                  | "volume"
+                  | "supply",
+                label: string,
+              )}
+                <th class={sortKey === key ? "th--sorted" : ""}>
+                  <button class="sort-btn" onclick={() => toggleSort(key)}>
+                    {label}<span class="sort-icon" aria-hidden="true"
+                      >{sortKey === key
+                        ? sortDir === "asc"
+                          ? "▲"
+                          : "▼"
+                        : "⇅"}</span
+                    >
+                  </button>
+                </th>
+              {/snippet}
+              <th class="th-watchlist" aria-label="Watchlist"></th>
+              {@render sortTh("rank", "Rank")}
+              {@render sortTh("name", "Coin")}
+              {@render sortTh("price", "Price")}
+              {@render sortTh("change24h", "24h")}
+              {@render sortTh("change7d", "7d")}
+              {@render sortTh("marketCap", "Market Cap")}
+              {@render sortTh("volume", "Volume (24h)")}
+              {@render sortTh("supply", "Circulating Supply")}
+            </tr>
+          </thead>
+          <tbody>
+            {#each filteredCoins.slice(0, renderedCount) as coin}
+              <CoinTableRow {coin} {jitter} />
+            {/each}
+          </tbody>
+        </table>
+      </div>
+    {/if}
   {/if}
 </section>

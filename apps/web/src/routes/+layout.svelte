@@ -31,8 +31,7 @@
 
   function getActivePage(
     path: string,
-  ): "markets" | "watchlist" | "dashboard" | "terminal" {
-    if (path.startsWith("/watchlist")) return "watchlist";
+  ): "markets" | "dashboard" | "terminal" {
     if (path.startsWith("/dashboard")) return "dashboard";
     if (path.startsWith("/terminal")) return "terminal";
     return "markets";

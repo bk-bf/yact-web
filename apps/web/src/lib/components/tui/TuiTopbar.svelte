@@ -7,7 +7,7 @@
     clockTime: string;
     blinkOn: boolean;
     loading?: boolean;
-    activePage?: "markets" | "watchlist" | "dashboard" | "terminal";
+    activePage?: "markets" | "dashboard" | "terminal";
   }
 
   let {
@@ -39,11 +39,6 @@
         href="/"
         class="t-nav-link"
         class:t-nav-active={activePage === "markets"}>Markets</a
-      >
-      <a
-        href="/watchlist"
-        class="t-nav-link"
-        class:t-nav-active={activePage === "watchlist"}>Watchlist</a
       >
       <a
         href="/dashboard"

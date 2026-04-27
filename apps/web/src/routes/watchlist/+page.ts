@@ -1,5 +1,7 @@
+import { redirect } from "@sveltejs/kit";
 import type { PageLoad } from "./$types";
 
-import { createInitialWatchlistPageData } from "../../lib/pages/watchlist/watchlist-page.data";
+export const load: PageLoad = () => {
+    redirect(301, "/");
+};
 
-export const load: PageLoad = async () => createInitialWatchlistPageData();

@@ -15,6 +15,7 @@ export interface ViewSettings {
     overviewStyle: OverviewStyleVariant;
     showMarketCapPill: boolean;
     chartEngine: ChartEngineVariant;
+    activeFilter: string;
 }
 
 export const VIEW_SETTINGS_KEY = "yact:view-settings";
@@ -27,11 +28,13 @@ function loadPersistedSettings(): {
     overviewStyle: OverviewStyleVariant;
     showMarketCapPill: boolean;
     chartEngine: ChartEngineVariant;
+    activeFilter: string;
 } {
     const defaults = {
         overviewStyle: "separate" as OverviewStyleVariant,
         showMarketCapPill: true,
         chartEngine: "lightweight" as ChartEngineVariant,
+        activeFilter: "Top 100",
     };
     try {
         const raw =
@@ -50,6 +53,10 @@ function loadPersistedSettings(): {
             chartEngine: VALID_ENGINES.includes(parsed.chartEngine)
                 ? parsed.chartEngine
                 : defaults.chartEngine,
+            activeFilter:
+                typeof parsed.activeFilter === "string" && parsed.activeFilter.trim()
+                    ? parsed.activeFilter
+                    : defaults.activeFilter,
         };
     } catch {
         return defaults;
@@ -61,12 +68,13 @@ export function createViewSettings(): ViewSettings {
     let overviewStyle = $state<OverviewStyleVariant>(persisted.overviewStyle);
     let showMarketCapPill = $state(persisted.showMarketCapPill);
     let chartEngine = $state<ChartEngineVariant>(persisted.chartEngine);
+    let activeFilter = $state<string>(persisted.activeFilter);
 
     function persist() {
         try {
             localStorage.setItem(
                 STORAGE_KEY,
-                JSON.stringify({ overviewStyle, showMarketCapPill, chartEngine }),
+                JSON.stringify({ overviewStyle, showMarketCapPill, chartEngine, activeFilter }),
             );
         } catch {
             // storage unavailable (private browsing quota, etc.) — silently ignore
@@ -93,6 +101,13 @@ export function createViewSettings(): ViewSettings {
         },
         set chartEngine(v: ChartEngineVariant) {
             chartEngine = v;
+            persist();
+        },
+        get activeFilter() {
+            return activeFilter;
+        },
+        set activeFilter(v: string) {
+            activeFilter = v;
             persist();
         },
     };

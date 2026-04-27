@@ -11,6 +11,7 @@
     const FILTER_LABELS = [
         "Top 100",
         "Trending",
+        "Watchlist",
         "New Listings",
         "Layer 1",
         "DeFi",
