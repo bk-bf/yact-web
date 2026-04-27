@@ -384,7 +384,7 @@
             "pct": 85
         },
         {
-            "l": "CHAINLINK",
+            "l": "VENUE SPREAD",
             "pct": 45
         },
         {
@@ -427,7 +427,7 @@
             "c": "pos"
         },
         {
-            "k": "CHAINLINK",
+            "k": "VENUE SPREAD",
             "v": "SYNCED",
             "c": "pos"
         },
@@ -510,5 +510,5 @@
         "branch": "feat/trading-terminal",
         "meta": "yact v0.1  ·  1,847 pairs  ·  3 accounts  ·  85% coverage"
     },
-    "signalStreamLabel": "BTC 5m  ──  ETH 15m  ──  SCANNING 1,847 PAIRS"
+    "signalStreamLabel": "REGIME MONITOR  ──  F&G · FUNDING · OI"
 }

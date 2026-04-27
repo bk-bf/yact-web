@@ -51,6 +51,8 @@ export interface MetricItem {
 export interface BarItem {
   l: string;
   pct: number;
+  source?: "live" | "placeholder";
+  raw?: string;
 }
 
 export interface PortfolioRow {
@@ -96,6 +98,61 @@ export interface TuiGlobalData {
   totalVolumeUsd: number;
   marketCapChangePercentage24hUsd?: number | null;
   btcDominance: number;
+}
+
+// ── Regime event (T-304) ─────────────────────────────────────────────────────
+export interface RegimeEvent {
+  ts: string;
+  kind: string;
+  detail: string;
+  tag: SignalTag;
+  source: "fg" | "fr" | "oi" | "system";
+}
+
+// ── Price divergence (T-306) ─────────────────────────────────────────────────
+export interface PriceDivRow {
+  exchange: string;
+  symbol: string;
+  price: number;
+  pctFromMid: number;
+  updatedAt: string;
+}
+
+// ── HyperLiquid portfolio (T-307) ────────────────────────────────────────────
+export interface HlPosition {
+  coin: string;
+  szi: number;
+  entryPx: number;
+  unrealizedPnl: number;
+  returnOnEquity: number;
+  side: "long" | "short";
+}
+
+export interface HlPortfolio {
+  address: string;
+  accountValue: number;
+  totalUnrealizedPnl: number;
+  positions: HlPosition[];
+  pnlHistory: { t: number; v: number }[];
+}
+
+// ── Solana / Jupiter portfolio (T-308) ───────────────────────────────────────
+export interface SolTokenBalance {
+  mint: string;
+  symbol: string;
+  balance: number;
+  uiBalance: number;
+  decimals: number;
+  priceUsd: number | null;
+  valueUsd: number | null;
+}
+
+export interface SolPortfolio {
+  address: string;
+  solBalance: number;
+  solPriceUsd: number | null;
+  tokens: SolTokenBalance[];
+  recentTxCount: number;
 }
 
 export interface TuiHeadline {
