@@ -71,7 +71,12 @@
 
     // Global [s] key to toggle settings
     function handleKey(e: KeyboardEvent) {
-      if (e.key === "s" && !settingsOpen && !(e.target instanceof HTMLInputElement) && !(e.target instanceof HTMLTextAreaElement)) {
+      if (
+        e.key === "s" &&
+        !settingsOpen &&
+        !(e.target instanceof HTMLInputElement) &&
+        !(e.target instanceof HTMLTextAreaElement)
+      ) {
         settingsOpen = true;
       }
     }
@@ -229,16 +234,24 @@
   <TuiBottomBar
     branch={placeholder.bottomBar.branch}
     meta={placeholder.bottomBar.meta}
-    onSettings={() => { settingsOpen = true; }}
+    onSettings={() => {
+      settingsOpen = true;
+    }}
   />
 
   <TuiSettingsPanel
     open={settingsOpen}
     {hlAddress}
     {solAddress}
-    onclose={() => { settingsOpen = false; }}
-    onSetHl={(addr) => { hlAddress = addr; }}
-    onSetSol={(addr) => { solAddress = addr; }}
+    onclose={() => {
+      settingsOpen = false;
+    }}
+    onSetHl={(addr) => {
+      hlAddress = addr;
+    }}
+    onSetSol={(addr) => {
+      solAddress = addr;
+    }}
   />
 
   <!-- CRT scanline overlay -->
