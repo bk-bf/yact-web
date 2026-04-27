@@ -1,99 +1,102 @@
-import type { MarketCoin } from '../../types/market';
+import type { MarketCoin } from "../../types/market";
 
 interface GlobalMarketSummary {
-    totalMarketCapUsd: number;
-    totalVolumeUsd: number;
-    marketCapChangePercentage24hUsd: number;
-    btcDominance: number;
-    ethDominance: number;
-    totalExchanges: number;
-    activeCryptocurrencies: number;
-    gasGwei: number | null;
-    marketCapSparkline7d: number[];
+  totalMarketCapUsd: number;
+  totalVolumeUsd: number;
+  marketCapChangePercentage24hUsd: number;
+  btcDominance: number;
+  ethDominance: number;
+  totalExchanges: number;
+  activeCryptocurrencies: number;
+  gasGwei: number | null;
+  marketCapSparkline7d: number[];
 }
 
 interface MarketHighlights {
-    trending: MarketCoin[];
-    topGainers: MarketCoin[];
+  trending: MarketCoin[];
+  topGainers: MarketCoin[];
 }
 
 interface CryptoHeadline {
-    id: string;
-    title: string;
-    url: string;
-    source: string;
-    publishedAt: string;
+  id: string;
+  title: string;
+  url: string;
+  source: string;
+  publishedAt: string;
 }
 
 interface MarketsResponse {
-    source: string;
-    count: number;
-    coins: MarketCoin[];
-    global: GlobalMarketSummary;
-    headlines: CryptoHeadline[];
-    highlights: MarketHighlights;
-    snapshotTs?: number;
-    ts?: number;
-    stale?: boolean;
-    error?: string;
+  count: number;
+  coins: MarketCoin[];
+  global: GlobalMarketSummary;
+  headlines: CryptoHeadline[];
+  highlights: MarketHighlights;
+  snapshotTs?: number;
+  ts?: number;
+  stale?: boolean;
+  error?: string;
 }
 
 const EMPTY_GLOBAL: GlobalMarketSummary = {
-    totalMarketCapUsd: 0,
-    totalVolumeUsd: 0,
-    marketCapChangePercentage24hUsd: 0,
-    btcDominance: 0,
-    ethDominance: 0,
-    totalExchanges: 0,
-    activeCryptocurrencies: 0,
-    gasGwei: null,
-    marketCapSparkline7d: []
+  totalMarketCapUsd: 0,
+  totalVolumeUsd: 0,
+  marketCapChangePercentage24hUsd: 0,
+  btcDominance: 0,
+  ethDominance: 0,
+  totalExchanges: 0,
+  activeCryptocurrencies: 0,
+  gasGwei: null,
+  marketCapSparkline7d: [],
 };
 
 const EMPTY_HIGHLIGHTS: MarketHighlights = {
-    trending: [],
-    topGainers: []
+  trending: [],
+  topGainers: [],
 };
 
 export type MarketsPageData = ReturnType<typeof normalizeMarketsPayload>;
 
 function normalizeMarketsPayload(payload: Partial<MarketsResponse> | null) {
-    const safePayload = payload ?? {};
-    const safeHighlights: Partial<MarketHighlights> = safePayload.highlights ?? {};
-    const safeGlobal: Partial<GlobalMarketSummary> = safePayload.global ?? {};
+  const safePayload = payload ?? {};
+  const safeHighlights: Partial<MarketHighlights> =
+    safePayload.highlights ?? {};
+  const safeGlobal: Partial<GlobalMarketSummary> = safePayload.global ?? {};
 
-    return {
-        coins: Array.isArray(safePayload.coins) ? safePayload.coins : [],
-        global: {
-            ...EMPTY_GLOBAL,
-            ...safeGlobal,
-            marketCapSparkline7d: Array.isArray(safeGlobal.marketCapSparkline7d)
-                ? safeGlobal.marketCapSparkline7d
-                : EMPTY_GLOBAL.marketCapSparkline7d,
-        },
-        headlines: Array.isArray(safePayload.headlines) ? safePayload.headlines : [],
-        highlights: {
-            trending: Array.isArray(safeHighlights.trending)
-                ? safeHighlights.trending
-                : EMPTY_HIGHLIGHTS.trending,
-            topGainers: Array.isArray(safeHighlights.topGainers)
-                ? safeHighlights.topGainers
-                : EMPTY_HIGHLIGHTS.topGainers,
-        },
-        source: safePayload.source ?? 'analytics-api',
-        snapshotTs: safePayload.snapshotTs ?? safePayload.ts ?? null,
-        stale: safePayload.stale ?? false,
-        error: safePayload.error ?? undefined
-    };
+  return {
+    coins: Array.isArray(safePayload.coins) ? safePayload.coins : [],
+    global: {
+      ...EMPTY_GLOBAL,
+      ...safeGlobal,
+      marketCapSparkline7d: Array.isArray(safeGlobal.marketCapSparkline7d)
+        ? safeGlobal.marketCapSparkline7d
+        : EMPTY_GLOBAL.marketCapSparkline7d,
+    },
+    headlines: Array.isArray(safePayload.headlines)
+      ? safePayload.headlines
+      : [],
+    highlights: {
+      trending: Array.isArray(safeHighlights.trending)
+        ? safeHighlights.trending
+        : EMPTY_HIGHLIGHTS.trending,
+      topGainers: Array.isArray(safeHighlights.topGainers)
+        ? safeHighlights.topGainers
+        : EMPTY_HIGHLIGHTS.topGainers,
+    },
+    snapshotTs: safePayload.snapshotTs ?? safePayload.ts ?? null,
+    stale: safePayload.stale ?? false,
+    error: safePayload.error ?? undefined,
+  };
 }
 
-export function hasMeaningfulMarketsPayload(payload: ReturnType<typeof normalizeMarketsPayload>): boolean {
-    return (
-        payload.coins.length > 0 ||
-        payload.global.totalMarketCapUsd > 0 ||
-        payload.highlights.trending.length > 0 ||
-        payload.highlights.topGainers.length > 0
-    );
+export function hasMeaningfulMarketsPayload(
+  payload: ReturnType<typeof normalizeMarketsPayload>,
+): boolean {
+  return (
+    payload.coins.length > 0 ||
+    payload.global.totalMarketCapUsd > 0 ||
+    payload.highlights.trending.length > 0 ||
+    payload.highlights.topGainers.length > 0
+  );
 }
 
 // Module-level cache — persists across SvelteKit client-side navigations.
@@ -108,60 +111,60 @@ let _marketsDataCache: MarketsPageData | null = null;
 let _marketsDataCachedAt = 0;
 
 export function getMarketsDataCache(): MarketsPageData | null {
-    if (!_marketsDataCache) return null;
-    if (Date.now() - _marketsDataCachedAt > MARKETS_CACHE_TTL_MS) return null;
-    return _marketsDataCache;
+  if (!_marketsDataCache) return null;
+  if (Date.now() - _marketsDataCachedAt > MARKETS_CACHE_TTL_MS) return null;
+  return _marketsDataCache;
 }
 
 export function isMarketsDataCacheStale(): boolean {
-    if (!_marketsDataCache) return true;
-    return Date.now() - _marketsDataCachedAt > MARKETS_CACHE_TTL_MS;
+  if (!_marketsDataCache) return true;
+  return Date.now() - _marketsDataCachedAt > MARKETS_CACHE_TTL_MS;
 }
 
 export function setMarketsDataCache(data: MarketsPageData): void {
-    if (hasMeaningfulMarketsPayload(data)) {
-        _marketsDataCache = data;
-        _marketsDataCachedAt = Date.now();
-    }
+  if (hasMeaningfulMarketsPayload(data)) {
+    _marketsDataCache = data;
+    _marketsDataCachedAt = Date.now();
+  }
 }
 
 export function createEmptyMarketsPageData(): MarketsPageData {
-    return normalizeMarketsPayload(null);
+  return normalizeMarketsPayload(null);
 }
 
 export function coerceMarketsPageData(
-    payload: Partial<MarketsResponse> | null,
+  payload: Partial<MarketsResponse> | null,
 ): MarketsPageData {
-    return normalizeMarketsPayload(payload);
+  return normalizeMarketsPayload(payload);
 }
 
 async function fetchMarketsPayload(
-    fetchFn: typeof fetch,
-    timeoutMs: number,
+  fetchFn: typeof fetch,
+  timeoutMs: number,
 ): Promise<MarketsPageData | null> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), timeoutMs);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  try {
+    const response = await fetchFn("/api/markets", {
+      signal: controller.signal,
+    });
+
+    let payload: Partial<MarketsResponse> = {};
     try {
-        const response = await fetchFn('/api/markets', {
-            signal: controller.signal,
-        });
-
-        let payload: Partial<MarketsResponse> = {};
-        try {
-            payload = (await response.json()) as Partial<MarketsResponse>;
-        } catch {
-            payload = {};
-        }
-
-        return normalizeMarketsPayload(
-            response.ok ? payload : { ...payload, stale: true },
-        );
+      payload = (await response.json()) as Partial<MarketsResponse>;
     } catch {
-        return null;
-    } finally {
-        clearTimeout(timer);
+      payload = {};
     }
+
+    return normalizeMarketsPayload(
+      response.ok ? payload : { ...payload, stale: true },
+    );
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -170,9 +173,9 @@ async function fetchMarketsPayload(
  * Always returns populated data or empty structure, never null.
  */
 export async function loadMarketsPageData(
-    fetchFn: typeof fetch,
-    timeoutMs = 3000,
+  fetchFn: typeof fetch,
+  timeoutMs = 3000,
 ): Promise<MarketsPageData> {
-    const result = await fetchMarketsPayload(fetchFn, timeoutMs);
-    return result ?? createEmptyMarketsPageData();
+  const result = await fetchMarketsPayload(fetchFn, timeoutMs);
+  return result ?? createEmptyMarketsPageData();
 }

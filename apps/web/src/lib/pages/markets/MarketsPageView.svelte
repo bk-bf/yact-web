@@ -102,10 +102,14 @@
           return dir * a.name.localeCompare(b.name);
         case "price":
           return dir * (a.currentPrice - b.currentPrice);
-        case "change24h":
-          return (
-            dir * (a.priceChangePercentage24h - b.priceChangePercentage24h)
-          );
+        case "change24h": {
+          const av = a.priceChangePercentage24h;
+          const bv = b.priceChangePercentage24h;
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          return dir * (av - bv);
+        }
         case "change7d":
           return (
             dir *
@@ -118,8 +122,14 @@
           return dir * (a.totalVolume24h - b.totalVolume24h);
         case "supply":
           return dir * (a.circulatingSupply - b.circulatingSupply);
-        default:
-          return dir * (a.marketCapRank - b.marketCapRank);
+        default: {
+          const av = a.marketCapRank;
+          const bv = b.marketCapRank;
+          if (av == null && bv == null) return 0;
+          if (av == null) return 1;
+          if (bv == null) return -1;
+          return dir * (av - bv);
+        }
       }
     });
     return coins;
@@ -136,7 +146,12 @@
   };
 
   const filteredCoins = $derived.by(() => {
-    if (activeFilter === "Top 100" || activeFilter === "All") {
+    if (activeFilter === "Top 100") {
+      return sortedCoins.filter(
+        (coin) => coin.marketCapRank != null && coin.marketCapRank <= 100,
+      );
+    }
+    if (activeFilter === "All") {
       return sortedCoins;
     }
     if (activeFilter === "Trending") {
@@ -291,6 +306,4 @@
       </table>
     </div>
   {/if}
-
-  <p class="market-footnote">Live source: {viewData.source}</p>
 </section>
