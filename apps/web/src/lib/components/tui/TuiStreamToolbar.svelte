@@ -11,6 +11,9 @@
     /** If provided, render ⇅ flip button; pass current reversed state */
     reversed?: boolean;
     onFlip?: () => void;
+    /** If provided, render ↵ wrap toggle button; pass current wrapped state */
+    wrapped?: boolean;
+    onWrap?: () => void;
     /** If >= 0, render ≡ filter button with badge */
     activeFilterCount?: number;
     /** Filter dropdown content, rendered inside the filter-wrap when open */
@@ -23,6 +26,8 @@
     onReconnect,
     reversed = false,
     onFlip,
+    wrapped = false,
+    onWrap,
     activeFilterCount,
     filterDropdown,
   }: Props = $props();
@@ -65,6 +70,14 @@
       onclick={onFlip}
       title={reversed ? "Newest at top — click to flip" : "Newest at bottom — click to flip"}
     >⇅</button>
+  {/if}
+  {#if onWrap}
+    <button
+      class="stt-btn"
+      class:stt-act={wrapped}
+      onclick={onWrap}
+      title={wrapped ? "Word wrap on — click to disable" : "Word wrap off — click to enable"}
+    >↵</button>
   {/if}
   {#if activeFilterCount !== undefined}
     <div class="stt-filter-wrap" bind:this={filterWrapEl}>

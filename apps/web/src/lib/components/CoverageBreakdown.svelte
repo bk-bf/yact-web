@@ -3,8 +3,6 @@
     MissingClarity,
     MetadataStage,
     PriceTier,
-    FieldVelocity,
-    FieldVelocityEntry,
   } from "../../routes/dashboard/+page.js";
 
   interface Props {
@@ -12,7 +10,7 @@
     metadataStage: MetadataStage | undefined;
     totalCoins: number;
     priceTier: PriceTier | undefined;
-    fieldVelocity: FieldVelocity | undefined;
+    previousMissing: Record<string, number> | undefined;
   }
 
   let {
@@ -20,7 +18,7 @@
     metadataStage,
     totalCoins,
     priceTier,
-    fieldVelocity,
+    previousMissing,
   }: Props = $props();
 
   const fieldGroups = $derived.by(() => {
@@ -31,16 +29,6 @@
       breakdown: entries.filter(([k]) => k.startsWith("breakdown.")),
       charts: entries.filter(([k]) => k.startsWith("charts.")),
     };
-  });
-
-  const velocityMap = $derived.by(() => {
-    const map = new Map<string, FieldVelocityEntry>();
-    for (const entry of fieldVelocity?.fields ?? []) {
-      map.set(entry.field, entry);
-      const short = entry.field.split(".").slice(1).join(".");
-      if (short) map.set(short, entry);
-    }
-    return map;
   });
 
   function fieldLabel(key: string): string {
@@ -118,8 +106,7 @@
         <span class="cd-hint">Δ</span>
       </div>
       {#each fieldGroups.breakdown as [key, count] (key)}
-        {@const vel = velocityMap.get(key) ?? velocityMap.get(fieldLabel(key))}
-        {@const delta = vel?.delta ?? null}
+        {@const delta = previousMissing !== undefined ? (previousMissing[key] ?? count) - count : null}
         {@const filled = totalCoins - count}
         <div class="cd-row cd-row-4">
           <span class="cd-k">{fieldLabel(key)}</span>
@@ -157,8 +144,7 @@
         <span class="cd-hint">Δ</span>
       </div>
       {#each fieldGroups.charts as [key, count] (key)}
-        {@const vel = velocityMap.get(key) ?? velocityMap.get(fieldLabel(key))}
-        {@const delta = vel?.delta ?? null}
+        {@const delta = previousMissing !== undefined ? (previousMissing[key] ?? count) - count : null}
         {@const filled = totalCoins - count}
         <div class="cd-row cd-row-4">
           <span class="cd-k">{fieldLabel(key)}</span>

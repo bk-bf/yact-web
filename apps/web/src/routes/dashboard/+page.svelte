@@ -11,7 +11,6 @@
     RefreshStateData,
     ProgressOverview,
     DbCohorts,
-    FieldVelocity,
   } from "./+page";
 
   type ProviderStatus = "healthy" | "rate_limited" | "error";
@@ -25,11 +24,10 @@
 
   let refreshState = $state<RefreshStateData | null>(null);
   let progress = $state<ProgressOverview | null>(null);
-  let fieldVelocity = $state<FieldVelocity | null>(null);
+  let prevMissingFields = $state<Record<string, number> | null>(null);
   let providers = $state<ProviderHealth[]>([]);
   let coreLoading = $state(true);
   let progressLoading = $state(true);
-  let velocityLoading = $state(true);
   let lastUpdated = $state<Date | null>(null);
 
   // ── Log viewer state ────────────────────────────────────────────────────────
@@ -317,7 +315,11 @@
       .then(async (res) => {
         if (res.ok) {
           const payload = await res.json();
-          if (payload) progress = payload as ProgressOverview;
+          if (payload) {
+            const prev = progress?.missingClarity?.topMissingItemsByField;
+            if (prev) prevMissingFields = prev;
+            progress = payload as ProgressOverview;
+          }
         }
       })
       .catch(() => {
@@ -325,20 +327,6 @@
       })
       .finally(() => {
         progressLoading = false;
-      });
-
-    const velocityPromise = fetch("/api/progress/velocity")
-      .then(async (res) => {
-        if (res.ok) {
-          const payload = await res.json();
-          if (payload) fieldVelocity = payload as FieldVelocity;
-        }
-      })
-      .catch(() => {
-        /* keep last known state */
-      })
-      .finally(() => {
-        velocityLoading = false;
       });
 
     try {
@@ -350,9 +338,7 @@
       lastUpdated = new Date();
     }
 
-    // progress and velocity settle in the background
     await progressPromise;
-    await velocityPromise;
   }
 
   onMount(() => {
@@ -839,7 +825,7 @@
             metadataStage={progress.metadataStage}
             totalCoins={progress.missingClarity?.expectedCoins ?? 0}
             priceTier={progress.priceTier}
-            fieldVelocity={fieldVelocity ?? undefined}
+            previousMissing={prevMissingFields ?? undefined}
           />
         {/if}
       </TuiPanel>
