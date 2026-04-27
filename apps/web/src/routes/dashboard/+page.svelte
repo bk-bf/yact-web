@@ -6,6 +6,7 @@
   import CoverageDetail from "$lib/components/CoverageDetail.svelte";
   import CoverageBreakdown from "$lib/components/CoverageBreakdown.svelte";
   import TuiPanel from "$lib/components/tui/TuiPanel.svelte";
+  import TuiDashColumn from "$lib/components/tui/TuiDashColumn.svelte";
   import TuiStreamToolbar from "$lib/components/tui/TuiStreamToolbar.svelte";
   import type { RefreshStateData, ProgressOverview, DbCohorts } from "./+page";
 
@@ -57,9 +58,11 @@
   // 'empty'   : grace expired, still no lines → show empty message
   // 'content' : at least one raw line received → show rows (filter handled below)
   const logPhase = $derived(
-    logLines.length > 0 ? ('content' as const)
-    : logGraceExpired   ? ('empty'   as const)
-    :                     ('loading' as const)
+    logLines.length > 0
+      ? ("content" as const)
+      : logGraceExpired
+        ? ("empty" as const)
+        : ("loading" as const),
   );
 
   // ── Live SSE stream ──────────────────────────────────────────────────────────
@@ -428,7 +431,7 @@
   <!-- ══ MAIN 3-PANE GRID ═══════════════════════════════════════════════════ -->
   <div class="t-main">
     <!-- ── LEFT COLUMN: Operations ─────────────────────────────────────── -->
-    <div class="t-col t-col-l">
+    <TuiDashColumn loading={coreLoading || progressLoading}>
       <!-- Alerts (cycle errors surfaced here, not as a layout-shifting banner) -->
       {#if refreshState && !refreshState.last_cycle_success && refreshState.current_state?.error}
         <div class="alert-panel-wrap">
@@ -682,9 +685,9 @@
           />
         {/if}
       </TuiPanel>
-    </div>
+    </TuiDashColumn>
     <!-- ── CENTER COLUMN: LOG STREAM ───────────────────────────────────── -->
-    <div class="t-col t-col-c">
+    <TuiDashColumn noScroll loading={false}>
       <div class="log-panel">
         {#snippet filterDropdown()}
           <div
@@ -780,13 +783,15 @@
           class:t-stream-wrap={logWrap}
           bind:this={streamEl}
         >
-          {#if logPhase === 'loading'}
+          {#if logPhase === "loading"}
             <LoadingDots
               label="Loading logs"
               graceMs={5000}
-              onExpired={() => { logGraceExpired = true; }}
+              onExpired={() => {
+                logGraceExpired = true;
+              }}
             />
-          {:else if logPhase === 'empty'}
+          {:else if logPhase === "empty"}
             <p class="t-empty">no log lines found</p>
           {:else if parsedLogLines.length === 0}
             <p class="t-empty">no lines match current filter</p>
@@ -813,9 +818,9 @@
           {/if}
         </div>
       </div>
-    </div>
+    </TuiDashColumn>
     <!-- ── RIGHT COLUMN: Breakdown + Fill Tracker ──────────────────────── -->
-    <div class="t-col t-col-r">
+    <TuiDashColumn noBorder loading={progressLoading}>
       <!-- Coverage Breakdown -->
       <TuiPanel
         label="BREAKDOWN // {progress?.missingClarity
@@ -836,7 +841,7 @@
           />
         {/if}
       </TuiPanel>
-    </div>
+    </TuiDashColumn>
   </div>
 </main>
 
@@ -973,25 +978,6 @@
     flex: 1;
     display: grid;
     grid-template-columns: 17rem 1fr 19rem;
-    overflow: hidden;
-  }
-
-  .t-col {
-    display: flex;
-    flex-direction: column;
-    min-height: 0;
-    min-width: 0;
-    overflow-y: auto;
-    overflow-x: hidden;
-    border-right: 1px solid var(--tui-col-border, rgba(176, 38, 255, 0.12));
-    scrollbar-width: thin;
-    scrollbar-color: var(--tui-panel-grow-scrollbar, rgba(176, 38, 255, 0.15))
-      transparent;
-  }
-  .t-col-r {
-    border-right: none;
-  }
-  .t-col-c {
     overflow: hidden;
   }
 
@@ -1259,13 +1245,6 @@
     }
     .t-main {
       grid-template-columns: 1fr;
-    }
-    .t-col {
-      border-right: none;
-      border-bottom: 1px solid rgba(176, 38, 255, 0.15);
-    }
-    .t-col:last-child {
-      border-bottom: none;
     }
     .t-stream {
       max-height: 60vh;

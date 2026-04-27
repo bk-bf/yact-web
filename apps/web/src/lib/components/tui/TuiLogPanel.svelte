@@ -30,9 +30,11 @@
   let logEl: HTMLElement | null = $state(null);
 
   const logPhase = $derived(
-    rawLines.length > 0 ? ('content' as const)
-    : logGraceExpired   ? ('empty'   as const)
-    :                     ('loading' as const)
+    rawLines.length > 0
+      ? ("content" as const)
+      : logGraceExpired
+        ? ("empty" as const)
+        : ("loading" as const),
   );
   let keyCounter = 0;
   let es: EventSource | null = null;
@@ -197,13 +199,15 @@
   </div>
 
   <div class="lp-body" bind:this={logEl}>
-    {#if logPhase === 'loading'}
+    {#if logPhase === "loading"}
       <LoadingDots
         label="waiting for log stream"
         graceMs={5000}
-        onExpired={() => { logGraceExpired = true; }}
+        onExpired={() => {
+          logGraceExpired = true;
+        }}
       />
-    {:else if logPhase === 'empty'}
+    {:else if logPhase === "empty"}
       <div class="lp-waiting">no log data received</div>
     {:else if filteredLines.length === 0}
       <div class="lp-waiting">no lines match filter</div>
