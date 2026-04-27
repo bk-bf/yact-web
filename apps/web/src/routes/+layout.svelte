@@ -58,8 +58,9 @@
             coins?: unknown[];
           };
           if (data.global) globalData = data.global;
-          const activeCount = (data.global as unknown as Record<string, unknown>)
-            ?.activeCryptocurrencies;
+          const activeCount = (
+            data.global as unknown as Record<string, unknown>
+          )?.activeCryptocurrencies;
           coinCount =
             typeof activeCount === "number" && activeCount > 0
               ? activeCount
